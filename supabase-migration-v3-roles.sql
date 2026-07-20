@@ -177,6 +177,15 @@ create or replace function public.prevent_removing_last_admin()
 returns trigger language plpgsql security definer set search_path = ''
 as $$
 begin
+  -- Wird durch die "on delete cascade"-Kette beim Löschen der ganzen Con
+  -- ausgelöst (con_members hängt an cons), nicht nur durch gezieltes
+  -- Entfernen/Herabstufen eines Mitglieds. In dem Fall existiert die Con zu
+  -- diesem Zeitpunkt bereits nicht mehr (Elternzeile ist im selben Statement
+  -- vorher gelöscht worden) — dann greift der Schutz nicht, sonst könnte eine
+  -- Con mit nur einem Admin nie gelöscht werden (Super-Admin eingeschlossen).
+  if TG_OP = 'DELETE' and not exists (select 1 from public.cons where id = old.con_id) then
+    return old;
+  end if;
   if (TG_OP = 'DELETE' and old.role = 'admin' and old.status = 'accepted')
      or (TG_OP = 'UPDATE' and old.role = 'admin' and old.status = 'accepted'
          and (new.role <> 'admin' or new.status <> 'accepted')) then
