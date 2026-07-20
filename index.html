@@ -4,871 +4,163 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Con-Raumplan</title>
-<style>
-  :root {
-    color-scheme: light dark;
-    --page:           #f9f9f7;
-    --surface-1:      #fcfcfb;
-    --text-primary:   #0b0b0b;
-    --text-secondary: #52514e;
-    --text-muted:     #898781;
-    --grid:           #e1e0d9;
-    --baseline:       #c3c2b7;
-    --border:         rgba(11,11,11,0.10);
-    --series-1:       #2a78d6;
-    --band:           #f0efec;
-    --good:           #006300;
-    --warn:           #b3261e;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --page:           #0d0d0d;
-      --surface-1:      #1a1a19;
-      --text-primary:   #ffffff;
-      --text-secondary: #c3c2b7;
-      --text-muted:     #898781;
-      --grid:           #2c2c2a;
-      --baseline:       #383835;
-      --border:         rgba(255,255,255,0.10);
-      --series-1:       #3987e5;
-      --band:           #262624;
-      --good:           #0ca30c;
-      --warn:           #ff8a80;
-    }
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--page); color: var(--text-primary);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    line-height: 1.5; padding: 28px 16px 64px;
-  }
-  .wrap { max-width: 1100px; margin: 0 auto; }
-  h1 { font-size: 1.45rem; font-weight: 700; text-wrap: balance; }
-  .sub { color: var(--text-secondary); font-size: .9rem; margin-top: 4px; }
-  #status { font-size: .82rem; color: var(--text-muted); margin: 10px 0; }
-  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-  .skip-link { position: absolute; left: -9999px; top: 0; background: var(--surface-1); padding: 8px 14px; border-radius: 6px; z-index: 30; }
-  .skip-link:focus { left: 8px; top: 8px; }
-  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
-    outline: 2px solid var(--series-1); outline-offset: 2px; border-radius: 3px;
-  }
-  button, select, input, textarea { font: inherit; color: var(--text-primary); }
-  button {
-    background: var(--surface-1); border: 1px solid var(--baseline); border-radius: 7px;
-    padding: 6px 12px; cursor: pointer; font-size: .86rem;
-  }
-  button.primary { background: var(--series-1); border-color: var(--series-1); color: #fff; }
-  button.small { padding: 2px 8px; font-size: .76rem; }
-  button.danger { color: var(--warn); border-color: var(--warn); }
-  input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="search"], textarea, select {
-    background: var(--page); border: 1px solid var(--baseline); border-radius: 7px; padding: 6px 10px; font-size: .9rem; max-width: 100%;
-  }
-  .banner {
-    margin: 12px 0; padding: 9px 14px; border-radius: 10px;
-    background: var(--band); border: 1px solid var(--border); font-size: .86rem;
-  }
-  .controls {
-    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-    margin: 16px 0; padding: 10px 12px;
-    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
-  }
-  .controls .spacer { margin-left: auto; }
-  .slot-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
-  .slot-tabs button[aria-pressed="true"] { background: var(--series-1); border-color: var(--series-1); color: #fff; }
-
-  .card {
-    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
-    padding: 16px 18px; margin-bottom: 18px;
-  }
-  .card h2 { font-size: 1.02rem; margin-bottom: 4px; }
-  .card .hint { font-size: .8rem; color: var(--text-secondary); margin-bottom: 12px; }
-
-  .chipbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; min-height: 34px; }
-  .chip {
-    display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    background: var(--page); border: 1px solid var(--baseline); border-radius: 9px;
-    padding: 5px 10px; font-size: .84rem; max-width: 100%;
-  }
-  .chip.ws { border-style: dashed; }
-  .chip a { color: inherit; font-weight: 600; text-decoration: none; }
-  .chip a:hover { text-decoration: underline; }
-  .chip .meta { color: var(--text-secondary); font-size: .76rem; white-space: nowrap; }
-  .chip[draggable="true"] { cursor: grab; }
-  .chip.dragging { opacity: .5; }
-  .badge {
-    display: inline-block; padding: 0 8px; border-radius: 999px; font-size: .72rem; font-weight: 600;
-    background: var(--band); color: var(--text-secondary); border: 1px solid var(--border); white-space: nowrap;
-  }
-  .badge.warn { color: var(--warn); border-color: var(--warn); background: transparent; }
-  .badge.good { color: var(--good); border-color: var(--good); background: transparent; }
-
-  #board { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
-  .room { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 14px 10px; }
-  .room-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
-  .room-head h3 { font-size: .98rem; }
-  .room-head .floor { color: var(--text-muted); font-size: .78rem; }
-  .room-badges { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 8px; }
-  .room-notes { font-size: .78rem; color: var(--text-secondary); margin-bottom: 8px; }
-  .tablebox {
-    border: 1px solid var(--grid); border-radius: 9px; padding: 8px 10px; margin-bottom: 8px;
-    background: var(--page);
-  }
-  .tablebox.dragover { border-color: var(--series-1); box-shadow: 0 0 0 2px var(--series-1) inset; }
-  .tablebox .thead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .82rem; margin-bottom: 6px; }
-  .tablebox .thead b { font-weight: 600; }
-  .tablebox .thead .seats { color: var(--text-muted); }
-  .tablebox .free { color: var(--text-muted); font-size: .8rem; }
-  .room-actions, .table-actions { display: inline-flex; gap: 4px; margin-left: auto; }
-
-  #unassigned .chipbar { padding: 4px; border: 1.5px dashed var(--baseline); border-radius: 10px; }
-  #unassigned .chipbar.dragover { border-color: var(--series-1); }
-
-  dialog {
-    background: var(--surface-1); color: var(--text-primary);
-    border: 1px solid var(--border); border-radius: 12px; padding: 20px;
-    max-width: min(480px, 92vw); width: 100%;
-  }
-  dialog::backdrop { background: rgba(0,0,0,.45); }
-  dialog h2 { font-size: 1.05rem; margin-bottom: 10px; }
-  dialog .frow { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; }
-  dialog .frow label { font-size: .78rem; color: var(--text-secondary); }
-  dialog .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; margin-bottom: 10px; }
-  dialog .fgrid label { font-size: .84rem; display: flex; gap: 6px; align-items: center; }
-  dialog .dactions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
-  dialog .msg { font-size: .82rem; margin-top: 8px; }
-  dialog .msg.ok { color: var(--good); }
-  dialog .msg.err { color: var(--warn); }
-  .hp { position: absolute; left: -9999px; }
-
-  .req { border-bottom: 1px solid var(--grid); padding: 9px 0; font-size: .86rem; }
-  .req .rmeta { color: var(--text-muted); font-size: .74rem; }
-  .req .rmsg { margin: 3px 0; white-space: pre-wrap; }
-  .req .ractions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
-  .req.done { opacity: .6; }
-
-  .foot { font-size: .74rem; color: var(--text-muted); margin-top: 22px; }
-  .foot li { margin-bottom: 4px; margin-left: 18px; }
-  .err { color: var(--warn); font-weight: 600; }
-
-  @media (max-width: 620px) {
-    body { padding: 18px 10px 48px; }
-    #board { grid-template-columns: 1fr; }
-    .controls { padding: 8px; }
-  }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-
-  @media print {
-    .no-print, .controls, #unassigned, #inbox, #orgaBar, .banner, #status, .foot, .chip button, .chip select, .room-actions, .table-actions { display: none !important; }
-    body { background: #fff; color: #000; padding: 0; }
-    .card, .room { border: 1px solid #999; box-shadow: none; break-inside: avoid; background: #fff; }
-    #board { display: block; }
-    .room { margin-bottom: 10px; }
-    .chip { border: none; padding: 0; background: none; }
-  }
-</style>
+<script>
+  // Theme VOR dem ersten Rendern setzen (kein Flackern beim Laden).
+  try { document.documentElement.setAttribute("data-theme", localStorage.getItem("raumplan-theme") || "dark"); } catch {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Paytone+One&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 <a class="skip-link" href="#main">Zum Inhalt springen</a>
 <div class="wrap">
-  <header>
-    <h1 id="pageTitle">Con-Raumplan</h1>
-    <p class="sub" id="pageSub">Raum- und Tischverteilung · Spiele live von Playabl</p>
-    <p class="banner" id="demoBanner" hidden>🧪 <strong>Demo-Modus:</strong> Es ist noch kein Daten-Backend konfiguriert – Änderungen werden nur in diesem Browser gespeichert.</p>
-    <p id="status">Lade Daten …</p>
-    <nav class="controls no-print" aria-label="Slot, Suche und Verwaltung">
-      <div class="slot-tabs" id="slotTabs" role="group" aria-label="Slot wählen"></div>
-      <input type="search" id="search" placeholder="Spiel suchen …" aria-label="Spiel suchen" style="width:170px">
-      <span class="spacer"></span>
-      <button id="printBtn" type="button" title="Aktuellen Slot drucken">🖨️ Drucken</button>
-      <button id="loginBtn" type="button">Orga-Login</button>
-    </nav>
-    <div class="controls no-print" id="orgaBar" hidden>
-      <strong style="font-size:.84rem">Orga:</strong>
-      <button id="addRoomBtn" type="button">+ Raum</button>
-      <button id="addManualBtn" type="button">+ manuelles Spiel</button>
-      <button id="autoBtn" type="button" class="primary">⚙️ Auto-Zuordnung (dieser Slot)</button>
-      <button id="inboxBtn" type="button">📥 Änderungswünsche <span class="badge" id="inboxCount" hidden></span></button>
+  <header class="controls" aria-label="Kopfzeile" style="justify-content:space-between">
+    <div>
+      <h1>Con-Raumplan</h1>
+      <p class="sub">Raum- und Tischverteilung für Con-Events, mit Playabl-Anbindung</p>
+    </div>
+    <div style="display:flex;gap:var(--sp-3);align-items:center">
+      <div id="themeSwitch"></div>
+      <button id="authBtn" type="button">Login / Registrieren</button>
     </div>
   </header>
+  <p id="status">Lade Cons …</p>
 
   <main id="main">
-    <section class="card" id="unassigned">
-      <h2>Noch ohne Tisch</h2>
-      <p class="hint">Spiele in diesem Slot, die noch keinem Tisch zugeordnet sind.<span class="orga-only" hidden> Ziehe sie auf einen Tisch oder nutze das Auswahlfeld am Spiel.</span></p>
-      <div class="chipbar" id="unassignedBar" aria-label="Spiele ohne Tisch"></div>
+    <section class="card">
+      <h2>Con direkt öffnen</h2>
+      <p class="hint">Link oder ID einer bestehenden Con einfügen.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="text" id="directInput" placeholder="z.B. 3w6-con-2026-a1b2 oder ein plan.html-Link" style="flex:1;min-width:220px">
+        <button id="directGo" type="button">Öffnen</button>
+      </div>
     </section>
 
-    <section id="board" aria-label="Räume und Tische"></section>
-
-    <section class="card" id="inbox" hidden>
-      <h2>Änderungswünsche</h2>
-      <p class="hint">Meldungen aus der öffentlichen Ansicht. Status setzen, Notiz ergänzen – erledigte Wünsche bleiben zur Nachvollziehbarkeit stehen.</p>
-      <div id="reqList"></div>
+    <section class="card">
+      <h2>Bestehende Cons</h2>
+      <p class="hint">Öffentlich sichtbar. Bearbeiten kann nur, wer Mitglied der jeweiligen Crew ist.</p>
+      <input type="search" id="conSearch" placeholder="Con suchen …" aria-label="Con suchen" style="margin-bottom:var(--sp-3);width:100%;max-width:320px">
+      <div class="con-list" id="conList"></div>
     </section>
 
-    <ul class="foot">
-      <li>Spiele werden bei jedem Öffnen live von der Playabl-API geladen; Plätze = Spielplätze + 1 anbietende Person.</li>
-      <li>Über „Änderung vorschlagen" am Spiel kann jede*r der Orga einen Wunsch schicken – bitte kurz begründen.</li>
-      <li id="footPlan">Zum Spielangebot: <a id="dashLink" href="https://lmbreuer.github.io/playabl-dashboard/" style="color:inherit">Slot-Dashboard</a></li>
-    </ul>
+    <section class="card">
+      <h2>Neue Con anlegen</h2>
+      <p class="hint">Community und Event von Playabl wählen (oder Event-ID direkt eintragen) — du wirst automatisch erstes Crew-Mitglied dieser Con.</p>
+      <div class="controls" style="margin:0 0 var(--sp-3)">
+        <div class="field">
+          <label for="communitySelect">Community</label>
+          <select id="communitySelect"><option value="">– lädt –</option></select>
+        </div>
+        <div class="field">
+          <label for="eventSelect">Event</label>
+          <select id="eventSelect"><option value="">– Community wählen –</option></select>
+        </div>
+        <div class="field">
+          <label for="eventIdInput">… oder Event-ID direkt</label>
+          <input type="text" id="eventIdInput" inputmode="numeric" placeholder="z.B. 104" size="10">
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:var(--sp-3);max-width:400px">
+        <label for="conName">Name der Con</label>
+        <input type="text" id="conName" placeholder="z.B. 3W6 Con 2026" maxlength="80">
+      </div>
+      <button id="createConBtn" type="button" class="primary">Con anlegen</button>
+      <p class="msg" id="createMsg" role="status"></p>
+    </section>
   </main>
 </div>
 
-<!-- Änderungswunsch -->
-<dialog id="requestDlg" aria-labelledby="requestDlgH">
-  <h2 id="requestDlgH">Änderung vorschlagen</h2>
-  <form method="dialog" id="requestForm">
-    <div class="frow"><label for="reqGame">Betrifft</label><input type="text" id="reqGame" readonly></div>
-    <div class="frow"><label for="reqMsg">Was soll anders sein – und warum? *</label><textarea id="reqMsg" rows="4" required minlength="10" maxlength="2000" placeholder="z.B. Bitte in einen ruhigeren Raum – Runde mit viel Konzentration."></textarea></div>
-    <div class="frow"><label for="reqContact">Rückfragen an (optional, z.B. Discord-Name)</label><input type="text" id="reqContact" maxlength="100"></div>
-    <input type="text" id="reqHp" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-    <p class="msg" id="reqMsgOut" role="status"></p>
-    <div class="dactions">
-      <button type="button" onclick="this.closest('dialog').close()">Abbrechen</button>
-      <button type="submit" class="primary">Absenden</button>
-    </div>
-  </form>
-</dialog>
-
-<!-- Raum anlegen/bearbeiten -->
-<dialog id="roomDlg" aria-labelledby="roomDlgH">
-  <h2 id="roomDlgH">Raum</h2>
-  <form method="dialog" id="roomForm">
-    <input type="hidden" id="roomId">
-    <div class="frow"><label for="roomName">Name *</label><input type="text" id="roomName" required maxlength="60"></div>
-    <div class="frow"><label for="roomFloor">Stock / Lage</label><input type="text" id="roomFloor" maxlength="40" placeholder="z.B. EG, 1. Stock links"></div>
-    <fieldset style="border:none;margin-bottom:10px"><legend style="font-size:.78rem;color:var(--text-secondary);margin-bottom:4px">Eigenschaften</legend>
-      <div class="fgrid" id="roomFeatures"></div>
-    </fieldset>
-    <div class="frow"><label for="roomNotes">Besonderheiten (Freitext)</label><textarea id="roomNotes" rows="2" maxlength="300"></textarea></div>
-    <div class="dactions">
-      <button type="button" onclick="this.closest('dialog').close()">Abbrechen</button>
-      <button type="submit" class="primary">Speichern</button>
-    </div>
-  </form>
-</dialog>
-
-<!-- Tisch anlegen/bearbeiten -->
-<dialog id="tableDlg" aria-labelledby="tableDlgH">
-  <h2 id="tableDlgH">Tisch</h2>
-  <form method="dialog" id="tableForm">
-    <input type="hidden" id="tableId"><input type="hidden" id="tableRoomId">
-    <div class="frow"><label for="tableName">Name *</label><input type="text" id="tableName" required maxlength="40" placeholder="z.B. Tisch 1"></div>
-    <div class="frow"><label for="tableSeats">Plätze (Spielende inkl. SL) *</label><input type="number" id="tableSeats" min="2" max="200" required value="6"></div>
-    <div class="frow"><label for="tableNotes">Hinweis (optional)</label><input type="text" id="tableNotes" maxlength="120"></div>
-    <div class="dactions">
-      <button type="button" onclick="this.closest('dialog').close()">Abbrechen</button>
-      <button type="submit" class="primary">Speichern</button>
-    </div>
-  </form>
-</dialog>
-
-<!-- Manuelles Spiel -->
-<dialog id="manualDlg" aria-labelledby="manualDlgH">
-  <h2 id="manualDlgH">Manuelles Spiel / Programmpunkt</h2>
-  <form method="dialog" id="manualForm">
-    <div class="frow"><label for="manTitle">Titel *</label><input type="text" id="manTitle" required maxlength="100"></div>
-    <div class="frow"><label for="manSlot">Slot *</label><select id="manSlot"></select></div>
-    <div class="frow"><label for="manSeats">Personen (inkl. Leitung) *</label><input type="number" id="manSeats" min="1" max="200" required value="5"></div>
-    <div class="dactions">
-      <button type="button" onclick="this.closest('dialog').close()">Abbrechen</button>
-      <button type="submit" class="primary">Anlegen</button>
-    </div>
-  </form>
-</dialog>
-
-<!-- Login -->
-<dialog id="loginDlg" aria-labelledby="loginDlgH">
-  <h2 id="loginDlgH">Orga-Login</h2>
-  <form method="dialog" id="loginForm">
-    <p class="hint" id="loginHint"></p>
-    <div class="frow" id="loginEmailRow"><label for="loginEmail">E-Mail</label><input type="email" id="loginEmail" autocomplete="username"></div>
-    <div class="frow" id="loginPwRow"><label for="loginPw">Passwort</label><input type="password" id="loginPw" autocomplete="current-password"></div>
-    <p class="msg err" id="loginErr" role="alert"></p>
-    <div class="dactions">
-      <button type="button" onclick="this.closest('dialog').close()">Abbrechen</button>
-      <button type="submit" class="primary">Einloggen</button>
-    </div>
-  </form>
-</dialog>
-
+<script src="common.js"></script>
 <script>
-/* ============================================================================
-   KONFIGURATION
-   eventId:  Playabl-Event (wie beim Dashboard): app.playabl.io/events/104 → 104
-   supabase: Eigenes (kostenloses) Supabase-Projekt für Räume/Zuordnungen/
-             Änderungswünsche. Solange url/anonKey leer sind, läuft die Seite
-             im DEMO-MODUS (Speicherung nur im eigenen Browser).
-   ============================================================================ */
-const CONFIG = {
-  eventId: 104,
-  cutoffStunde: 14,
-  zeitzone: "Europe/Vienna",
-  supabase: {
-    url: "https://wgnbcebakabkzjonslfi.supabase.co",
-    anonKey: "sb_publishable_H87YdUgB35PR37LL-efOkA_ShJxVIaq",
-  },
-};
-const WS_RE = /workshop|panel|vortrag/i;
+renderThemeSwitch(document.getElementById("themeSwitch"));
+const authUI = mountAuthUI({ buttonId: "authBtn" });
 
-const params = new URLSearchParams(location.search);
-const EVENT = params.get("event") || String(CONFIG.eventId);
-const TZ = CONFIG.zeitzone, CUTOFF = CONFIG.cutoffStunde;
-
-// Playabl (öffentliche API, wie beim Dashboard)
-const PLAYABL = "https://oapuqtuewlvswrdezthc.supabase.co";
-const PLAYABL_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hcHVxdHVld2x2c3dyZGV6dGhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDQ3OTExODMsImV4cCI6MTk2MDM2NzE4M30.uSjfOkoD7KXv4ztVSFhzIS9LuIsgKg42NaZotZAcqko";
-
-const FEATURES = {
-  barrierefrei: "♿ barrierefrei",
-  ruhig: "🤫 ruhig",
-  laut_ok: "🔊 laut ok",
-  bewegung: "🕺 Bewegung ok",
-  tageslicht: "☀️ Tageslicht",
-  kuehl: "❄️ eher kühl",
-  warm: "🌡️ eher warm",
-  steckdosen: "🔌 Steckdosen",
-  beamer: "📽️ Beamer/Screen",
-};
-
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const fmtDay = new Intl.DateTimeFormat("de-AT", { timeZone: TZ, weekday: "long", day: "2-digit", month: "2-digit" });
-const fmtTime = new Intl.DateTimeFormat("de-AT", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
-const dayKey = new Intl.DateTimeFormat("sv-SE", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
-const hourOf = t => parseInt(new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", hour12: false }).format(new Date(t)), 10);
-
-/* ---------------- Playabl-Spiele laden ---------------- */
-async function playablApi(path) {
-  const r = await fetch(`${PLAYABL}/rest/v1/${path}`, { headers: { apikey: PLAYABL_ANON, Authorization: "Bearer " + PLAYABL_ANON } });
-  if (!r.ok) throw new Error("Playabl HTTP " + r.status);
-  return r.json();
-}
-async function loadPlayabl() {
-  const [sessions, evs] = await Promise.all([
-    playablApi(`sessions?select=id,start_time,end_time,participant_count,game_id!inner(id,title,system,event_id)&deleted_at=is.null&game_id.event_id=eq.${EVENT}&order=start_time.asc`),
-    playablApi(`community_events?select=title&id=eq.${EVENT}`).catch(() => []),
-  ]);
-  const games = sessions.map(s => {
-    const date = dayKey.format(new Date(s.start_time));
-    const part = hourOf(s.start_time) < CUTOFF ? "Vormittag" : "Nachmittag";
-    return {
-      key: "playabl:" + s.id,
-      gameId: s.game_id.id,
-      title: (s.game_id.title.replace(/\s*[\[(][^\])]*(?:3W6|Offline|Con)[^\])]*[\])]\s*/gi, "").trim() || s.game_id.title),
-      url: "https://app.playabl.io/games/" + s.game_id.id,
-      seats: s.participant_count + 1,
-      ws: WS_RE.test((s.game_id.system || "") + " " + s.game_id.title),
-      slotKey: date + "|" + part,
-      slotLabel: `${fmtDay.format(new Date(s.start_time)).split(",")[0]} ${part}`,
-      time: `${fmtTime.format(new Date(s.start_time))}–${fmtTime.format(new Date(s.end_time))}`,
-      start: s.start_time,
-    };
-  });
-  return { games, eventTitle: evs[0]?.title || null };
-}
-
-/* ---------------- Datenhaltung: Supabase ODER Demo (localStorage) ------- */
-const SUPA_ON = !!(CONFIG.supabase.url && CONFIG.supabase.anonKey);
-
-const DemoStore = {
-  name: "demo",
-  _load() { try { return JSON.parse(localStorage.getItem("raumplan-demo")) || {}; } catch { return {}; } },
-  _save(d) { localStorage.setItem("raumplan-demo", JSON.stringify(d)); },
-  _data: null,
-  async init() {
-    this._data = Object.assign({ rooms: [], tables: [], assignments: [], requests: [] }, this._load());
-    return this._data;
-  },
-  isOrga() { return sessionStorage.getItem("raumplan-demo-orga") === "1"; },
-  async login() { sessionStorage.setItem("raumplan-demo-orga", "1"); },
-  logout() { sessionStorage.removeItem("raumplan-demo-orga"); },
-  async saveRoom(r) { const d = this._data; if (!r.id) { r.id = crypto.randomUUID(); d.rooms.push(r); } else { Object.assign(d.rooms.find(x => x.id === r.id), r); } this._save(d); return r; },
-  async deleteRoom(id) { const d = this._data; d.rooms = d.rooms.filter(r => r.id !== id); const tids = d.tables.filter(t => t.room_id === id).map(t => t.id); d.tables = d.tables.filter(t => t.room_id !== id); d.assignments = d.assignments.filter(a => !tids.includes(a.table_id)); this._save(d); },
-  async saveTable(t) { const d = this._data; if (!t.id) { t.id = crypto.randomUUID(); d.tables.push(t); } else { Object.assign(d.tables.find(x => x.id === t.id), t); } this._save(d); return t; },
-  async deleteTable(id) { const d = this._data; d.tables = d.tables.filter(t => t.id !== id); d.assignments = d.assignments.filter(a => a.table_id !== id); this._save(d); },
-  async upsertAssignment(a) { const d = this._data; const ex = d.assignments.find(x => x.slot_key === a.slot_key && x.session_key === a.session_key); if (ex) Object.assign(ex, a); else { a.id = crypto.randomUUID(); d.assignments.push(a); } this._save(d); },
-  async deleteAssignment(slotKey, sessionKey) { const d = this._data; d.assignments = d.assignments.filter(a => !(a.slot_key === slotKey && a.session_key === sessionKey)); this._save(d); },
-  async addRequest(r) { const d = this._data; d.requests.unshift(Object.assign({ id: crypto.randomUUID(), created_at: new Date().toISOString(), status: "offen" }, r)); this._save(d); },
-  async listRequests() { return this._data.requests; },
-  async updateRequest(id, fields) { const d = this._data; Object.assign(d.requests.find(r => r.id === id), fields); this._save(d); },
-};
-
-const SupaStore = {
-  name: "supabase",
-  _auth: null,
-  _authHeaders(write) {
-    const h = { apikey: CONFIG.supabase.anonKey, "Content-Type": "application/json" };
-    h.Authorization = "Bearer " + (this._auth?.access_token || CONFIG.supabase.anonKey);
-    if (write) h.Prefer = "return=representation";
-    return h;
-  },
-  async _fetch(path, opts = {}, retry = true) {
-    const r = await fetch(`${CONFIG.supabase.url}/rest/v1/${path}`, opts);
-    if (r.status === 401 && retry && this._auth) { await this._refresh(); opts.headers = this._authHeaders(!!opts.body); return this._fetch(path, opts, false); }
-    if (!r.ok) throw new Error(`Backend HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
-    const text = await r.text();
-    return text ? JSON.parse(text) : null;
-  },
-  async init() {
-    try { this._auth = JSON.parse(localStorage.getItem("raumplan-auth")); } catch { this._auth = null; }
-    if (this._auth && this._auth.expires_at * 1000 < Date.now() + 60000) await this._refresh().catch(() => { this._auth = null; localStorage.removeItem("raumplan-auth"); });
-    const [rooms, tables, assignments] = await Promise.all([
-      this._fetch("rooms?select=*&order=sort,name", { headers: this._authHeaders() }),
-      this._fetch("tables?select=*&order=sort,name", { headers: this._authHeaders() }),
-      this._fetch("assignments?select=*", { headers: this._authHeaders() }),
-    ]);
-    return { rooms, tables, assignments, requests: [] };
-  },
-  isOrga() { return !!this._auth; },
-  async login(email, password) {
-    const r = await fetch(`${CONFIG.supabase.url}/auth/v1/token?grant_type=password`, {
-      method: "POST", headers: { apikey: CONFIG.supabase.anonKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.error_description || j.msg || "Login fehlgeschlagen");
-    this._auth = { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at };
-    localStorage.setItem("raumplan-auth", JSON.stringify(this._auth));
-  },
-  async _refresh() {
-    const r = await fetch(`${CONFIG.supabase.url}/auth/v1/token?grant_type=refresh_token`, {
-      method: "POST", headers: { apikey: CONFIG.supabase.anonKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: this._auth.refresh_token }),
-    });
-    if (!r.ok) throw new Error("Session abgelaufen");
-    const j = await r.json();
-    this._auth = { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at };
-    localStorage.setItem("raumplan-auth", JSON.stringify(this._auth));
-  },
-  logout() { this._auth = null; localStorage.removeItem("raumplan-auth"); },
-  async saveRoom(r) { const rows = r.id
-      ? await this._fetch(`rooms?id=eq.${r.id}`, { method: "PATCH", headers: this._authHeaders(true), body: JSON.stringify(r) })
-      : await this._fetch("rooms", { method: "POST", headers: this._authHeaders(true), body: JSON.stringify(r) });
-    return rows[0]; },
-  async deleteRoom(id) { await this._fetch(`rooms?id=eq.${id}`, { method: "DELETE", headers: this._authHeaders() }); },
-  async saveTable(t) { const rows = t.id
-      ? await this._fetch(`tables?id=eq.${t.id}`, { method: "PATCH", headers: this._authHeaders(true), body: JSON.stringify(t) })
-      : await this._fetch("tables", { method: "POST", headers: this._authHeaders(true), body: JSON.stringify(t) });
-    return rows[0]; },
-  async deleteTable(id) { await this._fetch(`tables?id=eq.${id}`, { method: "DELETE", headers: this._authHeaders() }); },
-  async upsertAssignment(a) {
-    const h = this._authHeaders(true);
-    h.Prefer = "resolution=merge-duplicates,return=representation";
-    await this._fetch("assignments?on_conflict=slot_key,session_key", { method: "POST", headers: h, body: JSON.stringify(a) });
-  },
-  async deleteAssignment(slotKey, sessionKey) {
-    await this._fetch(`assignments?slot_key=eq.${encodeURIComponent(slotKey)}&session_key=eq.${encodeURIComponent(sessionKey)}`, { method: "DELETE", headers: this._authHeaders() });
-  },
-  async addRequest(r) { await this._fetch("requests", { method: "POST", headers: { apikey: CONFIG.supabase.anonKey, Authorization: "Bearer " + CONFIG.supabase.anonKey, "Content-Type": "application/json" }, body: JSON.stringify(r) }); },
-  async listRequests() { return this._fetch("requests?select=*&order=created_at.desc", { headers: this._authHeaders() }); },
-  async updateRequest(id, fields) { await this._fetch(`requests?id=eq.${id}`, { method: "PATCH", headers: this._authHeaders(true), body: JSON.stringify(fields) }); },
-};
-
-const store = SUPA_ON ? SupaStore : DemoStore;
-
-/* ---------------- State & Rendering ---------------- */
-const S = {
-  games: [], slots: [], activeSlot: null,
-  rooms: [], tables: [], assignments: [], requests: [],
-  orga: false, search: "",
-};
-
-const bySlot = slot => S.games.filter(g => g.slotKey === slot);
-const asgOf = (slot, key) => S.assignments.find(a => a.slot_key === slot && a.session_key === key);
-const asgOnTable = (slot, tableId) => S.assignments.filter(a => a.slot_key === slot && a.table_id === tableId);
-const gameByKey = key => S.games.find(g => g.key === key);
-
-function slotList() {
-  const set = new Map();
-  for (const g of S.games) if (!set.has(g.slotKey)) set.set(g.slotKey, g.slotLabel);
-  const ord = k => k.replace("|Vormittag", "|1").replace("|Nachmittag", "|2");
-  return [...set.entries()].sort((a, b) => ord(a[0]).localeCompare(ord(b[0]))).map(([key, label]) => ({ key, label }));
-}
-
-// Manuelle Spiele stecken in assignments (session_key "manual:…") und werden
-// beim Laden in die Spieleliste gemappt.
-function manualGamesFromAssignments() {
-  for (const a of S.assignments) {
-    if (a.session_key.startsWith("manual:") && a.manual_game && !gameByKey(a.session_key)) {
-      const m = a.manual_game;
-      S.games.push({
-        key: a.session_key, gameId: a.session_key, title: m.title, url: null,
-        seats: m.seats, ws: false, manual: true,
-        slotKey: a.slot_key,
-        slotLabel: m.slotLabel || a.slot_key.replace("|", " "),
-        time: m.time || "", start: 0,
-      });
-    }
-  }
-}
-
-function chipHtml(g, slot, assigned) {
-  const a = asgOf(slot, g.key);
-  const table = a && S.tables.find(t => t.id === a.table_id);
-  const over = table && g.seats > table.seats ? `<span class="badge warn">+${g.seats - table.seats} über Kapazität</span>` : "";
-  const title = g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : `<strong>${esc(g.title)}</strong>`;
-  const meta = `<span class="meta">${esc(g.time || "")}${g.time ? " · " : ""}${g.seats} Pers.${g.ws ? " · Workshop" : ""}${g.manual ? " · manuell" : ""}</span>`;
-  let controls = "";
-  if (S.orga) {
-    const opts = ['<option value="">– Tisch wählen –</option>'];
-    for (const r of S.rooms) for (const t of S.tables.filter(t => t.room_id === r.id)) {
-      const sel = a && a.table_id === t.id ? " selected" : "";
-      opts.push(`<option value="${t.id}"${sel}>${esc(r.name)} / ${esc(t.name)} (${t.seats})</option>`);
-    }
-    controls = `<select class="assignSel small" data-game="${esc(g.key)}" aria-label="Tisch zuweisen für ${esc(g.title)}">${opts.join("")}</select>`;
-    if (assigned) controls += `<button type="button" class="small unassignBtn" data-game="${esc(g.key)}" aria-label="${esc(g.title)} vom Tisch entfernen">✕</button>`;
-    if (g.manual) controls += `<button type="button" class="small danger delManualBtn" data-game="${esc(g.key)}" aria-label="${esc(g.title)} löschen">🗑</button>`;
-  } else {
-    controls = `<button type="button" class="small requestBtn" data-game="${esc(g.key)}">Änderung vorschlagen</button>`;
-  }
-  const drag = S.orga ? ` draggable="true"` : "";
-  return `<div class="chip${g.ws ? " ws" : ""}" data-game="${esc(g.key)}"${drag}>${title} ${meta} ${over} ${controls}</div>`;
-}
-
-function matchesSearch(g) {
-  return !S.search || g.title.toLowerCase().includes(S.search);
-}
-
-function render() {
-  document.getElementById("demoBanner").hidden = SUPA_ON;
-  document.querySelectorAll(".orga-only").forEach(el => el.hidden = !S.orga);
-  document.getElementById("orgaBar").hidden = !S.orga;
-  document.getElementById("loginBtn").textContent = S.orga ? "Logout" : "Orga-Login";
-  document.getElementById("inbox").hidden = !S.orga || document.getElementById("inbox").dataset.closed === "1";
-
-  // Slot-Tabs
-  const tabs = document.getElementById("slotTabs");
-  tabs.innerHTML = S.slots.map(s =>
-    `<button type="button" data-slot="${esc(s.key)}" aria-pressed="${String(s.key === S.activeSlot)}">${esc(s.label)}</button>`).join("");
-
-  const slot = S.activeSlot;
-  const games = bySlot(slot);
-
-  // Ohne Tisch
-  const un = games.filter(g => { const a = asgOf(slot, g.key); return !a || !a.table_id; }).filter(matchesSearch);
-  document.getElementById("unassignedBar").innerHTML =
-    un.map(g => chipHtml(g, slot, false)).join("") ||
-    '<span class="free" style="color:var(--text-muted);font-size:.82rem">🎉 Alle Spiele dieses Slots haben einen Tisch.</span>';
-
-  // Board
-  const board = document.getElementById("board");
-  board.innerHTML = S.rooms.map(room => {
-    const badges = Object.entries(room.features || {}).filter(([, v]) => v).map(([k]) => `<span class="badge">${esc(FEATURES[k] || k)}</span>`).join("");
-    const tables = S.tables.filter(t => t.room_id === room.id);
-    const tablesHtml = tables.map(t => {
-      const asgs = asgOnTable(slot, t.id);
-      const double = asgs.length > 1 ? `<span class="badge warn">doppelt belegt!</span>` : "";
-      const chips = asgs.map(a => { const g = gameByKey(a.session_key); return g && matchesSearch(g) ? chipHtml(g, slot, true) : (g ? "" : ""); }).join("");
-      const actions = S.orga ? `<span class="table-actions"><button type="button" class="small editTableBtn" data-id="${t.id}" aria-label="Tisch ${esc(t.name)} bearbeiten">✎</button><button type="button" class="small danger delTableBtn" data-id="${t.id}" aria-label="Tisch ${esc(t.name)} löschen">🗑</button></span>` : "";
-      return `<div class="tablebox" data-table="${t.id}">
-        <div class="thead"><b>${esc(t.name)}</b><span class="seats">${t.seats} Plätze</span>${t.notes ? `<span class="seats">· ${esc(t.notes)}</span>` : ""}${double}${actions}</div>
-        ${chips || '<div class="free">frei</div>'}
-      </div>`;
-    }).join("");
-    const roomActions = S.orga ? `<span class="room-actions"><button type="button" class="small addTableBtn" data-room="${room.id}">+ Tisch</button><button type="button" class="small editRoomBtn" data-id="${room.id}" aria-label="Raum ${esc(room.name)} bearbeiten">✎</button><button type="button" class="small danger delRoomBtn" data-id="${room.id}" aria-label="Raum ${esc(room.name)} löschen">🗑</button></span>` : "";
-    return `<div class="room"><div class="room-head"><h3>${esc(room.name)}</h3><span class="floor">${esc(room.floor || "")}</span>${roomActions}</div>
-      <div class="room-badges">${badges}</div>
-      ${room.notes ? `<p class="room-notes">${esc(room.notes)}</p>` : ""}
-      ${tablesHtml || '<p class="free" style="color:var(--text-muted);font-size:.8rem">Noch keine Tische.</p>'}</div>`;
-  }).join("") || `<div class="card">Noch keine Räume angelegt.${S.orga ? " Nutze „+ Raum“ oben." : ""}</div>`;
-
-  renderInbox();
-  wireDnd();
-}
-
-function renderInbox() {
-  if (!S.orga) return;
-  const open = S.requests.filter(r => r.status === "offen").length;
-  const badge = document.getElementById("inboxCount");
-  badge.hidden = open === 0; badge.textContent = open;
-  document.getElementById("reqList").innerHTML = S.requests.map(r => `
-    <div class="req ${r.status !== "offen" ? "done" : ""}">
-      <div class="rmeta">${esc(new Date(r.created_at).toLocaleString("de-AT", { timeZone: TZ }))}${r.contact ? " · von " + esc(r.contact) : ""} · <strong>${esc(r.status)}</strong></div>
-      <div><strong>${esc(r.game_ref || "Allgemein")}</strong></div>
-      <div class="rmsg">${esc(r.message)}</div>
-      <div class="ractions">
-        <button type="button" class="small reqStatus" data-id="${r.id}" data-status="erledigt">✓ erledigt</button>
-        <button type="button" class="small reqStatus" data-id="${r.id}" data-status="abgelehnt">✕ abgelehnt</button>
-        <button type="button" class="small reqStatus" data-id="${r.id}" data-status="offen">↻ offen</button>
-        <input type="text" class="reqNote" data-id="${r.id}" placeholder="Orga-Notiz" value="${esc(r.orga_notiz || "")}" style="flex:1;min-width:140px">
+/* ---------- Cons laden & anzeigen ---------- */
+let allCons = [];
+function renderCons() {
+  const q = document.getElementById("conSearch").value.trim().toLowerCase();
+  const list = allCons.filter(c => !q || c.name.toLowerCase().includes(q));
+  document.getElementById("conList").innerHTML = list.map(c => `
+    <div class="con-card">
+      <div>
+        <div class="t">${esc(c.name)}</div>
+        <div class="m">angelegt ${new Date(c.created_at).toLocaleDateString("de-AT")}${c.playabl_event_id ? ` · <a href="https://app.playabl.io/events/${esc(c.playabl_event_id)}/overview" target="_blank" rel="noopener">Playabl-Event</a>` : ""}</div>
       </div>
-    </div>`).join("") || '<p class="hint">Keine Änderungswünsche.</p>';
+      <a class="btn" href="plan.html?con=${esc(c.slug || c.id)}">Öffnen →</a>
+    </div>`).join("") || '<div class="empty-state"><span class="glyph">🗂️</span>Noch keine Con gefunden.</div>';
 }
+document.getElementById("conSearch").addEventListener("input", renderCons);
 
-/* ---------------- Aktionen ---------------- */
-async function assign(gameKey, tableId) {
-  const g = gameByKey(gameKey);
-  const a = { slot_key: S.activeSlot, session_key: gameKey, table_id: tableId || null };
-  if (g.manual) a.manual_game = { title: g.title, seats: g.seats, slotLabel: g.slotLabel, time: g.time };
+document.getElementById("directGo").addEventListener("click", () => {
+  const raw = document.getElementById("directInput").value.trim();
+  if (!raw) return;
+  const m = raw.match(/[?&]con=([^&]+)/);
+  const id = m ? decodeURIComponent(m[1]) : raw;
+  location.href = "plan.html?con=" + encodeURIComponent(id);
+});
+document.getElementById("directInput").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("directGo").click(); });
+
+/* ---------- Con anlegen: Community/Event-Auswahl (wie im playabl-dashboard) ---------- */
+let allEvents = [];
+function fillEventsList(events) {
+  allEvents = events;
+  const csel = document.getElementById("communitySelect");
+  const communities = new Map();
+  for (const e of events) { const c = e.community_id; if (c?.id) communities.set(c.id, c.name || "?"); }
+  csel.innerHTML = '<option value="">– alle –</option>' +
+    [...communities.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => `<option value="${id}">${esc(name)}</option>`).join("");
+  fillEventOptions();
+}
+function fillEventOptions() {
+  const cid = document.getElementById("communitySelect").value;
+  const sel = document.getElementById("eventSelect");
+  const dFmt = new Intl.DateTimeFormat("de-AT", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  const list = cid ? allEvents.filter(e => String(e.community_id?.id) === cid) : allEvents;
+  sel.innerHTML = '<option value="">– Event wählen –</option>' +
+    list.map(e => `<option value="${e.id}" data-title="${esc(e.title)}">${esc(e.title)}${e.start_time ? " (" + dFmt.format(new Date(e.start_time)) + ")" : ""}</option>`).join("");
+}
+document.getElementById("communitySelect").addEventListener("change", fillEventOptions);
+document.getElementById("eventSelect").addEventListener("change", e => {
+  const opt = e.target.selectedOptions[0];
+  if (opt?.dataset.title && !document.getElementById("conName").value) document.getElementById("conName").value = opt.dataset.title;
+  document.getElementById("eventIdInput").value = "";
+});
+
+document.getElementById("createConBtn").addEventListener("click", async () => {
+  const msg = document.getElementById("createMsg");
+  msg.className = "msg";
+  const session = Auth.session();
+  if (!session) { msg.className = "msg err"; msg.textContent = "Bitte zuerst einloggen oder registrieren."; authUI.requireLogin(); return; }
+  const name = document.getElementById("conName").value.trim();
+  if (!name) { msg.className = "msg err"; msg.textContent = "Bitte einen Namen für die Con eingeben."; return; }
+  const eventId = document.getElementById("eventIdInput").value.trim() || document.getElementById("eventSelect").value || null;
+  const communityId = document.getElementById("communitySelect").value || null;
+  const slug = slugify(name);
   try {
-    if (!tableId && !g.manual) {
-      await store.deleteAssignment(S.activeSlot, gameKey);
-      S.assignments = S.assignments.filter(x => !(x.slot_key === S.activeSlot && x.session_key === gameKey));
-    } else {
-      await store.upsertAssignment(a);
-      const ex = asgOf(S.activeSlot, gameKey);
-      if (ex) ex.table_id = a.table_id; else S.assignments.push(a);
-    }
-    render();
-  } catch (e) { alert("Speichern fehlgeschlagen: " + e.message); }
-}
-
-function autoAssign() {
-  const slot = S.activeSlot;
-  const freeTables = () => S.tables.filter(t => asgOnTable(slot, t.id).length === 0);
-  const un = bySlot(slot).filter(g => { const a = asgOf(slot, g.key); return !a || !a.table_id; });
-  const prevOf = g => S.assignments.find(x => x.slot_key !== slot && gameByKey(x.session_key)?.gameId === g.gameId && x.table_id);
-  // Two-Shot-Fortsetzungen zuerst, damit ihr bisheriger Tisch noch frei ist
-  const regular = un.filter(g => !g.ws).sort((a, b) =>
-    (prevOf(b) ? 1 : 0) - (prevOf(a) ? 1 : 0) || b.seats - a.seats);
-  const workshops = un.filter(g => g.ws);
-  const jobs = [];
-  for (const g of regular) {
-    // Two-Shot-Präferenz: gleicher Tisch wie in anderen Slots
-    const prev = prevOf(g);
-    let target = null;
-    if (prev) { const t = S.tables.find(t => t.id === prev.table_id); if (t && t.seats >= g.seats && asgOnTable(slot, t.id).length === 0 && !jobs.some(j => j.tableId === t.id)) target = t; }
-    if (!target) {
-      const candidates = freeTables().filter(t => t.seats >= g.seats && !jobs.some(j => j.tableId === t.id)).sort((a, b) => a.seats - b.seats);
-      target = candidates[0] || null;
-    }
-    if (target) jobs.push({ gameKey: g.key, tableId: target.id });
-  }
-  for (const g of workshops) {
-    const candidates = freeTables().filter(t => !jobs.some(j => j.tableId === t.id)).sort((a, b) => b.seats - a.seats);
-    const roomOk = candidates.filter(t => { const r = S.rooms.find(r => r.id === t.room_id); return r?.features?.bewegung || r?.features?.laut_ok; });
-    const target = (roomOk[0] || candidates.find(t => t.seats >= g.seats) || null);
-    if (target) jobs.push({ gameKey: g.key, tableId: target.id });
-  }
-  if (!jobs.length) { alert("Nichts zuzuordnen – entweder alles verteilt oder keine passenden freien Tische."); return; }
-  (async () => {
-    for (const j of jobs) await assign(j.gameKey, j.tableId);
-    const rest = bySlot(slot).filter(g => { const a = asgOf(slot, g.key); return !a || !a.table_id; }).length;
-    document.getElementById("status").textContent = `Auto-Zuordnung: ${jobs.length} Spiele zugeordnet${rest ? `, ${rest} weiterhin ohne passenden Tisch` : ""}.`;
-  })();
-}
-
-/* ---------------- Drag & Drop ---------------- */
-function wireDnd() {
-  if (!S.orga) return;
-  document.querySelectorAll('.chip[draggable="true"]').forEach(chip => {
-    chip.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", chip.dataset.game); chip.classList.add("dragging"); });
-    chip.addEventListener("dragend", () => chip.classList.remove("dragging"));
-  });
-  document.querySelectorAll(".tablebox").forEach(box => {
-    box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("dragover"); });
-    box.addEventListener("dragleave", () => box.classList.remove("dragover"));
-    box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("dragover"); const key = e.dataTransfer.getData("text/plain"); if (key) assign(key, box.dataset.table); });
-  });
-  const un = document.getElementById("unassignedBar");
-  if (un.dataset.wired !== "1") {
-    un.dataset.wired = "1";
-    un.addEventListener("dragover", e => { e.preventDefault(); un.classList.add("dragover"); });
-    un.addEventListener("dragleave", () => un.classList.remove("dragover"));
-    un.addEventListener("drop", e => { e.preventDefault(); un.classList.remove("dragover"); const key = e.dataTransfer.getData("text/plain"); if (key) assign(key, null); });
-  }
-}
-
-/* ---------------- Event-Delegation ---------------- */
-document.addEventListener("change", e => {
-  if (e.target.matches(".assignSel")) assign(e.target.dataset.game, e.target.value || null);
-});
-document.addEventListener("click", async e => {
-  const t = e.target.closest("button");
-  if (!t) return;
-  if (t.matches("#slotTabs button")) { S.activeSlot = t.dataset.slot; render(); }
-  else if (t.matches(".unassignBtn")) assign(t.dataset.game, null);
-  else if (t.matches(".delManualBtn")) {
-    if (!confirm("Manuelles Spiel löschen?")) return;
-    await store.deleteAssignment(S.activeSlot, t.dataset.game);
-    S.assignments = S.assignments.filter(x => x.session_key !== t.dataset.game);
-    S.games = S.games.filter(g => g.key !== t.dataset.game);
-    render();
-  }
-  else if (t.matches(".requestBtn")) openRequestDlg(t.dataset.game);
-  else if (t.id === "printBtn") window.print();
-  else if (t.id === "loginBtn") { if (S.orga) { store.logout(); S.orga = false; render(); } else openLoginDlg(); }
-  else if (t.id === "addRoomBtn") openRoomDlg(null);
-  else if (t.matches(".editRoomBtn")) openRoomDlg(S.rooms.find(r => r.id === t.dataset.id));
-  else if (t.matches(".delRoomBtn")) {
-    if (!confirm("Raum samt Tischen löschen?")) return;
-    await store.deleteRoom(t.dataset.id);
-    const tids = S.tables.filter(x => x.room_id === t.dataset.id).map(x => x.id);
-    S.rooms = S.rooms.filter(r => r.id !== t.dataset.id);
-    S.tables = S.tables.filter(x => x.room_id !== t.dataset.id);
-    S.assignments = S.assignments.filter(a => !tids.includes(a.table_id));
-    render();
-  }
-  else if (t.matches(".addTableBtn")) openTableDlg(null, t.dataset.room);
-  else if (t.matches(".editTableBtn")) { const tb = S.tables.find(x => x.id === t.dataset.id); openTableDlg(tb, tb.room_id); }
-  else if (t.matches(".delTableBtn")) {
-    if (!confirm("Tisch löschen?")) return;
-    await store.deleteTable(t.dataset.id);
-    S.tables = S.tables.filter(x => x.id !== t.dataset.id);
-    S.assignments = S.assignments.map(a => a.table_id === t.dataset.id ? { ...a, table_id: null } : a).filter(a => a.table_id || a.session_key.startsWith("manual:"));
-    render();
-  }
-  else if (t.id === "addManualBtn") openManualDlg();
-  else if (t.id === "autoBtn") autoAssign();
-  else if (t.id === "inboxBtn") { const ib = document.getElementById("inbox"); ib.dataset.closed = ib.dataset.closed === "1" ? "0" : "1"; render(); ib.scrollIntoView({ behavior: "smooth" }); }
-  else if (t.matches(".reqStatus")) {
-    await store.updateRequest(t.dataset.id, { status: t.dataset.status });
-    S.requests.find(r => r.id === t.dataset.id).status = t.dataset.status;
-    renderInbox();
-  }
-});
-document.addEventListener("focusout", async e => {
-  if (e.target.matches(".reqNote")) {
-    await store.updateRequest(e.target.dataset.id, { orga_notiz: e.target.value });
-    S.requests.find(r => r.id === e.target.dataset.id).orga_notiz = e.target.value;
-  }
-});
-document.getElementById("search").addEventListener("input", e => { S.search = e.target.value.trim().toLowerCase(); render(); });
-
-/* ---------------- Dialoge ---------------- */
-function openRequestDlg(gameKey) {
-  const g = gameByKey(gameKey);
-  document.getElementById("reqGame").value = g ? `${g.title} (${g.slotLabel})` : "Allgemein";
-  document.getElementById("reqMsg").value = "";
-  document.getElementById("reqMsgOut").textContent = "";
-  document.getElementById("requestDlg").showModal();
-}
-document.getElementById("requestForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const out = document.getElementById("reqMsgOut");
-  if (document.getElementById("reqHp").value) { out.className = "msg ok"; out.textContent = "Danke!"; return; } // Honeypot
-  try {
-    await store.addRequest({
-      game_ref: document.getElementById("reqGame").value,
-      message: document.getElementById("reqMsg").value.trim(),
-      contact: document.getElementById("reqContact").value.trim() || null,
+    const token = await Auth.accessToken();
+    const rows = await supaFetch("cons", {
+      method: "POST", headers: supaHeaders(token, true),
+      body: JSON.stringify({ name, slug, playabl_event_id: eventId, playabl_community_id: communityId }),
     });
-    out.className = "msg ok";
-    out.textContent = "Danke! Dein Wunsch ist bei der Orga gelandet.";
-    setTimeout(() => document.getElementById("requestDlg").close(), 1400);
-  } catch (err) { out.className = "msg err"; out.textContent = "Senden fehlgeschlagen: " + err.message; }
+    location.href = "plan.html?con=" + encodeURIComponent(rows[0].slug);
+  } catch (err) { msg.className = "msg err"; msg.textContent = "Anlegen fehlgeschlagen: " + err.message; }
 });
 
-function openRoomDlg(room) {
-  document.getElementById("roomId").value = room?.id || "";
-  document.getElementById("roomName").value = room?.name || "";
-  document.getElementById("roomFloor").value = room?.floor || "";
-  document.getElementById("roomNotes").value = room?.notes || "";
-  document.getElementById("roomFeatures").innerHTML = Object.entries(FEATURES).map(([k, label]) =>
-    `<label><input type="checkbox" name="feat" value="${k}" ${room?.features?.[k] ? "checked" : ""}> ${esc(label)}</label>`).join("");
-  document.getElementById("roomDlg").showModal();
-}
-document.getElementById("roomForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const features = {};
-  document.querySelectorAll('#roomFeatures input:checked').forEach(i => features[i.value] = true);
-  const room = {
-    id: document.getElementById("roomId").value || undefined,
-    name: document.getElementById("roomName").value.trim(),
-    floor: document.getElementById("roomFloor").value.trim(),
-    notes: document.getElementById("roomNotes").value.trim(),
-    features,
-  };
-  try {
-    const saved = await store.saveRoom(room);
-    if (!room.id) S.rooms.push(saved); else Object.assign(S.rooms.find(r => r.id === room.id), saved);
-    document.getElementById("roomDlg").close();
-    render();
-  } catch (err) { alert("Speichern fehlgeschlagen: " + err.message); }
+/* ---------- Start ---------- */
+Promise.all([
+  supaFetch("cons?select=id,name,slug,playabl_event_id,created_at&order=created_at.desc"),
+  loadPlayablEventsList(),
+]).then(([cons, events]) => {
+  allCons = cons || [];
+  renderCons();
+  fillEventsList(events);
+  authUI.refresh();
+  document.getElementById("status").textContent =
+    "Stand: " + new Intl.DateTimeFormat("de-AT", { dateStyle: "full", timeStyle: "short" }).format(new Date()) + " Uhr";
+}).catch(err => {
+  document.getElementById("status").innerHTML = `<span class="err">Daten konnten nicht geladen werden (${esc(err.message)}).</span>`;
 });
-
-function openTableDlg(table, roomId) {
-  document.getElementById("tableId").value = table?.id || "";
-  document.getElementById("tableRoomId").value = roomId;
-  document.getElementById("tableName").value = table?.name || "";
-  document.getElementById("tableSeats").value = table?.seats || 6;
-  document.getElementById("tableNotes").value = table?.notes || "";
-  document.getElementById("tableDlg").showModal();
-}
-document.getElementById("tableForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const t = {
-    id: document.getElementById("tableId").value || undefined,
-    room_id: document.getElementById("tableRoomId").value,
-    name: document.getElementById("tableName").value.trim(),
-    seats: parseInt(document.getElementById("tableSeats").value, 10),
-    notes: document.getElementById("tableNotes").value.trim(),
-  };
-  try {
-    const saved = await store.saveTable(t);
-    if (!t.id) S.tables.push(saved); else Object.assign(S.tables.find(x => x.id === t.id), saved);
-    document.getElementById("tableDlg").close();
-    render();
-  } catch (err) { alert("Speichern fehlgeschlagen: " + err.message); }
-});
-
-function openManualDlg() {
-  document.getElementById("manSlot").innerHTML = S.slots.map(s => `<option value="${esc(s.key)}"${s.key === S.activeSlot ? " selected" : ""}>${esc(s.label)}</option>`).join("");
-  document.getElementById("manualDlg").showModal();
-}
-document.getElementById("manualForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const slotKey = document.getElementById("manSlot").value;
-  const slot = S.slots.find(s => s.key === slotKey);
-  const g = {
-    key: "manual:" + crypto.randomUUID(), gameId: null,
-    title: document.getElementById("manTitle").value.trim(),
-    url: null, seats: parseInt(document.getElementById("manSeats").value, 10),
-    ws: false, manual: true, slotKey, slotLabel: slot.label, time: "", start: 0,
-  };
-  g.gameId = g.key;
-  try {
-    await store.upsertAssignment({ slot_key: slotKey, session_key: g.key, table_id: null, manual_game: { title: g.title, seats: g.seats, slotLabel: g.slotLabel, time: "" } });
-    S.games.push(g);
-    S.assignments.push({ slot_key: slotKey, session_key: g.key, table_id: null, manual_game: { title: g.title, seats: g.seats } });
-    document.getElementById("manualDlg").close();
-    render();
-  } catch (err) { alert("Anlegen fehlgeschlagen: " + err.message); }
-});
-
-function openLoginDlg() {
-  const demo = !SUPA_ON;
-  document.getElementById("loginHint").textContent = demo
-    ? "Demo-Modus: Login ohne Passwort – Änderungen werden nur in diesem Browser gespeichert."
-    : "Login für die Orga (Konto wird von der Orga im Supabase-Dashboard angelegt).";
-  document.getElementById("loginEmailRow").hidden = demo;
-  document.getElementById("loginPwRow").hidden = demo;
-  document.getElementById("loginErr").textContent = "";
-  document.getElementById("loginDlg").showModal();
-}
-document.getElementById("loginForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  try {
-    await store.login(document.getElementById("loginEmail").value.trim(), document.getElementById("loginPw").value);
-    S.orga = true;
-    document.getElementById("loginDlg").close();
-    S.requests = await store.listRequests();
-    render();
-  } catch (err) { document.getElementById("loginErr").textContent = err.message; }
-});
-
-/* ---------------- Start ---------------- */
-(async () => {
-  try {
-    const [{ games, eventTitle }, data] = await Promise.all([loadPlayabl(), store.init()]);
-    S.games = games;
-    S.rooms = data.rooms || []; S.tables = data.tables || []; S.assignments = data.assignments || [];
-    manualGamesFromAssignments();
-    S.slots = slotList();
-    S.activeSlot = S.slots[0]?.key || null;
-    S.orga = store.isOrga();
-    if (S.orga) S.requests = await store.listRequests().catch(() => []);
-    if (eventTitle) {
-      document.getElementById("pageTitle").textContent = `Raumplan – ${eventTitle}`;
-      document.title = `Raumplan – ${eventTitle}`;
-    }
-    document.getElementById("status").textContent =
-      "Stand: " + new Intl.DateTimeFormat("de-AT", { timeZone: TZ, dateStyle: "full", timeStyle: "short" }).format(new Date()) + " Uhr";
-    render();
-  } catch (err) {
-    document.getElementById("status").innerHTML = `<span class="err">Daten konnten nicht geladen werden (${esc(err.message)}).</span>`;
-  }
-})();
 </script>
 </body>
 </html>

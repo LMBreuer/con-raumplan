@@ -1,64 +1,56 @@
 # Con-Raumplan
 
 Raum- und Tischverteilung für Con-Events mit [Playabl](https://playabl.io)-Anbindung —
-statisch gehostet (GitHub Pages), Spiele werden bei jedem Öffnen live von der Playabl-API geladen.
+statisch gehostet (GitHub Pages), **mandantenfähig**: eine Installation kann beliebig viele
+unabhängige Cons verwalten, jede mit eigener Crew und eigenem Datenbestand.
 
 **Schwester-Projekt:** [playabl-dashboard](https://github.com/LMBreuer/playabl-dashboard) (Spielangebot pro Slot).
 
-## Was es kann
+## Aufbau
 
-- **Öffentliche Ansicht:** pro Slot (Vormittag/Nachmittag je Tag) alle Räume mit ihren Tischen und
-  den zugeordneten Spielen; Raum-Eigenschaften als Badges (barrierefrei, ruhig, Stock, …);
-  Suche; „Noch ohne Tisch"-Liste; **„Änderung vorschlagen"** an jedem Spiel → landet in der Orga-Inbox.
-- **Orga-Modus** (Login): Räume & Tische anlegen/bearbeiten (Metadaten: Stock, barrierefrei,
-  Akustik, Temperatur, Tageslicht, Steckdosen, Beamer, „Bewegung ok", Freitext),
-  **Auto-Zuordnung** pro Slot (Kapazitäts-best-fit, Two-Shots bleiben am selben Tisch, Workshops in
-  große/bewegungstaugliche Räume), Umordnen per **Drag & Drop oder Auswahlfeld**, Konfliktwarnungen
-  (doppelt belegt, über Kapazität), manuelle Programmpunkte, **Änderungswünsche-Inbox** mit Status.
-- **Druck-Ansicht:** „Drucken" gibt den aktiven Slot als sauberen Aushang aus.
+- **`index.html`** — Landing-Seite: Login/Registrierung, Verzeichnis aller Cons, neue Con
+  anlegen (Playabl-Community/-Event wählen oder Event-ID eintragen).
+- **`plan.html`** — der eigentliche Raumplan einer Con (`plan.html?con=<slug>`): öffentliche
+  Ansicht + Crew-Modus (Räume/Tische, Auto-Zuordnung, Drag&Drop/Dropdown, Änderungswünsche,
+  Crew-Verwaltung, Druckansicht).
+- **`theme.css`** — vier Farbschemata (Dunkel/Hell/Kontrastreich/Bunt), umschaltbar im Header.
+- **`common.js`** — geteilte Konfiguration, Auth, Supabase- und Playabl-Helfer.
+- **`supabase-schema.sql`** — komplettes Datenbankschema inkl. Zugriffsregeln.
 
-## Setup
+## Wie eine Con funktioniert
 
-### 1. Supabase (Datenspeicher, kostenlos)
+Jede eingeloggte Person kann über `index.html` eine neue Con anlegen und wird dabei automatisch
+deren erstes Crew-Mitglied. Nur Crew-Mitglieder einer Con dürfen deren Räume/Tische/Zuordnungen
+bearbeiten und die Änderungswünsche-Inbox lesen — ein Konto allein gibt nirgends automatisch
+Rechte. Weitere Crew-Mitglieder werden im Raumplan unter „Crew verwalten" per E-Mail-Adresse
+eingeladen (die Person muss vorher bereits ein eigenes Konto registriert haben).
 
-Die Seite braucht einen Ort für Räume/Zuordnungen/Änderungswünsche. Ohne Konfiguration läuft sie im
-**Demo-Modus** (Speicherung nur im eigenen Browser) — gut zum Ausprobieren, ungeeignet für den Ernstfall.
+## Setup (einmalig, pro Supabase-Projekt)
 
-1. Auf [supabase.com](https://supabase.com) kostenloses Konto + neues Projekt anlegen.
-2. Im Projekt: **SQL Editor** → Inhalt von [`supabase-schema.sql`](supabase-schema.sql) einfügen → Run.
-3. **Authentication → Sign In / Up:** „Allow new users to sign up" **deaktivieren**.
-   Orga-Konten unter **Authentication → Users → Add user** anlegen (E-Mail + Passwort).
-4. **Project Settings → API:** `Project URL` und `anon public`-Key kopieren und in `index.html`
-   im `CONFIG`-Block eintragen:
-
-```js
-supabase: {
-  url: "https://DEIN-PROJEKT.supabase.co",
-  anonKey: "eyJ…",   // der "anon public" Key – ist öffentlich, kein Geheimnis
-},
-```
-
-> Sicherheit: Der anon-Key darf öffentlich sein. Was wer darf, regeln die Policies aus dem Schema:
-> Lesen alle, Wünsche einreichen alle, ändern nur eingeloggte Orga.
-
-### 2. Event einstellen
-
-Im `CONFIG`-Block die Playabl-Event-ID setzen (steht in der Event-URL:
-`app.playabl.io/events/104/…` → `104`). Zum Testen per URL überschreibbar: `?event=104`.
-
-### 3. Hosten
-
-Repo auf GitHub, **Settings → Pages → Deploy from a branch → main** — fertig.
-
-## Moderation / Betrieb
-
-- Änderungswünsche erscheinen im Orga-Modus unter „Änderungswünsche" (Zähler-Badge).
-  Status: offen / erledigt / abgelehnt, plus interne Notiz.
-- Wer mitmoderieren soll, bekommt ein Konto (Supabase → Authentication → Users → Add user).
-- Anti-Spam: Honeypot-Feld + Mindestlänge; einreichbar sind nur Status-„offen"-Wünsche.
+1. Auf [supabase.com](https://supabase.com) kostenloses Projekt anlegen.
+2. **SQL Editor** → Inhalt von [`supabase-schema.sql`](supabase-schema.sql) einfügen → Run.
+   ⚠️ Der Script-Teil unter „TESTDATEN VERWERFEN" leert `rooms`/`tables`/`assignments`/`requests`
+   komplett — nur auf einer frischen bzw. absichtlich zurückgesetzten Datenbank ausführen.
+3. **Authentication → Providers → Email:**
+   - **„Allow new users to sign up"** → **an** (jede Person registriert sich selbst; das Konto
+     allein gibt keine Rechte, siehe oben).
+   - **„Confirm email"** → **aus** empfohlen (nimmt Reibung raus, da Rechte ohnehin erst durch
+     Con-Mitgliedschaft entstehen).
+4. **Project Settings → API:** `Project URL` und `anon public`/`publishable` Key in `common.js`
+   (`CONFIG.supabase`) eintragen.
+5. Hosten: Repo auf GitHub, **Settings → Pages → Deploy from a branch → main**.
 
 ## Zählweise
 
 Personen pro Spiel = Playabl-Spielplätze **+ 1 anbietende Person**; Tisch-Plätze meinen dasselbe
-(Spielende inkl. SL). Workshops/Panels werden erkannt und bei der Auto-Zuordnung bevorzugt in
-große Räume gesetzt.
+(Spielende inkl. SL). Workshops/Panels werden erkannt (Titel/System enthält „Workshop/Panel/
+Vortrag") und bei der Auto-Zuordnung bevorzugt in Räume mit „Bewegung ok"/„laut ok" gesetzt.
+
+## Sicherheit
+
+Die Seite ist rein statisch — jeglicher Zugriffsschutz läuft über Postgres Row-Level-Security
+in Supabase, nicht über Anwendungscode. Kurzfassung der Regeln (Details in
+`supabase-schema.sql`): Räume/Tische/Zuordnungen sind öffentlich lesbar, änderbar nur für
+Crew-Mitglieder der jeweiligen Con; Änderungswünsche können anonym eingereicht, aber nur von
+der Crew gelesen werden; ein Tisch kann nie auf den Raum einer anderen Con zeigen
+(zusammengesetzte Fremdschlüssel verhindern das schema-seitig).
