@@ -32,15 +32,47 @@ const THEMES = [
   { key: "light", label: "☀️", name: "Hell" },
   { key: "contrast", label: "◐", name: "Kontrastreich" },
   { key: "colorful", label: "🎨", name: "Bunt" },
+  { key: "terminal", label: "▚", name: "Terminal" },
 ];
+
+const PIXEL_CAT_SVG = `<svg class="pixel-cat" viewBox="0 0 16 16" role="img" aria-label="Eine kleine Pixel-Katze hat sich hier versteckt" xmlns="http://www.w3.org/2000/svg">
+  <rect x="2" y="6" width="2" height="2"/><rect x="12" y="6" width="2" height="2"/>
+  <rect x="1" y="4" width="2" height="2"/><rect x="13" y="4" width="2" height="2"/>
+  <rect x="3" y="7" width="10" height="6"/>
+  <rect x="4" y="13" width="2" height="1"/><rect x="10" y="13" width="2" height="1"/>
+  <rect x="5" y="9" width="1" height="1" fill="#04150a"/><rect x="10" y="9" width="1" height="1" fill="#04150a"/>
+  <rect x="7" y="11" width="2" height="1" fill="#04150a"/>
+</svg>`;
+
+function terminalEasterEgg() {
+  if (window.__rpCatLogged) return;
+  window.__rpCatLogged = true;
+  console.log(
+    "%c" +
+    " /\\_/\\ \n" +
+    "( o.o )  Con-Raumplan Terminal aktiviert.\n" +
+    " > ___ <  Miau. Viel Erfolg bei der Raumzuteilung.",
+    "color:#3dff85;font-family:monospace;font-size:12px;"
+  );
+}
+
+function updateCatEasterEgg() {
+  const slot = document.getElementById("themeCatSlot");
+  if (!slot) return;
+  slot.innerHTML = document.documentElement.getAttribute("data-theme") === "terminal" ? PIXEL_CAT_SVG : "";
+}
 
 function applyTheme(key) {
   document.documentElement.setAttribute("data-theme", key);
   try { localStorage.setItem("raumplan-theme", key); } catch {}
+  if (key === "terminal") terminalEasterEgg();
+  updateCatEasterEgg();
 }
 
 function renderThemeSwitch(container) {
   const current = document.documentElement.getAttribute("data-theme") || "dark";
+  if (current === "terminal") terminalEasterEgg();
+  updateCatEasterEgg();
   container.className = "theme-switch";
   container.setAttribute("role", "group");
   container.setAttribute("aria-label", "Farbschema wählen");
@@ -194,6 +226,46 @@ function mountAuthUI({ buttonId, onChange }) {
   });
   refresh();
   return { refresh, requireLogin: () => { setAuthMode("login"); authDlg.showModal(); } };
+}
+
+/* ---------- Rollen & Einladungen ---------- */
+function roleBadgeHtml(role, status) {
+  if (status === "pending") return `<span class="role-badge pending">Einladung offen</span>`;
+  return `<span class="role-badge ${role}">${role === "admin" ? "Admin" : "Bearbeiter"}</span>`;
+}
+
+async function inviteMember(conId, email, role) {
+  const token = await Auth.accessToken();
+  return supaRpc("invite_member_to_con", { target_con: conId, invite_email: email, invite_role: role }, token);
+}
+async function acceptInvite(conId) { return supaRpc("accept_invite", { target_con: conId }, await Auth.accessToken()); }
+async function declineInvite(conId) { return supaRpc("decline_invite", { target_con: conId }, await Auth.accessToken()); }
+async function listMyInvites() {
+  const token = await Auth.accessToken();
+  if (!token) return [];
+  return supaRpc("list_my_invites", {}, token).catch(() => []);
+}
+
+// Geteilte "Du hast offene Einladungen"-Anzeige — auf jeder Seite nach Login-Status-
+// Änderungen aufrufbar. Rendert nichts, wenn keine offenen Einladungen vorliegen.
+async function renderPendingInvites(container, onChange) {
+  const invites = await listMyInvites();
+  if (!invites.length) { container.innerHTML = ""; container.hidden = true; return; }
+  container.hidden = false;
+  container.innerHTML = invites.map(inv => `
+    <div class="invite-banner" role="status">
+      <span>📬 Du wurdest als <strong>${esc(inv.role === "admin" ? "Admin" : "Bearbeiter")}</strong> zur Crew von <strong>${esc(inv.con_name)}</strong> eingeladen.</span>
+      <button type="button" class="primary small acceptInviteBtn" data-con="${esc(inv.con_id)}">Annehmen</button>
+      <button type="button" class="small declineInviteBtn" data-con="${esc(inv.con_id)}">Ablehnen</button>
+    </div>`).join("");
+  container.querySelectorAll(".acceptInviteBtn").forEach(btn => btn.addEventListener("click", async () => {
+    try { await acceptInvite(btn.dataset.con); await renderPendingInvites(container, onChange); onChange?.(); }
+    catch (err) { alert("Annehmen fehlgeschlagen: " + err.message); }
+  }));
+  container.querySelectorAll(".declineInviteBtn").forEach(btn => btn.addEventListener("click", async () => {
+    try { await declineInvite(btn.dataset.con); await renderPendingInvites(container, onChange); onChange?.(); }
+    catch (err) { alert("Ablehnen fehlgeschlagen: " + err.message); }
+  }));
 }
 
 /* ---------- Playabl: Communities/Events (für den Con-Picker) ---------- */

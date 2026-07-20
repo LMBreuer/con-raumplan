@@ -8,7 +8,7 @@
   try { document.documentElement.setAttribute("data-theme", localStorage.getItem("raumplan-theme") || "dark"); } catch {}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Paytone+One&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
@@ -26,43 +26,34 @@
         <button id="authBtn" type="button">Login / Registrieren</button>
       </div>
     </div>
+    <div id="inviteBanner" hidden></div>
     <p class="banner no-print" id="viewBanner" hidden></p>
     <p id="status">Lade Daten …</p>
-    <nav class="controls no-print" aria-label="Slot, Suche und Verwaltung">
-      <div class="slot-tabs" id="slotTabs" role="group" aria-label="Slot wählen"></div>
-      <input type="search" id="search" placeholder="Spiel suchen …" aria-label="Spiel suchen" style="width:170px">
-      <span class="spacer"></span>
-      <button id="printBtn" type="button" title="Aktuellen Slot drucken">🖨️ Drucken</button>
-    </nav>
-    <div class="controls no-print" id="orgaBar" hidden>
-      <strong style="font-size:.84rem">Crew:</strong>
-      <button id="addRoomBtn" type="button">+ Raum</button>
-      <button id="addManualBtn" type="button">+ manuelles Spiel</button>
-      <button id="autoBtn" type="button" class="primary">⚙️ Auto-Zuordnung (dieser Slot)</button>
-      <button id="inboxBtn" type="button">📥 Änderungswünsche <span class="badge" id="inboxCount" hidden></span></button>
-      <button id="crewBtn" type="button">👥 Crew verwalten</button>
+    <div class="kpi-bar no-print" id="kpiBar"></div>
+    <div class="legend no-print" id="legend"></div>
+    <div class="global-search no-print">
+      <input type="search" id="globalSearch" placeholder="Spiel, Raum oder Tisch suchen …" aria-label="Suche über alle Ansichten">
+    </div>
+    <div class="nav-groups no-print">
+      <span class="label">Ansicht</span>
+      <div class="slot-tabs" id="viewTabs" role="group" aria-label="Ansicht wählen"></div>
+      <button id="printBtn" type="button" title="Aktuelle Ansicht drucken">🖨️ Drucken</button>
+    </div>
+    <div class="nav-groups no-print" id="crewNav" hidden>
+      <span class="label">Crew</span>
+      <div class="slot-tabs crew" id="crewTabs" role="group" aria-label="Crew-Bereich wählen"></div>
     </div>
   </header>
 
   <main id="main">
-    <section class="card" id="unassigned">
-      <h2>Noch ohne Tisch</h2>
-      <p class="hint">Spiele in diesem Slot, die noch keinem Tisch zugeordnet sind.<span class="orga-only" hidden> Ziehe sie auf einen Tisch oder nutze das Auswahlfeld am Spiel.</span></p>
-      <div class="chipbar" id="unassignedBar" aria-label="Spiele ohne Tisch"></div>
-    </section>
-
-    <section id="board" aria-label="Räume und Tische"></section>
-
-    <section class="card" id="inbox" hidden>
-      <h2>Änderungswünsche</h2>
-      <p class="hint">Meldungen aus der öffentlichen Ansicht. Status setzen, Notiz ergänzen — erledigte Wünsche bleiben zur Nachvollziehbarkeit stehen.</p>
-      <div id="reqList"></div>
-    </section>
+    <section id="viewContent" aria-label="Öffentliche Ansicht"></section>
+    <section id="crewContent" aria-label="Crew-Bereich" hidden></section>
 
     <ul class="foot">
       <li>Spiele werden bei jedem Öffnen live von der Playabl-API geladen; Plätze = Spielplätze + 1 anbietende Person.</li>
       <li>Über „Änderung vorschlagen" am Spiel kann jede*r der Crew einen Wunsch schicken — bitte kurz begründen.</li>
     </ul>
+    <div class="credits" id="credits"></div>
   </main>
 </div>
 
@@ -88,7 +79,10 @@
   <form method="dialog" id="roomForm">
     <input type="hidden" id="roomId">
     <div class="frow"><label for="roomName">Name *</label><input type="text" id="roomName" required maxlength="60"></div>
-    <div class="frow"><label for="roomFloor">Stock / Lage</label><input type="text" id="roomFloor" maxlength="40" placeholder="z.B. EG, 1. Stock links"></div>
+    <div class="fgrid" style="grid-template-columns:2fr 1fr">
+      <div class="frow"><label for="roomFloor">Stock / Lage</label><input type="text" id="roomFloor" maxlength="40" placeholder="z.B. EG, 1. Stock links"></div>
+      <div class="frow"><label for="roomSort">Reihenfolge (1–100)</label><input type="number" id="roomSort" min="0" max="100" value="0"></div>
+    </div>
     <fieldset style="border:none;margin-bottom:10px"><legend style="font-size:.78rem;color:var(--text-secondary);margin-bottom:4px">Eigenschaften</legend>
       <div class="fgrid" id="roomFeatures"></div>
     </fieldset>
@@ -129,19 +123,6 @@
   </form>
 </dialog>
 
-<!-- Crew verwalten -->
-<dialog id="crewDlg" aria-labelledby="crewDlgH">
-  <h2 id="crewDlgH">Crew verwalten</h2>
-  <p class="hint">Nur bereits registrierte Konten können eingeladen werden (siehe Login/Registrieren).</p>
-  <div id="crewList" style="margin-bottom:var(--sp-3)"></div>
-  <form id="inviteForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
-    <div class="frow" style="margin:0;flex:1;min-width:200px"><label for="inviteEmail">E-Mail einladen</label><input type="email" id="inviteEmail" required></div>
-    <button type="submit" class="primary">Einladen</button>
-  </form>
-  <p class="msg" id="crewMsg" role="status"></p>
-  <div class="dactions"><button type="button" onclick="this.closest('dialog').close()">Schließen</button></div>
-</dialog>
-
 <script src="common.js"></script>
 <script>
 /* ============================================================
@@ -177,11 +158,6 @@ async function loadCon(idOrSlug) {
 }
 
 /* ---------------- Playabl-Spiele laden ---------------- */
-async function playablApi(path) {
-  const r = await fetch(`${PLAYABL}/rest/v1/${path}`, { headers: { apikey: PLAYABL_ANON, Authorization: "Bearer " + PLAYABL_ANON } });
-  if (!r.ok) throw new Error("Playabl HTTP " + r.status);
-  return r.json();
-}
 async function loadPlayabl(eventId) {
   if (!eventId) return [];
   const sessions = await playablApi(`sessions?select=id,start_time,end_time,participant_count,game_id!inner(id,title,system,event_id)&deleted_at=is.null&game_id.event_id=eq.${eventId}&order=start_time.asc`);
@@ -258,16 +234,26 @@ const S = {
   con: null, store: null,
   games: [], slots: [], activeSlot: null,
   rooms: [], tables: [], assignments: [], requests: [],
-  orga: false, search: "",
+  role: null, superadmin: false, search: "",
+  mode: "view", view: "tabelle", crewView: "zuordnen",
+  rasterAxis: "rooms", tableSort: { key: "when", dir: 1 },
+  filterWs: "all", showDoneRequests: false,
 };
 
-const reg = s => s.games.filter(g => !g.ws);
-const wsOf = s => s.games.filter(g => g.ws);
+const VIEWS = [{ key: "tabelle", label: "Tabelle" }, { key: "raster", label: "Raster" }, { key: "raeume", label: "Räume" }];
+const CREW_VIEWS = [
+  { key: "zuordnen", label: "Zuordnen" },
+  { key: "raeume-verwalten", label: "Räume verwalten" },
+  { key: "wuensche", label: "Änderungswünsche" },
+  { key: "crew", label: "Crew verwalten" },
+];
+
 const bySlot = slot => S.games.filter(g => g.slotKey === slot);
-const asgOf = (slot, key) => S.assignments.find(a => a.slot_key === slot && a.session_key === key);
-const asgOnTable = (slot, tableId) => S.assignments.filter(a => a.slot_key === slot && a.table_id === tableId);
 const gameByKey = key => S.games.find(g => g.key === key);
-const slotName = s => `${s.day.split(",")[0]} ${s.part}`;
+const asgFor = g => S.assignments.find(a => a.slot_key === g.slotKey && a.session_key === g.key);
+const roomOfTable = tableId => { const t = S.tables.find(x => x.id === tableId); return t && S.rooms.find(r => r.id === t.room_id); };
+const roomAccentVar = room => room ? `var(--room-${"abcde"[S.rooms.indexOf(room) % 5]})` : "var(--accent)";
+const emptyState = msg => `<div class="empty-state"><span class="glyph"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10l8-6 8 6v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span>${esc(msg)}</div>`;
 
 function slotList() {
   const set = new Map();
@@ -283,77 +269,206 @@ function manualGamesFromAssignments() {
     }
   }
 }
+function matchesSearchG(g) {
+  if (!S.search) return true;
+  if (g.title.toLowerCase().includes(S.search)) return true;
+  const a = asgFor(g);
+  if (a) {
+    const t = S.tables.find(x => x.id === a.table_id);
+    const r = t && S.rooms.find(x => x.id === t.room_id);
+    if (t && t.name.toLowerCase().includes(S.search)) return true;
+    if (r && r.name.toLowerCase().includes(S.search)) return true;
+  }
+  return false;
+}
 
-function chipHtml(g, slot, assigned) {
-  const a = asgOf(slot, g.key);
+/* ---------------- Spiel-Chip (überall wiederverwendet) ---------------- */
+function chipHtml(g, { crew = false } = {}) {
+  const a = asgFor(g);
   const table = a && S.tables.find(t => t.id === a.table_id);
+  const room = table && roomOfTable(table.id);
   const over = table && g.seats > table.seats ? `<span class="badge warn">+${g.seats - table.seats} über Kapazität</span>` : "";
-  const title = g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : `<strong>${esc(g.title)}</strong>`;
-  const meta = `<span class="meta">${esc(g.time || "")}${g.time ? " · " : ""}${g.seats} Pers.${g.ws ? " · Workshop" : ""}${g.manual ? " · manuell" : ""}</span>`;
-  let controls = "";
-  if (S.orga) {
+  const titleHtml = g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title);
+  const whereHtml = room && table
+    ? `<div class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)} · ${esc(table.name)}</div>`
+    : `<div class="where" style="color:var(--text-muted)">– noch kein Tisch –</div>`;
+  const metaHtml = `<div class="meta-row"><span>${esc(g.slotLabel)}</span><span>${esc(g.time || "")}</span><span>${g.seats} Pers.</span>${g.ws ? '<span class="badge">Workshop</span>' : ""}${g.manual ? '<span class="badge">manuell</span>' : ""}${over}</div>`;
+  let controlsHtml;
+  if (crew) {
     const opts = ['<option value="">– Tisch wählen –</option>'];
     for (const r of S.rooms) for (const t of S.tables.filter(t => t.room_id === r.id)) {
       const sel = a && a.table_id === t.id ? " selected" : "";
       opts.push(`<option value="${t.id}"${sel}>${esc(r.name)} / ${esc(t.name)} (${t.seats})</option>`);
     }
-    controls = `<select class="assignSel small" data-game="${esc(g.key)}" aria-label="Tisch zuweisen für ${esc(g.title)}">${opts.join("")}</select>`;
-    if (assigned) controls += `<button type="button" class="small unassignBtn" data-game="${esc(g.key)}" aria-label="${esc(g.title)} vom Tisch entfernen">✕</button>`;
-    if (g.manual) controls += `<button type="button" class="small danger delManualBtn" data-game="${esc(g.key)}" aria-label="${esc(g.title)} löschen">🗑</button>`;
+    controlsHtml = `<div class="controls-row"><select class="assignSel small" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="Tisch zuweisen für ${esc(g.title)}">${opts.join("")}</select>`;
+    if (a && a.table_id) controlsHtml += `<button type="button" class="small unassignBtn" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="${esc(g.title)} vom Tisch entfernen">✕</button>`;
+    if (g.manual) controlsHtml += `<button type="button" class="small danger delManualBtn" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="${esc(g.title)} löschen">🗑</button>`;
+    controlsHtml += `</div>`;
   } else {
-    controls = `<button type="button" class="small requestBtn" data-game="${esc(g.key)}">Änderung vorschlagen</button>`;
+    controlsHtml = `<div class="controls-row"><button type="button" class="small requestBtn" data-game="${esc(g.key)}">Änderung vorschlagen</button></div>`;
   }
-  const drag = S.orga ? ` draggable="true"` : "";
-  return `<div class="chip${g.ws ? " ws" : ""}" data-game="${esc(g.key)}"${drag}>${title} ${meta} ${over} ${controls}</div>`;
+  const drag = crew ? ` draggable="true"` : "";
+  return `<div class="chip${g.ws ? " ws" : ""}" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}"${drag}>
+    <div class="title">${titleHtml}</div>${whereHtml}${metaHtml}${controlsHtml}
+  </div>`;
 }
-const matchesSearch = g => !S.search || g.title.toLowerCase().includes(S.search);
 
-function render() {
-  document.querySelectorAll(".orga-only").forEach(el => el.hidden = !S.orga);
-  document.getElementById("orgaBar").hidden = !S.orga;
-  document.getElementById("inbox").hidden = !S.orga || document.getElementById("inbox").dataset.closed === "1";
+/* ---------------- Kopfzeilen-Bausteine ---------------- */
+function renderKpiBar() {
+  document.getElementById("kpiBar").innerHTML = `
+    <div class="kpi"><div class="v">${S.games.length}</div><div class="l">Spiele</div></div>
+    <div class="kpi"><div class="v">${S.rooms.length}</div><div class="l">Räume</div></div>
+    <div class="kpi"><div class="v">${S.tables.length}</div><div class="l">Tische</div></div>`;
+}
+function renderLegend() {
+  document.getElementById("legend").innerHTML = `
+    <span class="item"><span class="swatch"></span> Farbe = Raum</span>
+    <span class="item"><span class="swatch dashed"></span> gestrichelt = Workshop</span>
+    <span class="item"><span class="badge warn">+X</span> über Kapazität (blockiert nichts)</span>`;
+}
+function renderNav() {
+  document.getElementById("viewTabs").innerHTML = VIEWS.map(v =>
+    `<button type="button" data-view="${v.key}" aria-pressed="${String(S.mode === "view" && S.view === v.key)}">${v.label}</button>`).join("");
+  const crewNav = document.getElementById("crewNav");
+  crewNav.hidden = !S.role;
+  if (S.role) {
+    document.getElementById("crewTabs").innerHTML = CREW_VIEWS.map(v =>
+      `<button type="button" data-crewview="${v.key}" aria-pressed="${String(S.mode === "crew" && S.crewView === v.key)}">${v.label}</button>`).join("");
+  }
+}
 
-  const tabs = document.getElementById("slotTabs");
-  tabs.innerHTML = S.slots.map(s => `<button type="button" data-slot="${esc(s.key)}" aria-pressed="${String(s.key === S.activeSlot)}">${esc(s.label)}</button>`).join("");
+/* ---------------- Ansicht: Tabelle ---------------- */
+function sortGames(list, sort) {
+  const val = g => {
+    if (sort.key === "title") return g.title.toLowerCase();
+    if (sort.key === "seats") return g.seats;
+    if (sort.key === "room") { const a = asgFor(g); const t = a && S.tables.find(x => x.id === a.table_id); const r = t && S.rooms.find(x => x.id === t.room_id); return r ? r.name.toLowerCase() : "￿"; }
+    if (sort.key === "table") { const a = asgFor(g); const t = a && S.tables.find(x => x.id === a.table_id); return t ? t.name.toLowerCase() : "￿"; }
+    return g.start;
+  };
+  return [...list].sort((a, b) => { const va = val(a), vb = val(b); return (va < vb ? -1 : va > vb ? 1 : 0) * sort.dir; });
+}
+function tabelleHtml() {
+  const rows = sortGames(S.games.filter(matchesSearchG), S.tableSort);
+  if (!rows.length) return emptyState(S.games.length ? "Keine Treffer für diese Suche." : "Noch keine Spiele.");
+  const arrow = k => S.tableSort.key === k ? (S.tableSort.dir === 1 ? " ▲" : " ▼") : "";
+  const trs = rows.map(g => {
+    const a = asgFor(g); const table = a && S.tables.find(t => t.id === a.table_id); const room = table && roomOfTable(table.id);
+    return `<tr>
+      <td>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title)}${g.ws ? ' <span class="badge">Workshop</span>' : ""}</td>
+      <td>${esc(g.slotLabel)}</td>
+      <td>${room ? `<span class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)}</span>` : '<span style="color:var(--text-muted)">–</span>'}</td>
+      <td>${table ? esc(table.name) : "–"}</td>
+      <td>${g.seats}</td>
+      <td class="no-print"><button type="button" class="small requestBtn" data-game="${esc(g.key)}">Änderung vorschlagen</button></td>
+    </tr>`;
+  }).join("");
+  return `<div class="card"><div style="overflow-x:auto"><table>
+    <caption class="sr-only">Alle Spiele mit Slot, Raum, Tisch und Plätzen</caption>
+    <thead><tr>
+      <th scope="col" data-sort="title">Spiel${arrow("title")}</th>
+      <th scope="col" data-sort="when">Slot${arrow("when")}</th>
+      <th scope="col" data-sort="room">Raum${arrow("room")}</th>
+      <th scope="col" data-sort="table">Tisch${arrow("table")}</th>
+      <th scope="col" data-sort="seats">Plätze${arrow("seats")}</th>
+      <th scope="col" class="no-print"></th>
+    </tr></thead><tbody>${trs}</tbody></table></div></div>`;
+}
 
-  const slot = S.activeSlot;
-  const games = slot ? bySlot(slot) : [];
-  const un = games.filter(g => { const a = asgOf(slot, g.key); return !a || !a.table_id; }).filter(matchesSearch);
-  document.getElementById("unassignedBar").innerHTML =
-    un.map(g => chipHtml(g, slot, false)).join("") ||
-    '<span class="free" style="color:var(--text-muted);font-size:.82rem">🎉 Alle Spiele dieses Slots haben einen Tisch.</span>';
+/* ---------------- Ansicht: Raster ---------------- */
+function rasterHtml() {
+  if (!S.rooms.length) return emptyState("Noch keine Räume angelegt.");
+  if (!S.slots.length) return emptyState("Noch keine Spiele geladen.");
+  const rows = S.rasterAxis === "slots" ? S.slots : S.rooms;
+  const cols = S.rasterAxis === "slots" ? S.rooms : S.slots;
+  const headHtml = cols.map(c => `<th scope="col">${esc(S.rasterAxis === "slots" ? c.name : c.label)}</th>`).join("");
+  const bodyHtml = rows.map(r => {
+    const rowLabel = S.rasterAxis === "slots" ? r.label : r.name;
+    const cellsHtml = cols.map(c => {
+      const room = S.rasterAxis === "slots" ? c : r;
+      const slot = S.rasterAxis === "slots" ? r : c;
+      const gamesHere = S.games.filter(g => g.slotKey === slot.key && matchesSearchG(g)).filter(g => { const a = asgFor(g); const t = a && S.tables.find(x => x.id === a.table_id); return t && t.room_id === room.id; });
+      const fillClass = gamesHere.length === 0 ? "fill-0" : gamesHere.length === 1 ? "fill-low" : gamesHere.length === 2 ? "fill-mid" : "fill-high";
+      const inner = gamesHere.length ? gamesHere.map(g => chipHtml(g, { crew: false })).join("") : '<span class="sr-only">Keine Spiele</span>·';
+      return `<td class="grid-cell ${fillClass}${!gamesHere.length ? " empty" : ""}">${inner}</td>`;
+    }).join("");
+    return `<tr><th scope="row">${esc(rowLabel)}</th>${cellsHtml}</tr>`;
+  }).join("");
+  return `<div class="controls no-print"><button type="button" id="flipAxisBtn">⇄ Achsen tauschen (aktuell: ${S.rasterAxis === "slots" ? "Slots als Zeilen" : "Räume als Zeilen"})</button></div>
+    <div class="grid-view"><table class="grid-table"><thead><tr><th></th>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+}
 
-  const board = document.getElementById("board");
-  board.innerHTML = S.rooms.map(room => {
+/* ---------------- Ansicht: Räume (öffentlich, lesend) ---------------- */
+function raeumeReadHtml() {
+  if (!S.slots.length) return emptyState("Noch keine Spiele geladen.");
+  const slotTabsHtml = `<div class="slot-tabs local-slot-tabs" role="group" aria-label="Slot wählen">${S.slots.map(s => `<button type="button" data-slot="${esc(s.key)}" aria-pressed="${String(s.key === S.activeSlot)}">${esc(s.label)}</button>`).join("")}</div>`;
+  const boardHtml = S.rooms.map(room => {
     const badges = Object.entries(room.features || {}).filter(([, v]) => v).map(([k]) => `<span class="badge">${esc(FEATURES[k] || k)}</span>`).join("");
     const tables = S.tables.filter(t => t.room_id === room.id);
     const tablesHtml = tables.map(t => {
-      const asgs = slot ? asgOnTable(slot, t.id) : [];
-      const double = asgs.length > 1 ? `<span class="badge warn">doppelt belegt!</span>` : "";
-      const chips = asgs.map(a => { const g = gameByKey(a.session_key); return g && matchesSearch(g) ? chipHtml(g, slot, true) : ""; }).join("");
-      const actions = S.orga ? `<span class="table-actions"><button type="button" class="small editTableBtn" data-id="${t.id}" aria-label="Tisch ${esc(t.name)} bearbeiten">✎</button><button type="button" class="small danger delTableBtn" data-id="${t.id}" aria-label="Tisch ${esc(t.name)} löschen">🗑</button></span>` : "";
-      return `<div class="tablebox" data-table="${t.id}">
-        <div class="thead"><b>${esc(t.name)}</b><span class="seats">${t.seats} Plätze</span>${t.notes ? `<span class="seats">· ${esc(t.notes)}</span>` : ""}${double}${actions}</div>
-        ${chips || '<div class="free">frei</div>'}
-      </div>`;
+      const games = S.games.filter(g => g.slotKey === S.activeSlot && matchesSearchG(g)).filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
+      return `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${t.seats} Plätze</span></div>${games.map(g => chipHtml(g, { crew: false })).join("") || '<div class="free">frei</div>'}</div>`;
     }).join("");
-    const roomActions = S.orga ? `<span class="room-actions"><button type="button" class="small addTableBtn" data-room="${room.id}">+ Tisch</button><button type="button" class="small editRoomBtn" data-id="${room.id}" aria-label="Raum ${esc(room.name)} bearbeiten">✎</button><button type="button" class="small danger delRoomBtn" data-id="${room.id}" aria-label="Raum ${esc(room.name)} löschen">🗑</button></span>` : "";
-    return `<div class="room"><div class="room-head"><h3>${esc(room.name)}</h3><span class="floor">${esc(room.floor || "")}</span>${roomActions}</div>
+    return `<div class="room" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
+      <div class="room-head"><h3>${esc(room.name)}</h3></div>
       <div class="room-badges">${badges}</div>
-      ${room.notes ? `<p class="room-notes">${esc(room.notes)}</p>` : ""}
-      ${tablesHtml || '<p class="free" style="color:var(--text-muted);font-size:.8rem">Noch keine Tische.</p>'}</div>`;
-  }).join("") || `<div class="empty-state"><span class="glyph">🏛️</span>Noch keine Räume angelegt.${S.orga ? " Nutze „+ Raum“ oben." : ""}</div>`;
-
-  renderInbox();
-  wireDnd();
+      ${room.notes || room.floor ? `<details class="room-more"><summary>Details</summary>${room.floor ? `<div class="room-notes">Lage: ${esc(room.floor)}</div>` : ""}${room.notes ? `<div class="room-notes">${esc(room.notes)}</div>` : ""}</details>` : ""}
+      ${tablesHtml || '<p class="hint">Noch keine Tische.</p>'}
+    </div>`;
+  }).join("") || emptyState("Noch keine Räume angelegt.");
+  return `${slotTabsHtml}<div id="board" style="margin-top:var(--sp-4)">${boardHtml}</div>`;
 }
 
-function renderInbox() {
-  if (!S.orga) return;
-  const open = S.requests.filter(r => r.status === "offen").length;
-  const badge = document.getElementById("inboxCount");
-  badge.hidden = open === 0; badge.textContent = open;
-  document.getElementById("reqList").innerHTML = S.requests.map(r => `
+/* ---------------- Crew: Zuordnen ---------------- */
+function zuordnenHtml() {
+  if (!S.slots.length) return emptyState("Noch keine Spiele geladen.");
+  const slotTabsHtml = `<div class="slot-tabs local-slot-tabs" role="group" aria-label="Slot wählen">${S.slots.map(s => `<button type="button" data-slot="${esc(s.key)}" aria-pressed="${String(s.key === S.activeSlot)}">${esc(s.label)}</button>`).join("")}</div>`;
+  const slotGames = bySlot(S.activeSlot);
+  const unassigned = slotGames.filter(g => { const a = asgFor(g); return !a || !a.table_id; })
+    .filter(g => S.filterWs === "all" || (S.filterWs === "ws" && g.ws) || (S.filterWs === "reg" && !g.ws));
+  const filterChipsHtml = `<div class="filter-chips">
+    <button type="button" class="filter-chip" data-filterws="all" aria-pressed="${String(S.filterWs === "all")}">Alle</button>
+    <button type="button" class="filter-chip" data-filterws="reg" aria-pressed="${String(S.filterWs === "reg")}">Ohne Workshops</button>
+    <button type="button" class="filter-chip" data-filterws="ws" aria-pressed="${String(S.filterWs === "ws")}">Nur Workshops</button>
+  </div>`;
+  const queueHtml = `<div class="assign-queue"><h2>Noch ohne Tisch</h2><p class="hint">Ziehe ein Spiel auf einen Tisch oder nutze das Auswahlfeld am Spiel.</p>${filterChipsHtml}<div class="chipbar" id="unassignedBar">${unassigned.map(g => chipHtml(g, { crew: true })).join("") || '<p class="hint">🎉 Alles zugeordnet.</p>'}</div></div>`;
+  const boardHtml = S.rooms.map(room => {
+    const tables = S.tables.filter(t => t.room_id === room.id);
+    const tablesHtml = tables.map(t => {
+      const games = slotGames.filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
+      const double = games.length > 1 ? '<span class="badge warn">doppelt belegt!</span>' : "";
+      return `<div class="tablebox" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${t.seats} Plätze</span>${double}</div>${games.map(g => chipHtml(g, { crew: true })).join("") || '<div class="free">frei</div>'}</div>`;
+    }).join("");
+    return `<div class="room" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><h3>${esc(room.name)}</h3></div>${tablesHtml || '<p class="hint">Noch keine Tische — in „Räume verwalten“ anlegen.</p>'}</div>`;
+  }).join("") || emptyState("Noch keine Räume angelegt. Wechsle zu „Räume verwalten“.");
+  return `${slotTabsHtml}
+    <div class="controls no-print"><button type="button" id="autoBtn" class="primary">⚙️ Auto-Zuordnung (dieser Slot)</button></div>
+    <div class="assign-layout" style="margin-top:var(--sp-3)">${queueHtml}<div id="board">${boardHtml}</div></div>`;
+}
+
+/* ---------------- Crew: Räume verwalten ---------------- */
+function raeumeVerwaltenHtml() {
+  const roomsHtml = S.rooms.map(room => {
+    const tables = S.tables.filter(t => t.room_id === room.id);
+    const tablesHtml = tables.map(t => `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${t.seats} Plätze</span>${t.notes ? `<span class="seats">· ${esc(t.notes)}</span>` : ""}
+      <span class="table-actions"><button type="button" class="small editTableBtn" data-id="${t.id}" aria-label="Tisch ${esc(t.name)} bearbeiten">✎</button><button type="button" class="small danger delTableBtn" data-id="${t.id}" aria-label="Tisch ${esc(t.name)} löschen">🗑</button></span></div></div>`).join("");
+    return `<div class="room" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
+      <div class="room-head"><h3>${esc(room.name)}</h3><span class="floor">${esc(room.floor || "")}</span>
+        <span class="room-actions"><button type="button" class="small addTableBtn" data-room="${room.id}">+ Tisch</button><button type="button" class="small editRoomBtn" data-id="${room.id}" aria-label="Raum ${esc(room.name)} bearbeiten">✎</button><button type="button" class="small danger delRoomBtn" data-id="${room.id}" aria-label="Raum ${esc(room.name)} löschen">🗑</button></span>
+      </div>
+      <div class="room-badges">${Object.entries(room.features || {}).filter(([, v]) => v).map(([k]) => `<span class="badge">${esc(FEATURES[k] || k)}</span>`).join("")}</div>
+      ${room.notes ? `<p class="hint">${esc(room.notes)}</p>` : ""}
+      ${tablesHtml || '<p class="hint">Noch keine Tische.</p>'}
+    </div>`;
+  }).join("") || emptyState("Noch keine Räume angelegt.");
+  return `<div class="controls no-print"><button type="button" id="addRoomBtn" class="primary">+ Raum</button><button type="button" id="addManualBtn">+ manuelles Spiel</button></div>
+    <div id="board" style="margin-top:var(--sp-4)">${roomsHtml}</div>`;
+}
+
+/* ---------------- Crew: Änderungswünsche ---------------- */
+function wuenscheHtml() {
+  const list = S.showDoneRequests ? S.requests : S.requests.filter(r => r.status === "offen");
+  const rowsHtml = list.map(r => `
     <div class="req ${r.status !== "offen" ? "done" : ""}">
       <div class="rmeta">${esc(new Date(r.created_at).toLocaleString("de-AT", { timeZone: TZ }))}${r.contact ? " · von " + esc(r.contact) : ""} · <strong>${esc(r.status)}</strong></div>
       <div><strong>${esc(r.game_ref || "Allgemein")}</strong></div>
@@ -364,31 +479,83 @@ function renderInbox() {
         <button type="button" class="small reqStatus" data-id="${r.id}" data-status="offen">↻ offen</button>
         <input type="text" class="reqNote" data-id="${r.id}" placeholder="Crew-Notiz" value="${esc(r.orga_notiz || "")}" style="flex:1;min-width:140px">
       </div>
-    </div>`).join("") || '<p class="hint">Keine Änderungswünsche.</p>';
+    </div>`).join("") || '<p class="hint">Keine offenen Änderungswünsche.</p>';
+  return `<div class="controls no-print"><label style="display:flex;gap:6px;align-items:center;font-size:var(--fs-sm);cursor:pointer"><input type="checkbox" id="showDoneChk" ${S.showDoneRequests ? "checked" : ""}> auch erledigte/abgelehnte anzeigen</label></div>
+    <div class="card" style="margin-top:var(--sp-3)">${rowsHtml}</div>`;
+}
+
+/* ---------------- Crew: Crew verwalten ---------------- */
+function crewVerwaltenHtml() {
+  return `<div class="card">
+    <h2>Crew</h2>
+    <p class="hint">${S.role === "admin" ? "Als Admin kannst du Rollen ändern und Mitglieder entfernen." : "Nur Admins können die Crew verwalten — du siehst die Liste read-only."}</p>
+    <div id="crewList"><p class="hint">Lädt …</p></div>
+    ${S.role === "admin" ? `<h3>Einladen</h3>
+    <form id="inviteForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      <div class="frow" style="margin:0;flex:1;min-width:200px"><label for="inviteEmail">E-Mail (muss bereits registriert sein)</label><input type="email" id="inviteEmail" required></div>
+      <div class="frow" style="margin:0"><label for="inviteRole">Rolle</label><select id="inviteRole"><option value="editor">Bearbeiter</option><option value="admin">Admin</option></select></div>
+      <button type="submit" class="primary">Einladen</button>
+    </form>` : ""}
+    <p class="msg" id="crewMsg" role="status"></p>
+  </div>`;
+}
+async function refreshCrewList() {
+  const listEl = document.getElementById("crewList");
+  if (!listEl) return;
+  const token = await Auth.accessToken();
+  try {
+    const members = await supaRpc("list_con_members", { target_con: S.con.id }, token);
+    listEl.innerHTML = members.map(m => `
+      <div class="req">
+        <span>${esc(m.email)}</span> ${roleBadgeHtml(m.role, m.status)}
+        ${S.role === "admin" ? `<span style="float:right;display:flex;gap:4px">
+          <button type="button" class="small toggleRoleBtn" data-uid="${m.user_id}" data-role="${m.role}">${m.role === "admin" ? "→ Bearbeiter" : "→ Admin"}</button>
+          <button type="button" class="small danger removeCrewBtn" data-uid="${m.user_id}">Entfernen</button>
+        </span>` : ""}
+      </div>`).join("") || '<p class="hint">Keine Mitglieder gefunden.</p>';
+  } catch (err) { listEl.innerHTML = `<p class="msg err">${esc(err.message)}</p>`; }
+}
+
+/* ---------------- Render-Dispatcher ---------------- */
+function renderActive() {
+  renderKpiBar(); renderLegend(); renderNav();
+  const viewC = document.getElementById("viewContent"), crewC = document.getElementById("crewContent");
+  if (S.mode === "crew" && S.role) {
+    viewC.hidden = true; crewC.hidden = false;
+    if (S.crewView === "zuordnen") { crewC.innerHTML = zuordnenHtml(); wireDnd(); }
+    else if (S.crewView === "raeume-verwalten") crewC.innerHTML = raeumeVerwaltenHtml();
+    else if (S.crewView === "wuensche") crewC.innerHTML = wuenscheHtml();
+    else if (S.crewView === "crew") { crewC.innerHTML = crewVerwaltenHtml(); refreshCrewList(); }
+  } else {
+    viewC.hidden = false; crewC.hidden = true;
+    if (S.view === "tabelle") viewC.innerHTML = tabelleHtml();
+    else if (S.view === "raster") viewC.innerHTML = rasterHtml();
+    else viewC.innerHTML = raeumeReadHtml();
+  }
 }
 
 /* ---------------- Aktionen ---------------- */
-async function assign(gameKey, tableId) {
+async function assign(gameKey, slotKey, tableId) {
   const g = gameByKey(gameKey);
-  const a = { slot_key: S.activeSlot, session_key: gameKey, table_id: tableId || null };
+  const a = { slot_key: slotKey, session_key: gameKey, table_id: tableId || null };
   if (g.manual) a.manual_game = { title: g.title, seats: g.seats, slotLabel: g.slotLabel, time: g.time };
   try {
     if (!tableId && !g.manual) {
-      await S.store.deleteAssignment(S.activeSlot, gameKey);
-      S.assignments = S.assignments.filter(x => !(x.slot_key === S.activeSlot && x.session_key === gameKey));
+      await S.store.deleteAssignment(slotKey, gameKey);
+      S.assignments = S.assignments.filter(x => !(x.slot_key === slotKey && x.session_key === gameKey));
     } else {
       await S.store.upsertAssignment(a);
-      const ex = asgOf(S.activeSlot, gameKey);
+      const ex = S.assignments.find(x => x.slot_key === slotKey && x.session_key === gameKey);
       if (ex) ex.table_id = a.table_id; else S.assignments.push(a);
     }
-    render();
+    renderActive();
   } catch (e) { alert("Speichern fehlgeschlagen: " + e.message); }
 }
 
 function autoAssign() {
   const slot = S.activeSlot;
-  const freeTables = () => S.tables.filter(t => asgOnTable(slot, t.id).length === 0);
-  const un = bySlot(slot).filter(g => { const a = asgOf(slot, g.key); return !a || !a.table_id; });
+  const freeTables = () => S.tables.filter(t => !S.assignments.some(a => a.slot_key === slot && a.table_id === t.id));
+  const un = bySlot(slot).filter(g => { const a = asgFor(g); return !a || !a.table_id; });
   const prevOf = g => S.assignments.find(x => x.slot_key !== slot && gameByKey(x.session_key)?.gameId === g.gameId && x.table_id);
   const regular = un.filter(g => !g.ws).sort((a, b) => (prevOf(b) ? 1 : 0) - (prevOf(a) ? 1 : 0) || b.seats - a.seats);
   const workshops = un.filter(g => g.ws);
@@ -396,7 +563,7 @@ function autoAssign() {
   for (const g of regular) {
     const prev = prevOf(g);
     let target = null;
-    if (prev) { const t = S.tables.find(t => t.id === prev.table_id); if (t && t.seats >= g.seats && asgOnTable(slot, t.id).length === 0 && !jobs.some(j => j.tableId === t.id)) target = t; }
+    if (prev) { const t = S.tables.find(t => t.id === prev.table_id); if (t && t.seats >= g.seats && !S.assignments.some(a => a.slot_key === slot && a.table_id === t.id) && !jobs.some(j => j.tableId === t.id)) target = t; }
     if (!target) { const candidates = freeTables().filter(t => t.seats >= g.seats && !jobs.some(j => j.tableId === t.id)).sort((a, b) => a.seats - b.seats); target = candidates[0] || null; }
     if (target) jobs.push({ gameKey: g.key, tableId: target.id });
   }
@@ -408,49 +575,54 @@ function autoAssign() {
   }
   if (!jobs.length) { alert("Nichts zuzuordnen – entweder alles verteilt oder keine passenden freien Tische."); return; }
   (async () => {
-    for (const j of jobs) await assign(j.gameKey, j.tableId);
-    const rest = bySlot(slot).filter(g => { const a = asgOf(slot, g.key); return !a || !a.table_id; }).length;
+    for (const j of jobs) await assign(j.gameKey, slot, j.tableId);
+    const rest = bySlot(slot).filter(g => { const a = asgFor(g); return !a || !a.table_id; }).length;
     document.getElementById("status").textContent = `Auto-Zuordnung: ${jobs.length} Spiele zugeordnet${rest ? `, ${rest} weiterhin ohne passenden Tisch` : ""}.`;
   })();
 }
 
-/* ---------------- Drag & Drop ---------------- */
+/* ---------------- Drag & Drop (nur Zuordnen) ---------------- */
 function wireDnd() {
-  if (!S.orga) return;
   document.querySelectorAll('.chip[draggable="true"]').forEach(chip => {
-    chip.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", chip.dataset.game); chip.classList.add("dragging"); });
+    chip.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", JSON.stringify({ g: chip.dataset.game, s: chip.dataset.slot })); chip.classList.add("dragging"); });
     chip.addEventListener("dragend", () => chip.classList.remove("dragging"));
   });
   document.querySelectorAll(".tablebox").forEach(box => {
     box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("dragover"); });
     box.addEventListener("dragleave", () => box.classList.remove("dragover"));
-    box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("dragover"); const key = e.dataTransfer.getData("text/plain"); if (key) assign(key, box.dataset.table); });
+    box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("dragover"); const d = e.dataTransfer.getData("text/plain"); if (d) { const { g, s } = JSON.parse(d); assign(g, s, box.dataset.table); } });
   });
   const un = document.getElementById("unassignedBar");
-  if (un.dataset.wired !== "1") {
-    un.dataset.wired = "1";
+  if (un) {
     un.addEventListener("dragover", e => { e.preventDefault(); un.classList.add("dragover"); });
     un.addEventListener("dragleave", () => un.classList.remove("dragover"));
-    un.addEventListener("drop", e => { e.preventDefault(); un.classList.remove("dragover"); const key = e.dataTransfer.getData("text/plain"); if (key) assign(key, null); });
+    un.addEventListener("drop", e => { e.preventDefault(); un.classList.remove("dragover"); const d = e.dataTransfer.getData("text/plain"); if (d) { const { g, s } = JSON.parse(d); assign(g, s, null); } });
   }
 }
 
 /* ---------------- Event-Delegation ---------------- */
-document.addEventListener("change", e => { if (e.target.matches(".assignSel")) assign(e.target.dataset.game, e.target.value || null); });
+document.addEventListener("change", e => {
+  if (e.target.matches(".assignSel")) assign(e.target.dataset.game, e.target.dataset.slot, e.target.value || null);
+  else if (e.target.id === "showDoneChk") { S.showDoneRequests = e.target.checked; renderActive(); }
+});
 document.addEventListener("click", async e => {
-  const t = e.target.closest("button");
+  const t = e.target.closest("button, th[data-sort]");
   if (!t) return;
-  if (t.matches("#slotTabs button")) { S.activeSlot = t.dataset.slot; render(); }
-  else if (t.matches(".unassignBtn")) assign(t.dataset.game, null);
+  if (t.matches("[data-view]")) { S.mode = "view"; S.view = t.dataset.view; renderActive(); }
+  else if (t.matches("[data-crewview]")) { S.mode = "crew"; S.crewView = t.dataset.crewview; renderActive(); }
+  else if (t.matches(".local-slot-tabs button")) { S.activeSlot = t.dataset.slot; renderActive(); }
+  else if (t.matches(".unassignBtn")) assign(t.dataset.game, t.dataset.slot, null);
   else if (t.matches(".delManualBtn")) {
     if (!confirm("Manuelles Spiel löschen?")) return;
-    await S.store.deleteAssignment(S.activeSlot, t.dataset.game);
+    await S.store.deleteAssignment(t.dataset.slot, t.dataset.game);
     S.assignments = S.assignments.filter(x => x.session_key !== t.dataset.game);
     S.games = S.games.filter(g => g.key !== t.dataset.game);
-    render();
+    renderActive();
   }
   else if (t.matches(".requestBtn")) openRequestDlg(t.dataset.game);
   else if (t.id === "printBtn") window.print();
+  else if (t.id === "flipAxisBtn") { S.rasterAxis = S.rasterAxis === "slots" ? "rooms" : "slots"; renderActive(); }
+  else if (t.matches("[data-filterws]")) { S.filterWs = t.dataset.filterws; renderActive(); }
   else if (t.id === "addRoomBtn") openRoomDlg(null);
   else if (t.matches(".editRoomBtn")) openRoomDlg(S.rooms.find(r => r.id === t.dataset.id));
   else if (t.matches(".delRoomBtn")) {
@@ -460,7 +632,7 @@ document.addEventListener("click", async e => {
     S.rooms = S.rooms.filter(r => r.id !== t.dataset.id);
     S.tables = S.tables.filter(x => x.room_id !== t.dataset.id);
     S.assignments = S.assignments.filter(a => !tids.includes(a.table_id));
-    render();
+    renderActive();
   }
   else if (t.matches(".addTableBtn")) openTableDlg(null, t.dataset.room);
   else if (t.matches(".editTableBtn")) { const tb = S.tables.find(x => x.id === t.dataset.id); openTableDlg(tb, tb.room_id); }
@@ -469,18 +641,51 @@ document.addEventListener("click", async e => {
     await S.store.deleteTable(t.dataset.id);
     S.tables = S.tables.filter(x => x.id !== t.dataset.id);
     S.assignments = S.assignments.map(a => a.table_id === t.dataset.id ? { ...a, table_id: null } : a).filter(a => a.table_id || a.session_key.startsWith("manual:"));
-    render();
+    renderActive();
   }
   else if (t.id === "addManualBtn") openManualDlg();
   else if (t.id === "autoBtn") autoAssign();
-  else if (t.id === "inboxBtn") { const ib = document.getElementById("inbox"); ib.dataset.closed = ib.dataset.closed === "1" ? "0" : "1"; render(); ib.scrollIntoView({ behavior: "smooth" }); }
-  else if (t.id === "crewBtn") openCrewDlg();
-  else if (t.matches(".reqStatus")) { await S.store.updateRequest(t.dataset.id, { status: t.dataset.status }); S.requests.find(r => r.id === t.dataset.id).status = t.dataset.status; renderInbox(); }
+  else if (t.matches(".reqStatus")) { await S.store.updateRequest(t.dataset.id, { status: t.dataset.status }); S.requests.find(r => r.id === t.dataset.id).status = t.dataset.status; renderActive(); }
+  else if (t.matches(".toggleRoleBtn")) {
+    const newRole = t.dataset.role === "admin" ? "editor" : "admin";
+    try {
+      const token = await Auth.accessToken();
+      await supaFetch(`con_members?con_id=eq.${S.con.id}&user_id=eq.${t.dataset.uid}`, { method: "PATCH", headers: supaHeaders(token, true), body: JSON.stringify({ role: newRole }) });
+      refreshCrewList();
+    } catch (err) { document.getElementById("crewMsg").className = "msg err"; document.getElementById("crewMsg").textContent = err.message; }
+  }
+  else if (t.matches(".removeCrewBtn")) {
+    if (!confirm("Diese Person aus der Crew entfernen?")) return;
+    try {
+      const token = await Auth.accessToken();
+      await supaFetch(`con_members?con_id=eq.${S.con.id}&user_id=eq.${t.dataset.uid}`, { method: "DELETE", headers: supaHeaders(token) });
+      refreshCrewList();
+    } catch (err) { document.getElementById("crewMsg").className = "msg err"; document.getElementById("crewMsg").textContent = err.message; }
+  }
+  else if (t.matches("th[data-sort]")) {
+    const key = t.dataset.sort;
+    S.tableSort = { key, dir: S.tableSort.key === key ? -S.tableSort.dir : 1 };
+    renderActive();
+  }
+});
+document.addEventListener("submit", async e => {
+  if (e.target.id !== "inviteForm") return;
+  e.preventDefault();
+  const email = document.getElementById("inviteEmail").value.trim();
+  const role = document.getElementById("inviteRole").value;
+  const msg = document.getElementById("crewMsg");
+  msg.className = "msg";
+  try {
+    await inviteMember(S.con.id, email, role);
+    msg.className = "msg ok"; msg.textContent = `${email} wurde eingeladen — wird aktiv, sobald die Person zustimmt.`;
+    document.getElementById("inviteEmail").value = "";
+    refreshCrewList();
+  } catch (err) { msg.className = "msg err"; msg.textContent = err.message; }
 });
 document.addEventListener("focusout", async e => {
   if (e.target.matches(".reqNote")) { await S.store.updateRequest(e.target.dataset.id, { orga_notiz: e.target.value }); S.requests.find(r => r.id === e.target.dataset.id).orga_notiz = e.target.value; }
 });
-document.getElementById("search").addEventListener("input", e => { S.search = e.target.value.trim().toLowerCase(); render(); });
+document.getElementById("globalSearch").addEventListener("input", e => { S.search = e.target.value.trim().toLowerCase(); renderActive(); });
 
 /* ---------------- Dialoge ---------------- */
 function openRequestDlg(gameKey) {
@@ -505,6 +710,7 @@ function openRoomDlg(room) {
   document.getElementById("roomId").value = room?.id || "";
   document.getElementById("roomName").value = room?.name || "";
   document.getElementById("roomFloor").value = room?.floor || "";
+  document.getElementById("roomSort").value = room?.sort || 0;
   document.getElementById("roomNotes").value = room?.notes || "";
   document.getElementById("roomFeatures").innerHTML = Object.entries(FEATURES).map(([k, label]) => `<label><input type="checkbox" name="feat" value="${k}" ${room?.features?.[k] ? "checked" : ""}> ${esc(label)}</label>`).join("");
   document.getElementById("roomDlg").showModal();
@@ -513,11 +719,12 @@ document.getElementById("roomForm").addEventListener("submit", async e => {
   e.preventDefault();
   const features = {};
   document.querySelectorAll('#roomFeatures input:checked').forEach(i => features[i.value] = true);
-  const room = { id: document.getElementById("roomId").value || undefined, name: document.getElementById("roomName").value.trim(), floor: document.getElementById("roomFloor").value.trim(), notes: document.getElementById("roomNotes").value.trim(), features };
+  const room = { id: document.getElementById("roomId").value || undefined, name: document.getElementById("roomName").value.trim(), floor: document.getElementById("roomFloor").value.trim(), sort: parseInt(document.getElementById("roomSort").value, 10) || 0, notes: document.getElementById("roomNotes").value.trim(), features };
   try {
     const saved = await S.store.saveRoom(room);
     if (!room.id) S.rooms.push(saved); else Object.assign(S.rooms.find(r => r.id === room.id), saved);
-    document.getElementById("roomDlg").close(); render();
+    S.rooms.sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name));
+    document.getElementById("roomDlg").close(); renderActive();
   } catch (err) { alert("Speichern fehlgeschlagen: " + err.message); }
 });
 
@@ -535,7 +742,7 @@ document.getElementById("tableForm").addEventListener("submit", async e => {
   try {
     const saved = await S.store.saveTable(t);
     if (!t.id) S.tables.push(saved); else Object.assign(S.tables.find(x => x.id === t.id), saved);
-    document.getElementById("tableDlg").close(); render();
+    document.getElementById("tableDlg").close(); renderActive();
   } catch (err) { alert("Speichern fehlgeschlagen: " + err.message); }
 });
 
@@ -553,73 +760,55 @@ document.getElementById("manualForm").addEventListener("submit", async e => {
     await S.store.upsertAssignment({ slot_key: slotKey, session_key: g.key, table_id: null, manual_game: { title: g.title, seats: g.seats, slotLabel: g.slotLabel, time: "" } });
     S.games.push(g);
     S.assignments.push({ slot_key: slotKey, session_key: g.key, table_id: null, manual_game: { title: g.title, seats: g.seats } });
-    document.getElementById("manualDlg").close(); render();
+    document.getElementById("manualDlg").close(); renderActive();
   } catch (err) { alert("Anlegen fehlgeschlagen: " + err.message); }
-});
-
-/* ---------------- Crew verwalten ---------------- */
-async function openCrewDlg() {
-  const dlg = document.getElementById("crewDlg");
-  document.getElementById("crewMsg").textContent = "";
-  dlg.showModal();
-  await refreshCrewList();
-}
-async function refreshCrewList() {
-  const token = await Auth.accessToken();
-  try {
-    const members = await supaRpc("list_con_members", { target_con: S.con.id }, token);
-    document.getElementById("crewList").innerHTML = members.map(m =>
-      `<div class="req"><span>${esc(m.email)}</span> <button type="button" class="small danger removeCrewBtn" data-uid="${m.user_id}" style="float:right">Entfernen</button></div>`
-    ).join("") || '<p class="hint">Keine Mitglieder gefunden.</p>';
-  } catch (err) { document.getElementById("crewList").innerHTML = `<p class="msg err">${esc(err.message)}</p>`; }
-}
-document.getElementById("inviteForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const email = document.getElementById("inviteEmail").value.trim();
-  const msg = document.getElementById("crewMsg");
-  msg.className = "msg";
-  try {
-    const token = await Auth.accessToken();
-    await supaRpc("invite_member_to_con", { target_con: S.con.id, invite_email: email }, token);
-    msg.className = "msg ok"; msg.textContent = `${email} wurde eingeladen.`;
-    document.getElementById("inviteEmail").value = "";
-    refreshCrewList();
-  } catch (err) { msg.className = "msg err"; msg.textContent = err.message; }
-});
-document.getElementById("crewList").addEventListener("click", async e => {
-  const btn = e.target.closest(".removeCrewBtn");
-  if (!btn) return;
-  if (!confirm("Diese Person aus der Crew entfernen?")) return;
-  try {
-    const token = await Auth.accessToken();
-    await supaFetch(`con_members?con_id=eq.${S.con.id}&user_id=eq.${btn.dataset.uid}`, { method: "DELETE", headers: supaHeaders(token) });
-    refreshCrewList();
-  } catch (err) { document.getElementById("crewMsg").className = "msg err"; document.getElementById("crewMsg").textContent = err.message; }
 });
 
 /* ---------------- Start ---------------- */
 renderThemeSwitch(document.getElementById("themeSwitch"));
 
-async function refreshOrgaStatus() {
+async function refreshRole() {
   const token = await Auth.accessToken();
-  if (!token) { S.orga = false; return; }
-  try { S.orga = await supaRpc("is_con_member", { target_con: S.con.id }, token); }
-  catch { S.orga = false; }
+  if (!token) { S.role = null; S.superadmin = false; return; }
+  try {
+    S.superadmin = await supaRpc("is_superadmin", {}, token).catch(() => false);
+    if (await supaRpc("is_con_admin", { target_con: S.con.id }, token)) { S.role = "admin"; return; }
+    S.role = (await supaRpc("is_con_member", { target_con: S.con.id }, token)) ? "editor" : null;
+  } catch { S.role = null; }
 }
 
 const authUI = mountAuthUI({
   buttonId: "authBtn",
-  onChange: async () => { await refreshOrgaStatus(); if (S.orga) S.requests = await S.store.listRequests().catch(() => []); render(); updateViewBanner(); },
+  onChange: async () => {
+    await refreshRole();
+    if (S.role) S.requests = await S.store.listRequests().catch(() => []);
+    if (!S.role && S.mode === "crew") { S.mode = "view"; S.view = "tabelle"; }
+    renderActive(); updateViewBanner();
+    renderPendingInvites(document.getElementById("inviteBanner"), () => window.location.reload());
+  },
 });
 
 function updateViewBanner() {
   const el = document.getElementById("viewBanner");
-  if (S.orga) { el.hidden = true; return; }
-  el.hidden = false;
+  if (S.superadmin) {
+    el.hidden = false; el.className = "banner no-print open";
+    el.textContent = "🛡️ Du bearbeitest diese Con als Super-Admin (unabhängig von einer eigenen Crew-Mitgliedschaft).";
+    return;
+  }
+  if (S.role) { el.hidden = true; return; }
+  el.hidden = false; el.className = "banner no-print";
   el.textContent = Auth.session()
     ? "Du bist eingeloggt, aber (noch) nicht Teil der Crew dieser Con — du siehst die öffentliche Ansicht."
     : "Öffentliche Ansicht. Crew-Mitglieder können sich oben einloggen.";
 }
+
+document.getElementById("credits").innerHTML = `
+  <span>Con-Raumplan</span> ·
+  <a href="https://playabl.io" target="_blank" rel="noopener">Playabl</a> ·
+  <a href="https://www.3w6-podcast.com/" target="_blank" rel="noopener">3W6-Community</a> ·
+  <a href="https://lmbreuer.github.io/playabl-dashboard/" target="_blank" rel="noopener">Slot-Dashboard</a> ·
+  <a href="impressum.html">Impressum</a> <span id="themeCatSlot"></span>`;
+updateCatEasterEgg();
 
 (async () => {
   try {
@@ -641,12 +830,13 @@ function updateViewBanner() {
     manualGamesFromAssignments();
     S.slots = slotList();
     S.activeSlot = S.slots[0]?.key || null;
-    await refreshOrgaStatus();
-    if (S.orga) S.requests = await S.store.listRequests().catch(() => []);
+    await refreshRole();
+    if (S.role) S.requests = await S.store.listRequests().catch(() => []);
     document.getElementById("status").textContent =
       "Stand: " + new Intl.DateTimeFormat("de-AT", { timeZone: TZ, dateStyle: "full", timeStyle: "short" }).format(new Date()) + " Uhr";
-    render();
+    renderActive();
     updateViewBanner();
+    renderPendingInvites(document.getElementById("inviteBanner"), () => window.location.reload());
   } catch (err) {
     document.getElementById("status").innerHTML = `<span class="err">Daten konnten nicht geladen werden (${esc(err.message)}).</span>`;
   }
