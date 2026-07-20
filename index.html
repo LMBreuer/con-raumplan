@@ -406,7 +406,8 @@ const SupaStore = {
     const r = await fetch(`${CONFIG.supabase.url}/rest/v1/${path}`, opts);
     if (r.status === 401 && retry && this._auth) { await this._refresh(); opts.headers = this._authHeaders(!!opts.body); return this._fetch(path, opts, false); }
     if (!r.ok) throw new Error(`Backend HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
-    return r.status === 204 ? null : r.json();
+    const text = await r.text();
+    return text ? JSON.parse(text) : null;
   },
   async init() {
     try { this._auth = JSON.parse(localStorage.getItem("raumplan-auth")); } catch { this._auth = null; }
