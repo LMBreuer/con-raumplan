@@ -1,13 +1,12 @@
 -- ============================================================
--- Con-Raumplan v2: Mandantenfähiges Schema (mehrere Cons)
--- Einspielen: Supabase-Dashboard → SQL Editor → einfügen → Run.
+-- Con-Raumplan v3: Mandantenfähiges Schema mit Rollen
+-- Einspielen (NEUES Projekt): Supabase-Dashboard → SQL Editor → einfügen → Run.
 -- Safe erneut auszuführen (idempotent).
 --
--- ACHTUNG: Der TRUNCATE-Block unten leert rooms/tables/assignments/
--- requests komplett (bestehende Testdaten werden bewusst verworfen,
--- siehe Projekt-Entscheidung). Wenn du eigene echte Daten behalten
--- willst, diesen Block NICHT ausführen und stattdessen manuell
--- migrieren.
+-- Für ein BESTEHENDES Projekt, auf dem schon die v2-Version läuft:
+-- NICHT diese Datei erneut ausführen (der TRUNCATE-Block würde eure
+-- echten Daten löschen) — stattdessen nur supabase-migration-v3-roles.sql
+-- einspielen, die ist additiv und nicht destruktiv.
 -- ============================================================
 
 -- ---------- Bestehende Tabellen (falls schon vorhanden) ----------
@@ -49,13 +48,14 @@ create table if not exists requests (
   orga_notiz text
 );
 
--- ---------- Neu: Cons + Crew-Mitgliedschaft ----------
+-- ---------- Cons + Crew-Mitgliedschaft (mit Rollen) ----------
 create table if not exists cons (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   playabl_event_id text,
   playabl_community_id text,
   slug text unique,
+  listed boolean not null default true,
   created_by uuid not null references auth.users(id) default auth.uid(),
   created_at timestamptz not null default now()
 );
@@ -63,12 +63,15 @@ create table if not exists cons (
 create table if not exists con_members (
   con_id uuid not null references cons(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null default 'editor' check (role in ('admin','editor')),
+  status text not null default 'pending' check (status in ('pending','accepted')),
   added_at timestamptz not null default now(),
   primary key (con_id, user_id)
 );
 
 -- ============================================================
--- TESTDATEN VERWERFEN — bewusste Entscheidung, siehe Kommentar oben.
+-- TESTDATEN VERWERFEN — nur bei einer frischen/absichtlich zurückgesetzten
+-- Datenbank ausführen. Auf einem bestehenden v2-Projekt NICHT ausführen!
 -- ============================================================
 truncate table assignments, tables, rooms, requests;
 
@@ -112,9 +115,25 @@ alter table requests    enable row level security;
 alter table cons        enable row level security;
 alter table con_members enable row level security;
 -- Bewusst KEIN "force row level security" auf con_members/cons — würde den
--- security-definer-Bypass in is_con_member() unterlaufen (siehe unten).
+-- security-definer-Bypass in is_con_member()/is_con_admin() unterlaufen.
+
+-- ---------- Super-Admin (site-weit, nicht pro Con) ----------
+-- Bewusst KEINE Policies auf dieser Tabelle — nur über die SQL-Konsole
+-- direkt befüllbar (Postgres-Owner-Rolle umgeht RLS), nie über den Client.
+create table if not exists superadmins (
+  user_id uuid primary key references auth.users(id) on delete cascade
+);
+alter table superadmins enable row level security;
+
+create or replace function public.is_superadmin()
+returns boolean language sql stable security definer set search_path = ''
+as $$ select exists (select 1 from public.superadmins where user_id = auth.uid()); $$;
+revoke all on function public.is_superadmin() from public;
+grant execute on function public.is_superadmin() to authenticated;
 
 -- ---------- Helper-Funktionen (alle security definer, search_path gepinnt) ----------
+-- Super-Admin besteht is_con_member/is_con_admin für JEDE Con automatisch mit
+-- ("Durchgriffsrecht auf alles"), ohne eigene con_members-Zeile.
 create or replace function public.is_con_member(target_con uuid)
 returns boolean
 language sql
@@ -122,14 +141,30 @@ stable
 security definer
 set search_path = ''
 as $$
-  select exists (
+  select public.is_superadmin() or exists (
     select 1 from public.con_members
-    where con_id = target_con and user_id = auth.uid()
+    where con_id = target_con and user_id = auth.uid() and status = 'accepted'
   );
 $$;
 revoke all on function public.is_con_member(uuid) from public;
 grant execute on function public.is_con_member(uuid) to authenticated;
 
+create or replace function public.is_con_admin(target_con uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.is_superadmin() or exists (
+    select 1 from public.con_members
+    where con_id = target_con and user_id = auth.uid() and status = 'accepted' and role = 'admin'
+  );
+$$;
+revoke all on function public.is_con_admin(uuid) from public;
+grant execute on function public.is_con_admin(uuid) to authenticated;
+
+-- Con-Ersteller wird sofort akzeptierter Admin (kein Henne-Ei-Problem)
 create or replace function public.add_creator_as_member()
 returns trigger
 language plpgsql
@@ -137,8 +172,8 @@ security definer
 set search_path = ''
 as $$
 begin
-  insert into public.con_members (con_id, user_id)
-  values (new.id, new.created_by)
+  insert into public.con_members (con_id, user_id, role, status)
+  values (new.id, new.created_by, 'admin', 'accepted')
   on conflict (con_id, user_id) do nothing;
   return new;
 end;
@@ -148,9 +183,12 @@ create trigger cons_after_insert
   after insert on cons
   for each row execute function public.add_creator_as_member();
 
--- Einladen per E-Mail: eine kombinierte Funktion (kein freistehendes
--- E-Mail-Lookup-Orakel), prüft intern Mitgliedschaft, löst E-Mail auf, fügt ein.
-create or replace function public.invite_member_to_con(target_con uuid, invite_email text)
+-- Einladen per E-Mail (nur Admins), mit Rollenwahl, legt PENDING an — die
+-- eingeladene Person muss selbst bestätigen (siehe accept_invite unten).
+-- Alte 2-Parameter-Version vorsorglich droppen (siehe Migration v3 für den
+-- Grund: sonst entsteht eine parallele, veraltete Überladung).
+drop function if exists public.invite_member_to_con(uuid, text);
+create or replace function public.invite_member_to_con(target_con uuid, invite_email text, invite_role text default 'editor')
 returns void
 language plpgsql
 security definer
@@ -159,24 +197,74 @@ as $$
 declare
   found_uid uuid;
 begin
-  if not public.is_con_member(target_con) then
+  if invite_role not in ('admin','editor') then
+    raise exception 'invalid role' using errcode = '22023';
+  end if;
+  if not public.is_con_admin(target_con) then
     raise exception 'not authorized' using errcode = '42501';
   end if;
   select id into found_uid from auth.users where email = invite_email limit 1;
   if found_uid is null then
     raise exception 'no account found for that email' using errcode = 'P0002';
   end if;
-  insert into public.con_members (con_id, user_id)
-  values (target_con, found_uid)
+  insert into public.con_members (con_id, user_id, role, status)
+  values (target_con, found_uid, invite_role, 'pending')
   on conflict (con_id, user_id) do nothing;
 end;
 $$;
-revoke all on function public.invite_member_to_con(uuid, text) from public;
-grant execute on function public.invite_member_to_con(uuid, text) to authenticated;
+revoke all on function public.invite_member_to_con(uuid, text, text) from public;
+grant execute on function public.invite_member_to_con(uuid, text, text) to authenticated;
 
--- Crew-Liste (+ E-Mail) für die Team-Verwaltung
+create or replace function public.accept_invite(target_con uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.con_members set status = 'accepted'
+  where con_id = target_con and user_id = auth.uid() and status = 'pending';
+  if not found then
+    raise exception 'keine offene Einladung gefunden' using errcode = 'P0002';
+  end if;
+end;
+$$;
+revoke all on function public.accept_invite(uuid) from public;
+grant execute on function public.accept_invite(uuid) to authenticated;
+
+create or replace function public.decline_invite(target_con uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  delete from public.con_members
+  where con_id = target_con and user_id = auth.uid() and status = 'pending';
+end;
+$$;
+revoke all on function public.decline_invite(uuid) from public;
+grant execute on function public.decline_invite(uuid) to authenticated;
+
+create or replace function public.list_my_invites()
+returns table(con_id uuid, con_name text, role text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select cm.con_id, c.name, cm.role
+  from public.con_members cm
+  join public.cons c on c.id = cm.con_id
+  where cm.user_id = auth.uid() and cm.status = 'pending';
+$$;
+revoke all on function public.list_my_invites() from public;
+grant execute on function public.list_my_invites() to authenticated;
+
+-- Crew-Liste (+ E-Mail, Rolle, Status) für die Team-Verwaltung
+drop function if exists public.list_con_members(uuid);
 create or replace function public.list_con_members(target_con uuid)
-returns table(user_id uuid, email text)
+returns table(user_id uuid, email text, role text, status text)
 language plpgsql
 security definer
 set search_path = ''
@@ -186,7 +274,7 @@ begin
     raise exception 'not authorized' using errcode = '42501';
   end if;
   return query
-    select cm.user_id, u.email::text
+    select cm.user_id, u.email::text, cm.role, cm.status
     from public.con_members cm
     join auth.users u on u.id = cm.user_id
     where cm.con_id = target_con;
@@ -195,29 +283,35 @@ $$;
 revoke all on function public.list_con_members(uuid) from public;
 grant execute on function public.list_con_members(uuid) to authenticated;
 
--- Verhindert, dass das letzte Crew-Mitglied einer Con entfernt wird (Con würde verwaisen)
-create or replace function public.prevent_removing_last_member()
+-- Verhindert, dass der letzte Admin einer Con entfernt/herabgestuft wird
+create or replace function public.prevent_removing_last_admin()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
 begin
-  if (select count(*) from public.con_members where con_id = old.con_id) <= 1 then
-    raise exception 'cannot remove the last member of a Con';
+  if (TG_OP = 'DELETE' and old.role = 'admin' and old.status = 'accepted')
+     or (TG_OP = 'UPDATE' and old.role = 'admin' and old.status = 'accepted'
+         and (new.role <> 'admin' or new.status <> 'accepted')) then
+    if (select count(*) from public.con_members
+        where con_id = old.con_id and role = 'admin' and status = 'accepted' and user_id <> old.user_id) = 0 then
+      raise exception 'cannot remove or demote the last admin of a Con' using errcode = 'P0001';
+    end if;
   end if;
-  return old;
+  if TG_OP = 'DELETE' then return old; else return new; end if;
 end;
 $$;
 drop trigger if exists con_members_before_delete on con_members;
-create trigger con_members_before_delete
-  before delete on con_members
-  for each row execute function public.prevent_removing_last_member();
+drop trigger if exists con_members_before_delete_or_update on con_members;
+create trigger con_members_before_delete_or_update
+  before delete or update on con_members
+  for each row execute function public.prevent_removing_last_admin();
 
 -- ---------- Grants (explizit, unabhängig von Projekt-Defaults) ----------
 grant select on cons to anon, authenticated;
 grant insert, update on cons to authenticated;
-grant select, insert, delete on con_members to authenticated;
+grant select, insert, update, delete on con_members to authenticated;
 
 -- ---------- Policies: cons ----------
 drop policy if exists "public read cons" on cons;
@@ -226,20 +320,31 @@ drop policy if exists "authed create cons" on cons;
 create policy "authed create cons" on cons for insert to authenticated
   with check (created_by = auth.uid());
 drop policy if exists "members update own con" on cons;
-create policy "members update own con" on cons for update to authenticated
-  using (is_con_member(id)) with check (is_con_member(id));
--- Bewusst keine DELETE-Policy auf cons — zu destruktiv für v1.
+drop policy if exists "admins update own con" on cons;
+create policy "admins update own con" on cons for update to authenticated
+  using (is_con_admin(id)) with check (is_con_admin(id));
+-- Löschen bleibt bewusst auf Super-Admin beschränkt (nicht mal Con-Admins
+-- dürfen ihre eigene Con löschen) — zu destruktiv für normale Crew-Rechte.
+drop policy if exists "superadmin delete cons" on cons;
+create policy "superadmin delete cons" on cons for delete to authenticated
+  using (is_superadmin());
 
 -- ---------- Policies: con_members ----------
 drop policy if exists "members read own con roster" on con_members;
 create policy "members read own con roster" on con_members for select to authenticated
   using (is_con_member(con_id));
 drop policy if exists "members add teammates" on con_members;
-create policy "members add teammates" on con_members for insert to authenticated
-  with check (is_con_member(con_id));
+drop policy if exists "admins add teammates" on con_members;
+create policy "admins add teammates" on con_members for insert to authenticated
+  with check (is_con_admin(con_id));
 drop policy if exists "members remove teammates" on con_members;
-create policy "members remove teammates" on con_members for delete to authenticated
-  using (is_con_member(con_id));
+drop policy if exists "admins or self remove" on con_members;
+create policy "admins or self remove" on con_members for delete to authenticated
+  using (is_con_admin(con_id) or user_id = auth.uid());
+drop policy if exists "admins update roles" on con_members;
+create policy "admins update roles" on con_members for update to authenticated
+  using (is_con_admin(con_id) or user_id = auth.uid())
+  with check (is_con_admin(con_id) or user_id = auth.uid());
 
 -- ---------- Policies: rooms / tables / assignments ----------
 drop policy if exists "public read rooms" on rooms;
