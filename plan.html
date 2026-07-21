@@ -8,7 +8,7 @@
   try { document.documentElement.setAttribute("data-theme", localStorage.getItem("raumplan-theme") || "dark"); } catch {}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
@@ -532,7 +532,7 @@ function raeumeReadHtml() {
       const games = S.games.filter(g => g.slotKey === S.activeSlot && matchesSearchG(g)).filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
       return `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${t.seats} Plätze</span></div>${games.map(g => chipHtml(g, { crew: false })).join("") || '<div class="free">frei</div>'}</div>`;
     }).join("");
-    return `<div class="room" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
+    return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
       <div class="room-head"><h3>${esc(room.name)}</h3></div>
       <div class="room-badges">${roomBadgesHtml(room)}</div>
       ${room.notes || room.floor ? `<details class="room-more"><summary>Details</summary>${room.floor ? `<div class="room-notes">Lage: ${esc(room.floor)}</div>` : ""}${room.notes ? `<div class="room-notes">${esc(room.notes)}</div>` : ""}</details>` : ""}
@@ -566,7 +566,7 @@ function zuordnenHtml() {
       const double = games.length > 1 ? '<span class="badge warn">doppelt belegt!</span>' : "";
       return `<div class="tablebox" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${t.seats} Plätze</span>${double}</div>${games.map(g => chipHtml(g, { crew: true })).join("") || '<div class="free">frei</div>'}</div>`;
     }).join("");
-    return `<div class="room" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><h3>${esc(room.name)}</h3></div>${tablesHtml || '<p class="hint">Noch keine Tische — in „Räume verwalten“ anlegen.</p>'}</div>`;
+    return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><h3>${esc(room.name)}</h3></div>${tablesHtml || '<p class="hint">Noch keine Tische — in „Räume verwalten“ anlegen.</p>'}</div>`;
   }).join("") || emptyState("Noch keine Räume angelegt. Wechsle zu „Räume verwalten“.");
   const assignModeHtml = `<div class="filter-chips" role="group" aria-label="Zuordnungs-Modus">
     <button type="button" class="filter-chip" data-assignmode="dnd" aria-pressed="${String(S.assignMode === "dnd")}">🖐️ Drag &amp; Drop</button>
@@ -626,7 +626,7 @@ function raeumeVerwaltenHtml() {
     const tables = S.tables.filter(t => t.room_id === room.id);
     const tablesHtml = tables.map(t => `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${t.seats} Plätze</span>${t.notes ? `<span class="seats">· ${esc(t.notes)}</span>` : ""}
       <span class="table-actions"><button type="button" class="small editTableBtn" data-id="${t.id}" aria-label="Tisch ${esc(t.name)} bearbeiten">✎</button><button type="button" class="small danger delTableBtn" data-id="${t.id}" aria-label="Tisch ${esc(t.name)} löschen">🗑</button></span></div></div>`).join("");
-    return `<div class="room" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
+    return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
       <div class="room-head"><h3>${esc(room.name)}</h3><span class="floor">${esc(room.floor || "")}</span>
         <span class="room-actions"><button type="button" class="small addTableBtn" data-room="${room.id}">+ Tisch</button><button type="button" class="small editRoomBtn" data-id="${room.id}" aria-label="Raum ${esc(room.name)} bearbeiten">✎</button><button type="button" class="small danger delRoomBtn" data-id="${room.id}" aria-label="Raum ${esc(room.name)} löschen">🗑</button></span>
       </div>
@@ -769,6 +769,15 @@ async function assign(gameKey, slotKey, tableId) {
       }
     }
     renderActive();
+    // Kurzes, sichtbares Feedback auf dem Zieltisch (siehe theme.css
+    // .just-assigned) — nur bei echter Tisch-Zuweisung, nicht beim Entfernen.
+    if (tableId) {
+      const box = document.querySelector(`.tablebox[data-table="${tableId}"]`);
+      if (box) {
+        box.classList.add("just-assigned");
+        box.addEventListener("animationend", () => box.classList.remove("just-assigned"), { once: true });
+      }
+    }
   } catch (e) { alert("Speichern fehlgeschlagen: " + e.message); }
 }
 
