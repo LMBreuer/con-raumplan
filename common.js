@@ -64,16 +64,26 @@ function updateCatEasterEgg() {
   slot.innerHTML = document.documentElement.getAttribute("data-theme") === "terminal" ? PIXEL_CAT_SVG : "";
 }
 
+// Gemeinfreie Hokusai-Scans (Wikimedia Commons, >150 Jahre alt), selbst
+// gehostet statt gehotlinkt — eines zufällig pro Seitenaufruf als sehr
+// dezenter Hintergrund fürs Ukiyo-e-Theme (Deckkraft steckt in theme.css).
+const UKIYO_BACKGROUNDS = ["images/ukiyo/great-wave.jpg", "images/ukiyo/red-fuji.jpg", "images/ukiyo/thunderstorm.jpg"];
+function pickUkiyoBackground() {
+  const pick = UKIYO_BACKGROUNDS[Math.floor(Math.random() * UKIYO_BACKGROUNDS.length)];
+  document.documentElement.style.setProperty("--ukiyo-bg", `url("${pick}")`);
+}
 function applyTheme(key) {
   document.documentElement.setAttribute("data-theme", key);
   try { localStorage.setItem("raumplan-theme", key); } catch {}
   if (key === "terminal") terminalEasterEgg();
   updateCatEasterEgg();
+  if (key === "ukiyo") pickUkiyoBackground();
 }
 
 function renderThemeSwitch(container) {
   const current = document.documentElement.getAttribute("data-theme") || "dark";
   if (current === "terminal") terminalEasterEgg();
+  if (current === "ukiyo") pickUkiyoBackground();
   updateCatEasterEgg();
   container.className = "theme-switch";
   container.setAttribute("role", "group");
