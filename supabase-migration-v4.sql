@@ -179,3 +179,65 @@ cross join lateral jsonb_each(r.features) as f(key, value)
 join feature_tags ft on ft.key = f.key
 where (f.value)::boolean = true
 on conflict do nothing;
+
+-- ============================================================
+-- Phase 3: games-Tabelle — manuelle Spiele werden eine echte, editierbare
+-- Entität statt eines JSON-Blobs in assignments.manual_game.
+-- ============================================================
+
+-- ---------- 11. Games-Tabelle ----------
+create table if not exists games (
+  id uuid primary key default gen_random_uuid(),
+  con_id uuid not null references cons(id) on delete cascade,
+  title text not null,
+  provider text,
+  seats int not null default 4,
+  workshop boolean not null default false,
+  description text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table games drop constraint if exists games_con_id_id_key;
+alter table games add constraint games_con_id_id_key unique (con_id, id);
+alter table games enable row level security;
+drop policy if exists "public read games" on games;
+create policy "public read games" on games for select using (true);
+drop policy if exists "members write games" on games;
+create policy "members write games" on games for all to authenticated
+  using (is_con_member(con_id)) with check (is_con_member(con_id));
+grant select on games to anon, authenticated;
+grant insert, update, delete on games to authenticated;
+
+-- ---------- 12. assignments.game_id: verknüpft eine Platzierung mit einem
+-- echten Spiel. Ein Spiel hat höchstens eine Platzierungszeile (partieller
+-- Unique-Index) — "verschieben" eines Spiels ist ein UPDATE dieser einen
+-- Zeile, nie ein zweiter Insert.
+alter table assignments add column if not exists game_id uuid;
+alter table assignments drop constraint if exists assignments_game_same_con_fkey;
+alter table assignments add constraint assignments_game_same_con_fkey
+  foreign key (con_id, game_id) references games (con_id, id) on delete cascade;
+create unique index if not exists assignments_one_row_per_game_idx
+  on assignments (con_id, game_id) where game_id is not null;
+
+-- ---------- 13. Backfill: bestehende manual_game-jsonb-Zeilen werden zu
+-- echten games-Zeilen. legacy_session_key ist nur eine temporäre
+-- Korrelations-Hilfsspalte für dieses Backfill (session_key war bisher der
+-- einzige eindeutige Bezug) und wird am Ende dieser Phase wieder entfernt —
+-- kein Datenverlust, da alles bereits nach games/assignments.game_id
+-- übernommen ist. manual_game selbst bleibt unangetastet bestehen (kein
+-- Spaltendrop in derselben Phase, in der sie zuletzt gelesen wird).
+alter table games add column if not exists legacy_session_key text;
+
+insert into games (con_id, title, seats, provider, workshop, description, legacy_session_key)
+select a.con_id, a.manual_game->>'title', coalesce((a.manual_game->>'seats')::int, 4), null, false, null, a.session_key
+from assignments a
+where a.session_key like 'manual:%' and a.manual_game is not null and a.game_id is null
+  and not exists (select 1 from games g where g.con_id = a.con_id and g.legacy_session_key = a.session_key);
+
+update assignments a
+set game_id = g.id
+from games g
+where g.con_id = a.con_id and g.legacy_session_key = a.session_key and a.game_id is null;
+
+alter table games drop column if exists legacy_session_key;
