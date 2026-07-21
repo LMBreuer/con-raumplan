@@ -106,6 +106,20 @@ create table if not exists room_feature_tags (
   primary key (con_id, room_id, feature_tag_id)
 );
 
+-- ---------- Spiele (ersetzt den manual_game-jsonb-Blob in assignments) ----------
+create table if not exists games (
+  id uuid primary key default gen_random_uuid(),
+  con_id uuid not null references cons(id) on delete cascade,
+  title text not null,
+  provider text,
+  seats int not null default 4,
+  workshop boolean not null default false,
+  description text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- ============================================================
 -- TESTDATEN VERWERFEN — nur bei einer frischen/absichtlich zurückgesetzten
 -- Datenbank ausführen. Auf einem bestehenden v2-Projekt NICHT ausführen!
@@ -160,6 +174,18 @@ alter table room_feature_tags drop constraint if exists room_feature_tags_room_s
 alter table room_feature_tags add constraint room_feature_tags_room_same_con_fkey
   foreign key (con_id, room_id) references rooms (con_id, id) on delete cascade;
 
+alter table games drop constraint if exists games_con_id_id_key;
+alter table games add constraint games_con_id_id_key unique (con_id, id);
+
+-- Ein Spiel hat höchstens eine Platzierungszeile (partieller Unique-Index) —
+-- "verschieben" ist ein UPDATE dieser einen Zeile, nie ein zweiter Insert.
+alter table assignments add column if not exists game_id uuid;
+alter table assignments drop constraint if exists assignments_game_same_con_fkey;
+alter table assignments add constraint assignments_game_same_con_fkey
+  foreign key (con_id, game_id) references games (con_id, id) on delete cascade;
+create unique index if not exists assignments_one_row_per_game_idx
+  on assignments (con_id, game_id) where game_id is not null;
+
 -- ---------- RLS aktivieren ----------
 alter table rooms       enable row level security;
 alter table tables      enable row level security;
@@ -171,6 +197,7 @@ alter table slot_buckets enable row level security;
 alter table slots        enable row level security;
 alter table feature_tags enable row level security;
 alter table room_feature_tags enable row level security;
+alter table games enable row level security;
 -- Bewusst KEIN "force row level security" auf con_members/cons — würde den
 -- security-definer-Bypass in is_con_member()/is_con_admin() unterlaufen.
 
@@ -411,6 +438,8 @@ grant insert, update, delete on slot_buckets, slots to authenticated;
 grant select on feature_tags to anon, authenticated;
 grant select on room_feature_tags to anon, authenticated;
 grant insert, delete on room_feature_tags to authenticated;
+grant select on games to anon, authenticated;
+grant insert, update, delete on games to authenticated;
 
 -- ---------- Policies: cons ----------
 drop policy if exists "public read cons" on cons;
@@ -508,6 +537,13 @@ drop policy if exists "public read room_feature_tags" on room_feature_tags;
 create policy "public read room_feature_tags" on room_feature_tags for select using (true);
 drop policy if exists "members write room_feature_tags" on room_feature_tags;
 create policy "members write room_feature_tags" on room_feature_tags for all to authenticated
+  using (is_con_member(con_id)) with check (is_con_member(con_id));
+
+-- ---------- Policies: games (öffentlich lesen, Crew schreibt) ----------
+drop policy if exists "public read games" on games;
+create policy "public read games" on games for select using (true);
+drop policy if exists "members write games" on games;
+create policy "members write games" on games for all to authenticated
   using (is_con_member(con_id)) with check (is_con_member(con_id));
 
 -- ---------- Seed: kontrollierte Vokabelliste für Raum-Eigenschaften ----------
