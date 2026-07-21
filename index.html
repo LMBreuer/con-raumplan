@@ -15,69 +15,70 @@
 <body>
 <a class="skip-link" href="#main">Zum Inhalt springen</a>
 <div class="wrap">
-  <header aria-label="Kopfzeile">
-    <div class="hero" style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);flex-wrap:wrap">
+  <header aria-label="Kopfzeile" data-i18n-aria-label="headerLabel">
+    <div class="hero card" style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);flex-wrap:wrap">
       <div>
         <h1>Con-Raumplan</h1>
-        <p class="sub">Wer spielt wann wo? Raum- und Tischverteilung für Tabletop-Cons — mit
+        <p class="sub" data-i18n="heroSub">Wer spielt wann wo? Raum- und Tischverteilung für Tabletop-Cons — mit
         Playabl-Anbindung, für beliebig viele Conventions gleichzeitig.</p>
       </div>
       <div style="display:flex;gap:var(--sp-3);align-items:center">
         <div id="themeSwitch"></div>
+        <div id="langSwitch"></div>
         <button id="authBtn" type="button">Login / Registrieren</button>
       </div>
     </div>
     <div id="inviteBanner" hidden></div>
-    <p id="status">Lade Cons …</p>
+    <p id="status" data-i18n="loadingCons">Lade Cons …</p>
   </header>
 
   <main id="main">
     <section class="card">
-      <h2>Con direkt öffnen</h2>
-      <p class="hint">Link oder ID einer bestehenden Con einfügen.</p>
+      <h2 data-i18n="openConDirectly">Con direkt öffnen</h2>
+      <p class="hint" data-i18n="openConHint">Link oder ID einer bestehenden Con einfügen.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input type="text" id="directInput" placeholder="z.B. 3w6-con-2026-a1b2 oder ein plan.html-Link" style="flex:1;min-width:220px">
-        <button id="directGo" type="button">Öffnen</button>
+        <input type="text" id="directInput" placeholder="z.B. 3w6-con-2026-a1b2 oder ein plan.html-Link" data-i18n-placeholder="directInputPlaceholder" style="flex:1;min-width:220px">
+        <button id="directGo" type="button" data-i18n="open">Öffnen</button>
       </div>
     </section>
 
     <section class="card">
-      <h2>Bestehende Cons</h2>
-      <p class="hint">Zeigt Cons mit verknüpftem Playabl-Event oder bewusst gelistete manuelle Cons. Bearbeiten kann nur, wer Mitglied der jeweiligen Crew ist.</p>
-      <input type="search" id="conSearch" placeholder="Con suchen …" aria-label="Con suchen" style="margin-bottom:var(--sp-3);width:100%;max-width:320px">
+      <h2 data-i18n="existingCons">Bestehende Cons</h2>
+      <p class="hint" data-i18n="existingConsHint">Zeigt Cons mit verknüpftem Playabl-Event oder bewusst gelistete manuelle Cons. Bearbeiten kann nur, wer Mitglied der jeweiligen Crew ist.</p>
+      <input type="search" id="conSearch" placeholder="Con suchen …" data-i18n-placeholder="searchCon" aria-label="Con suchen" data-i18n-aria-label="searchCon" style="margin-bottom:var(--sp-3);width:100%;max-width:320px">
       <div class="con-list" id="conList"></div>
     </section>
 
     <section class="card">
-      <h2>Neue Con für die Raumplanung anlegen</h2>
-      <p class="hint">Du wirst automatisch erstes Crew-Mitglied dieser Con.</p>
+      <h2 data-i18n="createConTitle">Neue Con für die Raumplanung anlegen</h2>
+      <p class="hint" data-i18n="createConHint">Du wirst automatisch erstes Crew-Mitglied dieser Con.</p>
       <div class="slot-tabs" role="group" aria-label="Con-Typ wählen" id="conTypeTabs" style="margin-bottom:var(--sp-3)">
-        <button type="button" data-contype="playabl" aria-pressed="true">Mit Playabl-Event</button>
-        <button type="button" data-contype="manual" aria-pressed="false">Rein manuell (kein Playabl)</button>
+        <button type="button" data-contype="playabl" aria-pressed="true" data-i18n="conTypePlayabl">Mit Playabl-Event</button>
+        <button type="button" data-contype="manual" aria-pressed="false" data-i18n="conTypeManual">Rein manuell (kein Playabl)</button>
       </div>
       <div class="controls" style="margin:0 0 var(--sp-3)" id="playablFields">
         <div class="field">
-          <label for="communitySelect">Community</label>
+          <label for="communitySelect" data-i18n="community">Community</label>
           <select id="communitySelect"><option value="">– lädt –</option></select>
         </div>
         <div class="field">
-          <label for="eventSelect">Event</label>
+          <label for="eventSelect" data-i18n="event">Event</label>
           <select id="eventSelect"><option value="">– Community wählen –</option></select>
         </div>
         <div class="field">
-          <label for="eventIdInput">… oder Event-ID direkt</label>
+          <label for="eventIdInput" data-i18n="eventIdDirect">… oder Event-ID direkt</label>
           <input type="text" id="eventIdInput" inputmode="numeric" placeholder="z.B. 104" size="10">
         </div>
       </div>
-      <p class="hint" id="manualHint" hidden>Ohne Playabl-Event gibt es keine automatisch geladenen Spiele — Spiele/Programmpunkte werden im Raumplan manuell angelegt.</p>
+      <p class="hint" id="manualHint" hidden data-i18n="manualHint">Ohne Playabl-Event gibt es keine automatisch geladenen Spiele — Spiele/Programmpunkte werden im Raumplan manuell angelegt.</p>
       <div class="field" style="margin-bottom:var(--sp-3);max-width:400px">
-        <label for="conName">Name der Con</label>
+        <label for="conName" data-i18n="conNameLabel">Name der Con</label>
         <input type="text" id="conName" placeholder="z.B. 3W6 Con 2026" maxlength="80">
       </div>
       <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-sm);margin-bottom:var(--sp-3);cursor:pointer">
-        <input type="checkbox" id="conListed" checked> In „Bestehende Cons" öffentlich auflisten
+        <input type="checkbox" id="conListed" checked> <span data-i18n="conListedLabel">In „Bestehende Cons" öffentlich auflisten</span>
       </label>
-      <button id="createConBtn" type="button" class="primary">Con anlegen</button>
+      <button id="createConBtn" type="button" class="primary" data-i18n="createConBtn">Con anlegen</button>
       <p class="msg" id="createMsg" role="status"></p>
     </section>
   </main>
@@ -87,6 +88,8 @@
 <script src="common.js"></script>
 <script>
 renderThemeSwitch(document.getElementById("themeSwitch"));
+renderLangSwitch(document.getElementById("langSwitch"));
+translateStaticDom();
 const authUI = mountAuthUI({
   buttonId: "authBtn",
   onChange: async () => {
@@ -114,7 +117,7 @@ document.getElementById("credits").innerHTML = `
   <a href="https://playabl.io" target="_blank" rel="noopener">Playabl</a> ·
   <a href="https://www.3w6-podcast.com/" target="_blank" rel="noopener">3W6-Community</a> ·
   <a href="https://lmbreuer.github.io/playabl-dashboard/" target="_blank" rel="noopener">Slot-Dashboard</a> ·
-  <a href="impressum.html">Impressum</a> <span id="themeCatSlot"></span>`;
+  <a href="impressum.html"><span data-i18n="imprint">${esc(tr("imprint"))}</span></a> <span id="themeCatSlot"></span>`;
 updateCatEasterEgg();
 
 /* ---------- Cons laden & anzeigen ---------- */
@@ -126,26 +129,26 @@ function renderCons() {
   document.getElementById("conList").innerHTML = list.map(c => `
     <div class="con-card">
       <div>
-        <div class="t">${esc(c.name)}${isSuperadmin && !c.listed ? ' <span class="badge">ungelistet</span>' : ""}</div>
-        <div class="m">angelegt ${new Date(c.created_at).toLocaleDateString("de-AT")}${c.playabl_event_id ? ` · <a href="https://app.playabl.io/events/${esc(c.playabl_event_id)}/overview" target="_blank" rel="noopener">Playabl-Event</a>` : ""}</div>
+        <div class="t">${esc(c.name)}${isSuperadmin && !c.listed ? ` <span class="badge">${esc(tr("unlisted"))}</span>` : ""}</div>
+        <div class="m">${esc(tr("createdOn", { date: new Date(c.created_at).toLocaleDateString(LANG === "en" ? "en-GB" : "de-AT") }))}${c.playabl_event_id ? ` · <a href="https://app.playabl.io/events/${esc(c.playabl_event_id)}/overview" target="_blank" rel="noopener">${esc(tr("playablEvent"))}</a>` : ""}</div>
       </div>
       <span style="display:flex;gap:8px;align-items:center">
-        ${isSuperadmin ? `<button type="button" class="small danger delConBtn" data-id="${c.id}" data-name="${esc(c.name)}">🗑 Löschen</button>` : ""}
-        <a class="btn" href="plan.html?con=${esc(c.slug || c.id)}">Öffnen →</a>
+        ${isSuperadmin ? `<button type="button" class="small danger delConBtn" data-id="${c.id}" data-name="${esc(c.name)}">🗑 ${esc(tr("delete"))}</button>` : ""}
+        <a class="btn" href="plan.html?con=${esc(c.slug || c.id)}">${esc(tr("openArrow"))}</a>
       </span>
-    </div>`).join("") || '<div class="empty-state"><span class="glyph">🗂️</span>Noch keine Con gefunden.</div>';
+    </div>`).join("") || `<div class="empty-state"><span class="glyph">🗂️</span>${esc(tr("noConFound"))}</div>`;
 }
 document.getElementById("conSearch").addEventListener("input", renderCons);
 document.getElementById("conList").addEventListener("click", async e => {
   const btn = e.target.closest(".delConBtn");
   if (!btn) return;
-  if (!confirm(`„${btn.dataset.name}" inkl. aller Räume/Tische/Zuordnungen/Änderungswünsche UNWIDERRUFLICH löschen?`)) return;
+  if (!confirm(tr("confirmDeleteCon", { name: btn.dataset.name }))) return;
   try {
     const token = await Auth.accessToken();
     await supaFetch(`cons?id=eq.${btn.dataset.id}`, { method: "DELETE", headers: supaHeaders(token) });
     allCons = allCons.filter(c => c.id !== btn.dataset.id);
     renderCons();
-  } catch (err) { alert("Löschen fehlgeschlagen: " + err.message); }
+  } catch (err) { alert(tr("deleteFailed", { err: err.message })); }
 });
 
 document.getElementById("directGo").addEventListener("click", () => {
@@ -202,9 +205,9 @@ document.getElementById("createConBtn").addEventListener("click", async () => {
   const msg = document.getElementById("createMsg");
   msg.className = "msg";
   const session = Auth.session();
-  if (!session) { msg.className = "msg err"; msg.textContent = "Bitte zuerst einloggen oder registrieren."; authUI.requireLogin(); return; }
+  if (!session) { msg.className = "msg err"; msg.textContent = tr("pleaseLoginFirst"); authUI.requireLogin(); return; }
   const name = document.getElementById("conName").value.trim();
-  if (!name) { msg.className = "msg err"; msg.textContent = "Bitte einen Namen für die Con eingeben."; return; }
+  if (!name) { msg.className = "msg err"; msg.textContent = tr("pleaseEnterConName"); return; }
   const eventId = conType === "manual" ? null : (document.getElementById("eventIdInput").value.trim() || document.getElementById("eventSelect").value || null);
   const communityId = conType === "manual" ? null : (document.getElementById("communitySelect").value || null);
   const listed = document.getElementById("conListed").checked;
@@ -216,7 +219,7 @@ document.getElementById("createConBtn").addEventListener("click", async () => {
       body: JSON.stringify({ name, slug, playabl_event_id: eventId, playabl_community_id: communityId, listed }),
     });
     location.href = "plan.html?con=" + encodeURIComponent(rows[0].slug);
-  } catch (err) { msg.className = "msg err"; msg.textContent = "Anlegen fehlgeschlagen: " + err.message; }
+  } catch (err) { msg.className = "msg err"; msg.textContent = tr("createConFailed", { err: err.message }); }
 });
 
 /* ---------- Start ---------- */
@@ -227,9 +230,9 @@ document.getElementById("createConBtn").addEventListener("click", async () => {
     fillEventsList(events);
     authUI.refresh();
     document.getElementById("status").textContent =
-      "Stand: " + new Intl.DateTimeFormat("de-AT", { dateStyle: "full", timeStyle: "short" }).format(new Date()) + " Uhr";
+      tr("asOf", { date: new Intl.DateTimeFormat(LANG === "en" ? "en-GB" : "de-AT", { dateStyle: "full", timeStyle: "short" }).format(new Date()) });
   } catch (err) {
-    document.getElementById("status").innerHTML = `<span class="err">Daten konnten nicht geladen werden (${esc(err.message)}).</span>`;
+    document.getElementById("status").innerHTML = `<span class="err">${esc(tr("dataLoadFailed", { err: err.message }))}</span>`;
   }
 })();
 </script>
