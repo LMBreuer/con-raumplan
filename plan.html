@@ -384,19 +384,23 @@ const gameReqTagIds = dbId => S.gameRequiredTags.filter(x => x.game_id === dbId)
 // die Workshop-Vorzugsheuristik unten (bewegung ODER laut_ok), die als reiner
 // Fallback dient, wenn ein Spiel selbst keine expliziten Anforderungen trägt.
 const roomSatisfiesTags = (room, tagIds) => !tagIds?.length || tagIds.every(id => roomTagIds(room).includes(id));
-// Klammer-Syntax für Playabl-Beschreibungen/Titel/System: "[[eigenschaft: <Name>]]".
-// Matching ignoriert Groß/Klein, Leerzeichen, Unterstriche und das führende
-// Emoji im Label — "[[eigenschaft: laut ok]]" trifft sowohl den Tag-Key
-// "laut_ok" als auch das Label "🔊 laut ok".
+// Klammer-Syntax für Playabl-Beschreibungen/Titel/System: "[[eigenschaft: <Name>]]",
+// mehrere Eigenschaften entweder in getrennten Klammern oder Komma/Semikolon-
+// getrennt in einer: "[[eigenschaft: laut ok, ruhig]]". Matching ignoriert
+// Groß/Klein, Leerzeichen, Unterstriche und das führende Emoji im Label —
+// "laut ok" trifft sowohl den Tag-Key "laut_ok" als auch das Label "🔊 laut ok".
 const FEATURE_BRACKET_RE = /\[\[\s*eigenschaft\s*:\s*([^\]]+?)\s*\]\]/gi;
 const normalizeTagText = s => s.toLowerCase().replace(/[^a-z0-9äöüß]+/g, "");
 function parseRequiredTagIds(text) {
   if (!text) return [];
   const ids = new Set();
   for (const m of text.matchAll(FEATURE_BRACKET_RE)) {
-    const wanted = normalizeTagText(m[1]);
-    const tag = S.featureTags.find(f => normalizeTagText(f.label) === wanted || normalizeTagText(f.key) === wanted);
-    if (tag) ids.add(tag.id);
+    const parts = m[1].split(/[,;]+/).map(p => p.trim()).filter(Boolean);
+    for (const part of parts) {
+      const wanted = normalizeTagText(part);
+      const tag = S.featureTags.find(f => normalizeTagText(f.label) === wanted || normalizeTagText(f.key) === wanted);
+      if (tag) ids.add(tag.id);
+    }
   }
   return [...ids];
 }
