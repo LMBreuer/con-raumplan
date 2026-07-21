@@ -69,6 +69,43 @@ create table if not exists con_members (
   primary key (con_id, user_id)
 );
 
+-- ---------- Slots (Tagesabschnitts-Vorlagen + konkrete, pro-Con-Slots) ----------
+create table if not exists slot_buckets (
+  id uuid primary key default gen_random_uuid(),
+  con_id uuid not null references cons(id) on delete cascade,
+  label text not null,
+  start_hour numeric(4,2) not null check (start_hour >= 0 and start_hour <= 24),
+  end_hour   numeric(4,2) not null check (end_hour   >= 0 and end_hour   <= 24),
+  sort int not null default 0,
+  active boolean not null default true
+);
+
+create table if not exists slots (
+  id uuid primary key default gen_random_uuid(),
+  con_id uuid not null references cons(id) on delete cascade,
+  key text not null,
+  label text not null,
+  day date,
+  bucket_id uuid references slot_buckets(id) on delete set null,
+  sort int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+-- ---------- Raum-Eigenschaften: kontrollierte, globale Chip-Vokabelliste ----------
+create table if not exists feature_tags (
+  id uuid primary key default gen_random_uuid(),
+  key text not null unique,
+  label text not null,
+  sort int not null default 0
+);
+
+create table if not exists room_feature_tags (
+  con_id uuid not null,
+  room_id uuid not null,
+  feature_tag_id uuid not null references feature_tags(id) on delete cascade,
+  primary key (con_id, room_id, feature_tag_id)
+);
+
 -- ============================================================
 -- TESTDATEN VERWERFEN — nur bei einer frischen/absichtlich zurückgesetzten
 -- Datenbank ausführen. Auf einem bestehenden v2-Projekt NICHT ausführen!
@@ -107,6 +144,22 @@ alter table assignments drop constraint if exists assignments_con_slot_session_k
 alter table assignments add constraint assignments_con_slot_session_key
   unique (con_id, slot_key, session_key);
 
+alter table slots drop constraint if exists slots_con_id_key_key;
+alter table slots add constraint slots_con_id_key_key unique (con_id, key);
+create index if not exists slots_con_sort_idx on slots (con_id, sort);
+create index if not exists slot_buckets_con_idx on slot_buckets (con_id, sort);
+
+-- Ein belegter Slot kann nicht mehr versehentlich verschwinden (restrict statt
+-- cascade/set null — strenger als bei table_id, da "welcher Slot" wichtiger
+-- ist als "welcher Tisch").
+alter table assignments drop constraint if exists assignments_slot_same_con_fkey;
+alter table assignments add constraint assignments_slot_same_con_fkey
+  foreign key (con_id, slot_key) references slots (con_id, key) on delete restrict;
+
+alter table room_feature_tags drop constraint if exists room_feature_tags_room_same_con_fkey;
+alter table room_feature_tags add constraint room_feature_tags_room_same_con_fkey
+  foreign key (con_id, room_id) references rooms (con_id, id) on delete cascade;
+
 -- ---------- RLS aktivieren ----------
 alter table rooms       enable row level security;
 alter table tables      enable row level security;
@@ -114,6 +167,10 @@ alter table assignments enable row level security;
 alter table requests    enable row level security;
 alter table cons        enable row level security;
 alter table con_members enable row level security;
+alter table slot_buckets enable row level security;
+alter table slots        enable row level security;
+alter table feature_tags enable row level security;
+alter table room_feature_tags enable row level security;
 -- Bewusst KEIN "force row level security" auf con_members/cons — würde den
 -- security-definer-Bypass in is_con_member()/is_con_admin() unterlaufen.
 
@@ -317,10 +374,43 @@ create trigger con_members_before_delete_or_update
   before delete or update on con_members
   for each row execute function public.prevent_removing_last_admin();
 
+-- Slots für gegebene Tage materialisieren (Crew-only). Schlüssel-Format
+-- bewusst "Tag|Bucket-Label" (nicht Bucket-ID) — siehe
+-- supabase-migration-v4.sql für die ausführliche Begründung.
+create or replace function public.ensure_slots_for_days(target_con uuid, days date[])
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  d date;
+  b record;
+begin
+  if not public.is_con_member(target_con) then
+    raise exception 'not authorized' using errcode = '42501';
+  end if;
+  foreach d in array days loop
+    for b in select * from public.slot_buckets where con_id = target_con and active order by sort loop
+      insert into public.slots (con_id, key, label, day, bucket_id, sort)
+      values (target_con, d::text || '|' || b.label, to_char(d, 'DD.MM.') || ' ' || b.label, d, b.id, b.sort)
+      on conflict (con_id, key) do nothing;
+    end loop;
+  end loop;
+end;
+$$;
+revoke all on function public.ensure_slots_for_days(uuid, date[]) from public;
+grant execute on function public.ensure_slots_for_days(uuid, date[]) to authenticated;
+
 -- ---------- Grants (explizit, unabhängig von Projekt-Defaults) ----------
 grant select on cons to anon, authenticated;
 grant insert, update on cons to authenticated;
 grant select, insert, update, delete on con_members to authenticated;
+grant select on slot_buckets, slots to anon, authenticated;
+grant insert, update, delete on slot_buckets, slots to authenticated;
+grant select on feature_tags to anon, authenticated;
+grant select on room_feature_tags to anon, authenticated;
+grant insert, delete on room_feature_tags to authenticated;
 
 -- ---------- Policies: cons ----------
 drop policy if exists "public read cons" on cons;
@@ -394,3 +484,39 @@ drop policy if exists "orga delete requests" on requests;
 drop policy if exists "members delete requests" on requests;
 create policy "members delete requests" on requests for delete to authenticated
   using (is_con_member(con_id));
+
+-- ---------- Policies: slot_buckets / slots (öffentlich lesen, Crew schreibt) ----------
+drop policy if exists "public read slot_buckets" on slot_buckets;
+create policy "public read slot_buckets" on slot_buckets for select using (true);
+drop policy if exists "members write slot_buckets" on slot_buckets;
+create policy "members write slot_buckets" on slot_buckets for all to authenticated
+  using (is_con_member(con_id)) with check (is_con_member(con_id));
+
+drop policy if exists "public read slots" on slots;
+create policy "public read slots" on slots for select using (true);
+drop policy if exists "members write slots" on slots;
+create policy "members write slots" on slots for all to authenticated
+  using (is_con_member(con_id)) with check (is_con_member(con_id));
+
+-- ---------- Policies: feature_tags (global, nur per SQL-Konsole erweiterbar) ----------
+drop policy if exists "public read feature_tags" on feature_tags;
+create policy "public read feature_tags" on feature_tags for select using (true);
+-- Bewusst KEINE Insert/Update/Delete-Policy — siehe Kommentar bei superadmins.
+
+-- ---------- Policies: room_feature_tags (öffentlich lesen, Crew togglet) ----------
+drop policy if exists "public read room_feature_tags" on room_feature_tags;
+create policy "public read room_feature_tags" on room_feature_tags for select using (true);
+drop policy if exists "members write room_feature_tags" on room_feature_tags;
+create policy "members write room_feature_tags" on room_feature_tags for all to authenticated
+  using (is_con_member(con_id)) with check (is_con_member(con_id));
+
+-- ---------- Seed: kontrollierte Vokabelliste für Raum-Eigenschaften ----------
+insert into feature_tags (key, label, sort) values
+  ('barrierefrei', '♿ barrierefrei', 0),
+  ('ruhig', '🤫 ruhig', 1),
+  ('laut_ok', '🔊 laut ok', 2),
+  ('bewegung', '🕺 Bewegung ok', 3),
+  ('tageslicht', '☀️ Tageslicht', 4),
+  ('kuehl', '❄️ eher kühl', 5),
+  ('akustisch_gut', '👂 akustisch gut', 6)
+on conflict (key) do nothing;
