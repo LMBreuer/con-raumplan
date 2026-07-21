@@ -87,6 +87,14 @@ function renderThemeSwitch(container) {
   });
 }
 
+/* ---------- Prefs: kleiner localStorage-Wrapper für UI-Einstellungen
+   (Assign-Modus, Detailgrad, später Sprache) — bündelt das Ad-hoc-Muster,
+   das applyTheme() schon einzeln nutzt. ---------- */
+const Prefs = {
+  get(key, fallback) { try { return localStorage.getItem("raumplan-" + key) ?? fallback; } catch { return fallback; } },
+  set(key, value) { try { localStorage.setItem("raumplan-" + key, value); } catch {} },
+};
+
 /* ---------- Supabase REST/RPC ---------- */
 async function supaFetch(path, opts = {}) {
   // Ohne explizite Headers (typischer Fall für öffentliche Lesezugriffe)

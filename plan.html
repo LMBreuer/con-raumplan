@@ -22,6 +22,7 @@
         <p class="sub" id="pageSub">Lädt …</p>
       </div>
       <div style="display:flex;gap:var(--sp-3);align-items:center">
+        <div id="detailSwitch" class="theme-switch" role="group" aria-label="Detailgrad wählen"></div>
         <div id="themeSwitch"></div>
         <button id="authBtn" type="button">Login / Registrieren</button>
       </div>
@@ -323,7 +324,9 @@ const S = {
   role: null, superadmin: false, search: "",
   mode: "view", view: "tabelle", crewView: "zuordnen",
   rasterAxis: "rooms", tableSort: { key: "when", dir: 1 },
-  filterWs: "all", showDoneRequests: false,
+  filterWs: "all", showDoneRequests: false, minSeats: 0,
+  assignMode: Prefs.get("assign-mode", "dnd"), selectedGame: null,
+  detailLevel: Prefs.get("detail-level", "full"),
 };
 
 const VIEWS = [{ key: "tabelle", label: "Tabelle" }, { key: "raster", label: "Raster" }, { key: "raeume", label: "Räume" }];
@@ -380,32 +383,49 @@ function matchesSearchG(g) {
 }
 
 /* ---------------- Spiel-Chip (überall wiederverwendet) ---------------- */
+// Detailgrad (S.detailLevel) steuert, wie viel Info pro Chip sichtbar ist —
+// Personenzahl bleibt immer sichtbar, alles andere ist gestuft abschaltbar,
+// um in der Warteschlange Platz zu sparen (minimal ≈ nur Titel+Plätze).
 function chipHtml(g, { crew = false } = {}) {
   const a = asgFor(g);
   const table = a && S.tables.find(t => t.id === a.table_id);
   const room = table && roomOfTable(table.id);
   const over = table && g.seats > table.seats ? `<span class="badge warn">+${g.seats - table.seats} über Kapazität</span>` : "";
   const titleHtml = g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title);
-  const whereHtml = room && table
+  const level = S.detailLevel;
+  const whereHtml = level === "minimal" ? "" : (room && table
     ? `<div class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)} · ${esc(table.name)}</div>`
-    : `<div class="where" style="color:var(--text-muted)">– noch kein Tisch –</div>`;
-  const metaHtml = `<div class="meta-row"><span>${esc(g.slotLabel)}</span><span>${esc(g.time || "")}</span><span>${g.seats} Pers.</span>${g.ws ? '<span class="badge">Workshop</span>' : ""}${g.manual ? '<span class="badge">manuell</span>' : ""}${over}</div>`;
+    : `<div class="where" style="color:var(--text-muted)">– noch kein Tisch –</div>`);
+  const metaHtml = level === "minimal"
+    ? `<div class="meta-row"><span>${g.seats} Pers.</span></div>`
+    : level === "medium"
+    ? `<div class="meta-row"><span>${g.seats} Pers.</span>${g.provider ? `<span>${esc(g.provider)}</span>` : ""}${g.ws ? '<span class="badge">Workshop</span>' : ""}${over}</div>`
+    : `<div class="meta-row"><span>${esc(g.slotLabel)}</span><span>${esc(g.time || "")}</span><span>${g.seats} Pers.</span>${g.ws ? '<span class="badge">Workshop</span>' : ""}${g.manual ? '<span class="badge">manuell</span>' : ""}${over}</div>`;
   let controlsHtml;
   if (crew) {
-    const opts = ['<option value="">– Tisch wählen –</option>'];
-    for (const r of S.rooms) for (const t of S.tables.filter(t => t.room_id === r.id)) {
-      const sel = a && a.table_id === t.id ? " selected" : "";
-      opts.push(`<option value="${t.id}"${sel}>${esc(r.name)} / ${esc(t.name)} (${t.seats})</option>`);
+    if (S.assignMode === "dnd") {
+      const opts = ['<option value="">– Tisch wählen –</option>'];
+      for (const r of S.rooms) for (const t of S.tables.filter(t => t.room_id === r.id)) {
+        const sel = a && a.table_id === t.id ? " selected" : "";
+        opts.push(`<option value="${t.id}"${sel}>${esc(r.name)} / ${esc(t.name)} (${t.seats})</option>`);
+      }
+      controlsHtml = `<div class="controls-row"><select class="assignSel small" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="Tisch zuweisen für ${esc(g.title)}">${opts.join("")}</select>`;
+      if (a && a.table_id) controlsHtml += `<button type="button" class="small unassignBtn" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="${esc(g.title)} vom Tisch entfernen">✕</button>`;
+    } else {
+      // Einzelauswahl-Modus: kein Dropdown — Klick-Ziel-Fluss ersetzt es und
+      // ist selbst tastaturbedienbar (Button statt Drag-Geste).
+      const isSel = S.selectedGame === g.key;
+      controlsHtml = `<div class="controls-row"><button type="button" class="small selectGameBtn${isSel ? " primary" : ""}" data-game="${esc(g.key)}" aria-pressed="${String(isSel)}">${isSel ? "✓ ausgewählt — Tisch anklicken" : "Auswählen"}</button>`;
+      if (a && a.table_id) controlsHtml += `<button type="button" class="small unassignBtn" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="${esc(g.title)} vom Tisch entfernen">✕</button>`;
     }
-    controlsHtml = `<div class="controls-row"><select class="assignSel small" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="Tisch zuweisen für ${esc(g.title)}">${opts.join("")}</select>`;
-    if (a && a.table_id) controlsHtml += `<button type="button" class="small unassignBtn" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="${esc(g.title)} vom Tisch entfernen">✕</button>`;
     if (g.manual) controlsHtml += `<button type="button" class="small danger delGameBtn" data-id="${esc(g.dbId)}" aria-label="${esc(g.title)} löschen">🗑</button>`;
     controlsHtml += `</div>`;
   } else {
     controlsHtml = `<div class="controls-row"><button type="button" class="small requestBtn" data-game="${esc(g.key)}">Änderung vorschlagen</button></div>`;
   }
-  const drag = crew ? ` draggable="true"` : "";
-  return `<div class="chip${g.ws ? " ws" : ""}" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}"${drag}>
+  const drag = crew && S.assignMode === "dnd" ? ` draggable="true"` : "";
+  const selectedClass = crew && S.assignMode === "click" && S.selectedGame === g.key ? " selected" : "";
+  return `<div class="chip${g.ws ? " ws" : ""}${selectedClass}" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}"${drag}>
     <div class="title">${titleHtml}</div>${whereHtml}${metaHtml}${controlsHtml}
   </div>`;
 }
@@ -527,13 +547,18 @@ function zuordnenHtml() {
   if (!S.slots.length) return emptyState("Noch keine Slots angelegt.") + `<div class="controls no-print" style="margin-top:var(--sp-3)"><button type="button" id="addSlotBtn" class="primary">+ ersten Slot anlegen</button></div>`;
   const slotGames = bySlot(S.activeSlot);
   const unassigned = slotGames.filter(g => { const a = asgFor(g); return !a || !a.table_id; })
-    .filter(g => S.filterWs === "all" || (S.filterWs === "ws" && g.ws) || (S.filterWs === "reg" && !g.ws));
+    .filter(g => S.filterWs === "all" || (S.filterWs === "ws" && g.ws) || (S.filterWs === "reg" && !g.ws))
+    .filter(g => g.seats >= S.minSeats);
   const filterChipsHtml = `<div class="filter-chips">
     <button type="button" class="filter-chip" data-filterws="all" aria-pressed="${String(S.filterWs === "all")}">Alle</button>
     <button type="button" class="filter-chip" data-filterws="reg" aria-pressed="${String(S.filterWs === "reg")}">Ohne Workshops</button>
     <button type="button" class="filter-chip" data-filterws="ws" aria-pressed="${String(S.filterWs === "ws")}">Nur Workshops</button>
+    <label class="min-seats-filter">mind. <input type="number" id="minSeatsInput" min="0" max="200" value="${S.minSeats}" style="width:3.5em"> Plätze</label>
   </div>`;
-  const queueHtml = `<div class="assign-queue"><h2>Noch ohne Tisch</h2><p class="hint">Ziehe ein Spiel auf einen Tisch oder nutze das Auswahlfeld am Spiel.</p>${filterChipsHtml}<div class="chipbar" id="unassignedBar">${unassigned.map(g => chipHtml(g, { crew: true })).join("") || '<p class="hint">🎉 Alles zugeordnet.</p>'}</div></div>`;
+  const queueHintText = S.assignMode === "click"
+    ? "Wähle ein Spiel aus und klicke dann auf einen Tisch (oder auf „Noch ohne Tisch“, um es dort abzulegen)."
+    : "Ziehe ein Spiel auf einen Tisch oder nutze das Auswahlfeld am Spiel.";
+  const queueHtml = `<div class="assign-queue"><h2>Noch ohne Tisch</h2><p class="hint">${queueHintText}</p>${filterChipsHtml}<div class="chipbar" id="unassignedBar">${unassigned.map(g => chipHtml(g, { crew: true })).join("") || '<p class="hint">🎉 Alles zugeordnet.</p>'}</div></div>`;
   const boardHtml = S.rooms.map(room => {
     const tables = S.tables.filter(t => t.room_id === room.id);
     const tablesHtml = tables.map(t => {
@@ -543,8 +568,22 @@ function zuordnenHtml() {
     }).join("");
     return `<div class="room" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><h3>${esc(room.name)}</h3></div>${tablesHtml || '<p class="hint">Noch keine Tische — in „Räume verwalten“ anlegen.</p>'}</div>`;
   }).join("") || emptyState("Noch keine Räume angelegt. Wechsle zu „Räume verwalten“.");
+  const assignModeHtml = `<div class="filter-chips" role="group" aria-label="Zuordnungs-Modus">
+    <button type="button" class="filter-chip" data-assignmode="dnd" aria-pressed="${String(S.assignMode === "dnd")}">🖐️ Drag &amp; Drop</button>
+    <button type="button" class="filter-chip" data-assignmode="click" aria-pressed="${String(S.assignMode === "click")}">🖱️ Einzelauswahl</button>
+  </div>`;
+  const autoHintHtml = `<details class="hint-details">
+    <summary>Was macht Auto-Zuordnung?</summary>
+    <p class="hint">Reguläre Runden bekommen möglichst denselben Tisch wie in einem anderen Slot, sonst den
+    kleinsten noch passenden freien Tisch. Workshops/Panels/Vorträge (erkannt an Titel oder System) werden
+    bevorzugt in Räume mit den Eigenschaften „Bewegung ok“ oder „laut ok“ gesetzt. Blockiert nichts — schon
+    zugeordnete Spiele bleiben unangetastet, danach kann jederzeit von Hand nachjustiert werden.</p>
+  </details>`;
   return `${unscheduledBacklogHtml()}${slotTabsHtml(true)}
-    <div class="controls no-print"><button type="button" id="autoBtn" class="primary">⚙️ Auto-Zuordnung (dieser Slot)</button></div>
+    <div class="controls no-print" style="align-items:flex-start;flex-wrap:wrap;gap:var(--sp-3)">
+      ${assignModeHtml}
+      <div><button type="button" id="autoBtn" class="primary">⚙️ Auto-Zuordnung (dieser Slot)</button>${autoHintHtml}</div>
+    </div>
     <div class="assign-layout" style="margin-top:var(--sp-3)">${queueHtml}<div id="board">${boardHtml}</div></div>`;
 }
 
@@ -676,7 +715,7 @@ function renderActive() {
   const viewC = document.getElementById("viewContent"), crewC = document.getElementById("crewContent");
   if (S.mode === "crew" && S.role) {
     viewC.hidden = true; crewC.hidden = false;
-    if (S.crewView === "zuordnen") { crewC.innerHTML = zuordnenHtml(); wireDnd(); }
+    if (S.crewView === "zuordnen") { crewC.innerHTML = zuordnenHtml(); if (S.assignMode === "dnd") wireDnd(); }
     else if (S.crewView === "raeume-verwalten") crewC.innerHTML = raeumeVerwaltenHtml();
     else if (S.crewView === "spiele-verwalten") crewC.innerHTML = spieleVerwaltenHtml();
     else if (S.crewView === "wuensche") crewC.innerHTML = wuenscheHtml();
@@ -767,10 +806,30 @@ function wireDnd() {
 document.addEventListener("change", e => {
   if (e.target.matches(".assignSel")) assign(e.target.dataset.game, e.target.dataset.slot, e.target.value || null);
   else if (e.target.id === "showDoneChk") { S.showDoneRequests = e.target.checked; renderActive(); }
+  else if (e.target.id === "minSeatsInput") { S.minSeats = parseInt(e.target.value, 10) || 0; renderActive(); }
 });
 document.addEventListener("click", async e => {
+  // Einzelauswahl-Modus: Klick auf einen Tisch (oder die Warteschlange
+  // selbst) übernimmt das aktuell ausgewählte Spiel — Ersatz fürs Dropdown.
+  if (S.assignMode === "click" && S.selectedGame && !e.target.closest("button, select")) {
+    const box = e.target.closest(".tablebox");
+    const bar = e.target.closest("#unassignedBar");
+    if (box) { const g = S.selectedGame; S.selectedGame = null; await assign(g, S.activeSlot, box.dataset.table); return; }
+    if (bar) { const g = S.selectedGame; S.selectedGame = null; await assign(g, S.activeSlot, null); return; }
+  }
   const t = e.target.closest("button, th[data-sort]");
   if (!t) return;
+  if (t.matches("[data-assignmode]")) {
+    S.assignMode = t.dataset.assignmode; S.selectedGame = null;
+    Prefs.set("assign-mode", S.assignMode);
+    renderActive();
+    return;
+  }
+  if (t.matches(".selectGameBtn")) {
+    S.selectedGame = S.selectedGame === t.dataset.game ? null : t.dataset.game;
+    renderActive();
+    return;
+  }
   if (t.matches("[data-view]")) { S.mode = "view"; S.view = t.dataset.view; renderActive(); }
   else if (t.matches("[data-crewview]")) { S.mode = "crew"; S.crewView = t.dataset.crewview; renderActive(); }
   else if (t.matches(".local-slot-tabs button")) { S.activeSlot = t.dataset.slot; renderActive(); }
@@ -1029,8 +1088,29 @@ document.getElementById("gameForm").addEventListener("submit", async e => {
   } catch (err) { alert("Speichern fehlgeschlagen: " + err.message); }
 });
 
+/* ---------------- Detailgrad-Umschalter (global, wie Theme-Switcher) ---------------- */
+const DETAIL_LEVELS = [
+  { key: "minimal", label: "1", name: "Minimal — nur Titel + Plätze" },
+  { key: "medium", label: "2", name: "Mittel — + Anbieter/Wo" },
+  { key: "full", label: "3", name: "Voll — alle Details" },
+];
+function renderDetailSwitch() {
+  const el = document.getElementById("detailSwitch");
+  el.innerHTML = DETAIL_LEVELS.map(d =>
+    `<button type="button" data-detail-key="${d.key}" aria-pressed="${String(d.key === S.detailLevel)}" title="${esc(d.name)}" aria-label="${esc(d.name)}">${d.label}</button>`).join("");
+}
+document.getElementById("detailSwitch").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-detail-key]");
+  if (!btn) return;
+  S.detailLevel = btn.dataset.detailKey;
+  Prefs.set("detail-level", S.detailLevel);
+  renderDetailSwitch();
+  renderActive();
+});
+
 /* ---------------- Start ---------------- */
 renderThemeSwitch(document.getElementById("themeSwitch"));
+renderDetailSwitch();
 
 async function refreshRole() {
   const token = await Auth.accessToken();
