@@ -463,11 +463,37 @@ summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 700; padding: v
   body { padding: var(--sp-4) var(--sp-2) var(--sp-6); }
 }
 
+/* ============================================================
+   Druckansicht — bewusst themeunabhängig: überschreibt die Tokens
+   selbst (nicht nur body-Hintergrund/-Farbe), sonst bleiben bei einem
+   dunklen Theme z.B. helle Textfarben auf weißem Papier unlesbar, weil
+   Komponenten weiterhin var(--text-primary) etc. referenzieren.
+   ============================================================ */
 @media print {
-  .no-print, .controls, #unassigned, #inbox, #orgaBar, .banner, #status, .foot, .credits, .chip button, .chip select, .room-actions, .table-actions, .theme-switch { display: none !important; }
+  /* !important auf jeder Property nötig: Themes setzen dieselben Custom
+     Properties über :root[data-theme="x"] (Spezifität 0,2,0,0), das schlägt
+     diese Regel hier (0,1,0,0) sonst trotz @media print im Cascade. */
+  :root, [data-theme] {
+    --page: #fff !important; --surface-1: #fff !important; --surface-2: #f4f4f4 !important;
+    --text-primary: #000 !important; --text-secondary: #333 !important; --text-muted: #555 !important;
+    --border: #999 !important; --border-w: 1px !important; --grid: #ccc !important; --baseline: #ccc !important;
+    --accent: #000 !important; --accent-ink: #fff !important; --accent-soft: #eee !important;
+    --good: #060 !important; --warn: #900 !important; --band: #eee !important; --shadow-card: none !important;
+    --room-a: #333 !important; --room-b: #333 !important; --room-c: #333 !important; --room-d: #333 !important; --room-e: #333 !important;
+  }
+  @page { margin: 1.5cm; }
+  .no-print, .controls, .banner, .foot, .credits, .chip button, .chip select,
+  .chip .controls-row, .room-actions, .table-actions, .theme-switch,
+  .filter-chips, .ractions, dialog { display: none !important; }
   body { background: #fff; color: #000; padding: 0; }
-  .card, .room { border: 1px solid #999; box-shadow: none; break-inside: avoid; background: #fff; }
+  a { color: #000; text-decoration: underline; }
+  .card, .room, .chip, table { box-shadow: none !important; }
+  .card, .room { border: 1px solid #999; break-inside: avoid; background: #fff; }
   #board { display: block; }
   .room { margin-bottom: 10px; }
-  .chip { border: none; padding: 0; background: none; }
+  .chip { border: 1px solid #ccc; padding: var(--sp-2); background: none; break-inside: avoid; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #999; padding: 4px 8px; }
+  .grid-cell { background: none !important; }
+  .badge { border: 1px solid #999 !important; background: none !important; color: #000 !important; }
 }
