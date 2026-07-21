@@ -106,6 +106,15 @@ create table if not exists room_feature_tags (
   primary key (con_id, room_id, feature_tag_id)
 );
 
+-- ---------- Spiel-Anforderungen: dieselbe Vokabelliste (feature_tags) wie
+-- Raum-Eigenschaften, nur an games statt rooms gehängt — fürs Matching. ----------
+create table if not exists game_required_tags (
+  con_id uuid not null,
+  game_id uuid not null,
+  feature_tag_id uuid not null references feature_tags(id) on delete cascade,
+  primary key (con_id, game_id, feature_tag_id)
+);
+
 -- ---------- Spiele (ersetzt den manual_game-jsonb-Blob in assignments) ----------
 create table if not exists games (
   id uuid primary key default gen_random_uuid(),
@@ -177,6 +186,10 @@ alter table room_feature_tags add constraint room_feature_tags_room_same_con_fke
 alter table games drop constraint if exists games_con_id_id_key;
 alter table games add constraint games_con_id_id_key unique (con_id, id);
 
+alter table game_required_tags drop constraint if exists game_required_tags_game_same_con_fkey;
+alter table game_required_tags add constraint game_required_tags_game_same_con_fkey
+  foreign key (con_id, game_id) references games (con_id, id) on delete cascade;
+
 -- Ein Spiel hat höchstens eine Platzierungszeile (partieller Unique-Index) —
 -- "verschieben" ist ein UPDATE dieser einen Zeile, nie ein zweiter Insert.
 alter table assignments add column if not exists game_id uuid;
@@ -198,6 +211,7 @@ alter table slots        enable row level security;
 alter table feature_tags enable row level security;
 alter table room_feature_tags enable row level security;
 alter table games enable row level security;
+alter table game_required_tags enable row level security;
 -- Bewusst KEIN "force row level security" auf con_members/cons — würde den
 -- security-definer-Bypass in is_con_member()/is_con_admin() unterlaufen.
 
@@ -440,6 +454,8 @@ grant select on room_feature_tags to anon, authenticated;
 grant insert, delete on room_feature_tags to authenticated;
 grant select on games to anon, authenticated;
 grant insert, update, delete on games to authenticated;
+grant select on game_required_tags to anon, authenticated;
+grant insert, delete on game_required_tags to authenticated;
 
 -- ---------- Policies: cons ----------
 drop policy if exists "public read cons" on cons;
@@ -544,6 +560,13 @@ drop policy if exists "public read games" on games;
 create policy "public read games" on games for select using (true);
 drop policy if exists "members write games" on games;
 create policy "members write games" on games for all to authenticated
+  using (is_con_member(con_id)) with check (is_con_member(con_id));
+
+-- ---------- Policies: game_required_tags (öffentlich lesen, Crew togglet) ----------
+drop policy if exists "public read game_required_tags" on game_required_tags;
+create policy "public read game_required_tags" on game_required_tags for select using (true);
+drop policy if exists "members write game_required_tags" on game_required_tags;
+create policy "members write game_required_tags" on game_required_tags for all to authenticated
   using (is_con_member(con_id)) with check (is_con_member(con_id));
 
 -- ---------- Seed: kontrollierte Vokabelliste für Raum-Eigenschaften ----------

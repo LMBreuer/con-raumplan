@@ -192,6 +192,18 @@
     0%, 100% { box-shadow: 0 0 0 1px var(--border), var(--shadow-card); }
     50% { box-shadow: 0 0 0 1px var(--border), 0 0 0 1px rgba(0,240,255,.35), 0 0 34px -2px rgba(255,47,208,.65), 0 0 56px -10px rgba(0,240,255,.5); }
   }
+  /* Glitch bewusst nur auf dem Seiten-H1 (Hero), nicht auf h2/Chip-Titeln
+     etc. — "spend your boldness in one place" statt verstreuter Effekte. */
+  :root[data-theme="cyberpunk"] h1:hover {
+    animation: rp-glitch .38s steps(2, end) 1;
+  }
+  @keyframes rp-glitch {
+    0%, 100% { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(0, 0); }
+    20% { text-shadow: -2px 0 rgba(255,47,208,.85), 2px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(-2px, 1px); }
+    40% { text-shadow: 2px 0 rgba(255,47,208,.85), -2px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(2px, -1px); }
+    60% { text-shadow: -1px 0 rgba(255,47,208,.85), 1px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(1px, 0); }
+    80% { text-shadow: 1px 0 rgba(0,240,255,.85), -1px 0 rgba(255,47,208,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(-1px, 0); }
+  }
 }
 
 /* ---------- Ukiyo-e / Japanischer Minimalismus (sehr ruhig, ein einzelner
@@ -226,6 +238,15 @@
 }
 :root[data-theme="ukiyo"] .room { border-top-width: 2px; }
 :root[data-theme="ukiyo"] ::selection { background: var(--accent-soft); color: var(--text-primary); }
+/* Hintergrundbild sehr dezent (~5%) durchscheinen lassen: eine fast
+   deckende Wash-Farbe aus dem Theme selbst liegt als erster Layer über
+   dem Bild, statt mit einem separaten opacity-Element zu arbeiten. */
+:root[data-theme="ukiyo"] body {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--page) 95%, transparent), color-mix(in srgb, var(--page) 95%, transparent)),
+    var(--ukiyo-bg, none);
+  background-size: cover; background-position: center; background-repeat: no-repeat; background-attachment: fixed;
+}
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
@@ -366,15 +387,15 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
    prefers-reduced-motion, damit reduce wirklich jede Bewegung abschaltet.
    ============================================================ */
 @media (prefers-reduced-motion: no-preference) {
-  .card, .room, .chip, .kpi-bar .kpi, .con-card, .tablebox {
+  .card, .room, .chip, .kpi-bar .kpi, .con-card, .tablebox, .req, .assign-queue, .filter-chips {
     transition: transform .16s ease, box-shadow .16s ease;
   }
-  .card:hover, .room:hover, .kpi-bar .kpi:hover, .con-card:hover {
+  .card:hover, .room:hover, .kpi-bar .kpi:hover, .con-card:hover, .req:hover {
     transform: translateY(-2px);
   }
   .chip:not(.dragging):hover { transform: translateY(-1px); }
 
-  .card, .room, .chip, .kpi-bar .kpi {
+  .card, .room, .chip, .kpi-bar .kpi, .req {
     animation: rp-fadein .28s ease-out both;
   }
   /* leichter Stagger in der Zuordnen-Warteschlange/Chipbars, damit neu
@@ -439,6 +460,8 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
   background: var(--surface-2);
 }
 .tablebox.dragover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.tablebox.seat-match { border-color: var(--good); box-shadow: 0 0 0 1.5px var(--good) inset; }
+.tablebox.req-mismatch { border-color: var(--warn); box-shadow: 0 0 0 1.5px var(--warn) inset; }
 .tablebox .thead { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; font-size: var(--fs-sm); margin-bottom: var(--sp-2); }
 .tablebox .thead b { font-weight: 700; }
 .tablebox .thead .seats { color: var(--text-muted); }
@@ -464,6 +487,21 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
 .chip.dragging { opacity: .5; }
 .chip.flat { flex-direction: row; align-items: center; flex-wrap: wrap; }
 
+/* Detailgrad "minimal": wirklich eine Zeile — gekürzter Titel + Plätze +
+   ggf. Warn-Icon, Rest steckt im aria-label/title des Chips selbst. */
+.chip.minimal { padding: 3px var(--sp-2); gap: 0; }
+.chip .title-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.chip .title-short { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+.chip .seats-short { font-size: var(--fs-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; flex: none; }
+
+/* Kompaktes Icon-only-Button (Kommentar/Änderung vorschlagen, Info-Bubble) —
+   aria-label trägt den vollen Text, hier bleibt bewusst nur das Symbol. */
+.icon-btn {
+  padding: 2px 5px; font-size: var(--fs-sm); line-height: 1; min-width: 0;
+  background: transparent; border-color: transparent;
+}
+.icon-btn:hover { border-color: var(--accent); background: var(--surface-1); }
+
 .badge {
   display: inline-flex; align-items: center; gap: 4px; padding: 0 var(--sp-2); border-radius: var(--r-pill);
   font-size: var(--fs-xs); font-weight: 700; background: var(--band); color: var(--text-secondary);
@@ -480,10 +518,26 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
    Zuordnen: zweispaltiges Layout (Crew)
    ============================================================ */
 .assign-layout { display: grid; grid-template-columns: 300px 1fr; gap: var(--sp-4); align-items: start; }
-.assign-queue { position: sticky; top: var(--sp-3); max-height: 82vh; overflow-y: auto; padding-right: 2px; }
-.filter-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--sp-3); }
+.assign-queue {
+  position: sticky; top: var(--sp-3); max-height: 82vh; overflow-y: auto;
+  background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-lg);
+  padding: var(--sp-3); box-shadow: var(--shadow-card);
+}
+.filter-chips {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: var(--sp-3);
+  background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-3); box-shadow: var(--shadow-card);
+}
 .filter-chip { font-size: var(--fs-xs); font-weight: 600; padding: 4px var(--sp-3); border-radius: var(--r-pill); border: var(--border-w) solid var(--baseline); background: var(--surface-1); cursor: pointer; }
 .filter-chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+/* Eigenschafts-Chip-Picker: nur Ausgewähltes als Pill+Mini-✕, separates
+   Add-Dropdown darunter (Raum-Eigenschaften, später auch Spiel-Anforderungen). */
+.tag-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--sp-2); min-height: 1.6em; }
+.tag-pill { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 600; padding: 3px 4px 3px var(--sp-3); border-radius: var(--r-pill); background: var(--accent); color: var(--accent-ink); }
+.tag-remove { border: none; background: transparent; color: inherit; font-size: 1em; line-height: 1; padding: 0 4px; cursor: pointer; border-radius: 50%; }
+.tag-remove:hover { background: rgba(0, 0, 0, .18); }
+.tag-add-select { font-size: var(--fs-xs); padding: 4px var(--sp-2); border-radius: var(--r-sm); border: var(--border-w) solid var(--baseline); background: var(--surface-1); }
 @media (max-width: 900px) {
   .assign-layout { grid-template-columns: 1fr; }
   .assign-queue { position: static; max-height: none; }
@@ -528,7 +582,11 @@ dialog .msg.err { color: var(--warn); }
 /* ============================================================
    Änderungswünsche
    ============================================================ */
-.req { border-bottom: var(--border-w) solid var(--grid); padding: var(--sp-2) 0; font-size: var(--fs-sm); }
+.req {
+  background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-2); font-size: var(--fs-sm);
+  box-shadow: var(--shadow-card);
+}
 .req .rmeta { color: var(--text-muted); font-size: var(--fs-xs); }
 .req .rmsg { margin: 3px 0; white-space: pre-wrap; }
 .req .ractions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: var(--sp-1); }

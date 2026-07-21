@@ -22,7 +22,6 @@
         <p class="sub" id="pageSub">Lädt …</p>
       </div>
       <div class="no-print" style="display:flex;gap:var(--sp-3);align-items:center">
-        <div id="detailSwitch" class="theme-switch" role="group" aria-label="Detailgrad wählen"></div>
         <div id="themeSwitch"></div>
         <button id="authBtn" type="button">Login / Registrieren</button>
       </div>
@@ -38,6 +37,8 @@
     <div class="nav-groups no-print">
       <span class="label">Ansicht</span>
       <div class="slot-tabs" id="viewTabs" role="group" aria-label="Ansicht wählen"></div>
+      <span class="label">Details</span>
+      <div id="detailSwitch" class="slot-tabs" role="group" aria-label="Detailgrad wählen"></div>
       <button id="printBtn" type="button" title="Aktuelle Ansicht drucken">🖨️ Drucken</button>
     </div>
     <div class="nav-groups no-print" id="crewNav" hidden>
@@ -144,6 +145,18 @@
   </form>
 </dialog>
 
+<!-- Info: was macht Auto-Zuordnung -->
+<dialog id="autoInfoDlg" aria-labelledby="autoInfoDlgH">
+  <h2 id="autoInfoDlgH">Was macht Auto-Zuordnung?</h2>
+  <p class="hint">Reguläre Runden bekommen möglichst denselben Tisch wie in einem anderen Slot,
+  sonst den kleinsten noch passenden freien Tisch. Hat ein Spiel Anforderungen (Chip-Picker oder
+  Playabl-Klammer-Syntax), werden Räume bevorzugt, die alle davon erfüllen. Workshops/Panels/
+  Vorträge (erkannt an Titel oder System) ohne eigene Anforderungen werden stattdessen bevorzugt
+  in Räume mit „Bewegung ok“ oder „laut ok“ gesetzt. Blockiert nichts — schon zugeordnete Spiele
+  bleiben unangetastet, danach kann jederzeit von Hand nachjustiert werden.</p>
+  <div class="dactions"><button type="button" onclick="this.closest('dialog').close()" class="primary">Verstanden</button></div>
+</dialog>
+
 <!-- Spiel anlegen/bearbeiten (manuell, ohne Playabl) -->
 <dialog id="gameDlg" aria-labelledby="gameDlgH">
   <h2 id="gameDlgH">Spiel</h2>
@@ -157,6 +170,7 @@
     <div class="frow"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="gameWs"> Workshop/Panel</label></div>
     <div class="frow"><label for="gameSlot">Slot (optional — ohne Slot bleibt das Spiel im Backlog von „Spiele verwalten“)</label><select id="gameSlot"><option value="">– kein Slot –</option></select></div>
     <div class="frow"><label for="gameDesc">Beschreibung (optional)</label><textarea id="gameDesc" rows="2" maxlength="500"></textarea></div>
+    <div class="frow"><label>Anforderungen an den Tisch/Raum (optional, fürs Matching)</label><div class="filter-chips" id="gameFeatures"></div></div>
     <div class="dactions">
       <button type="button" onclick="this.closest('dialog').close()">Abbrechen</button>
       <button type="submit" class="primary">Speichern</button>
@@ -199,7 +213,7 @@ async function loadCon(idOrSlug) {
 // einem Pro-Tag-Sammelslot "Unsortiert" statt zu verschwinden.
 async function loadPlayabl(eventId, buckets) {
   if (!eventId) return [];
-  const sessions = await playablApi(`sessions?select=id,start_time,end_time,participant_count,game_id!inner(id,title,system,event_id)&deleted_at=is.null&game_id.event_id=eq.${eventId}&order=start_time.asc`);
+  const sessions = await playablApi(`sessions?select=id,start_time,end_time,participant_count,game_id!inner(id,title,system,event_id,description)&deleted_at=is.null&game_id.event_id=eq.${eventId}&order=start_time.asc`);
   return sessions.map(s => {
     const date = dayKey.format(new Date(s.start_time));
     const h = hourOf(s.start_time);
@@ -215,6 +229,10 @@ async function loadPlayabl(eventId, buckets) {
       slotLabel: `${fmtDay.format(new Date(s.start_time)).split(",")[0]} ${part}`,
       time: `${fmtTime.format(new Date(s.start_time))}–${fmtTime.format(new Date(s.end_time))}`,
       start: s.start_time,
+      // Klammer-Syntax [[eigenschaft: <Name>]] in Titel/System/Beschreibung —
+      // einzige Möglichkeit für Playabl-Spiele, Tisch-Anforderungen zu
+      // hinterlegen (keine eigene DB-Zeile, kein Strukturfeld auf Playabl-Seite).
+      requiredTagIds: parseRequiredTagIds((s.game_id.system || "") + " " + s.game_id.title + " " + (s.game_id.description || "")),
     };
   });
 }
@@ -224,7 +242,7 @@ function makeStore(conId) {
   const w = () => Auth.accessToken();
   return {
     async init() {
-      const [rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags, dbGames] = await Promise.all([
+      const [rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags, dbGames, gameRequiredTags] = await Promise.all([
         supaFetch(`rooms?select=*&con_id=eq.${conId}&order=sort,name`),
         supaFetch(`tables?select=*&con_id=eq.${conId}&order=sort,name`),
         supaFetch(`assignments?select=*&con_id=eq.${conId}`),
@@ -233,8 +251,9 @@ function makeStore(conId) {
         supaFetch(`feature_tags?select=*&order=sort`),
         supaFetch(`room_feature_tags?select=*&con_id=eq.${conId}`),
         supaFetch(`games?select=*&con_id=eq.${conId}&order=title`),
+        supaFetch(`game_required_tags?select=*&con_id=eq.${conId}`),
       ]);
-      return { rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags, dbGames };
+      return { rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags, dbGames, gameRequiredTags };
     },
     async saveRoom(r) {
       const token = await w();
@@ -303,6 +322,14 @@ function makeStore(conId) {
         await supaFetch("room_feature_tags", { method: "POST", headers: h, body: JSON.stringify(tagIds.map(id => ({ con_id: conId, room_id: roomId, feature_tag_id: id }))) });
       }
     },
+    async setGameTags(gameId, tagIds) {
+      const token = await w();
+      const h = supaHeaders(token, true);
+      await supaFetch(`game_required_tags?con_id=eq.${conId}&game_id=eq.${gameId}`, { method: "DELETE", headers: h });
+      if (tagIds.length) {
+        await supaFetch("game_required_tags", { method: "POST", headers: h, body: JSON.stringify(tagIds.map(id => ({ con_id: conId, game_id: gameId, feature_tag_id: id }))) });
+      }
+    },
     async saveGame(g) {
       const token = await w();
       const body = { ...g, con_id: conId };
@@ -319,12 +346,12 @@ function makeStore(conId) {
 const S = {
   con: null, store: null,
   games: [], dbGames: [], slots: [], slotBuckets: [], activeSlot: null,
-  featureTags: [], roomFeatureTags: [],
+  featureTags: [], roomFeatureTags: [], gameRequiredTags: [],
   rooms: [], tables: [], assignments: [], requests: [],
   role: null, superadmin: false, search: "",
   mode: "view", view: "tabelle", crewView: "zuordnen",
   rasterAxis: "rooms", tableSort: { key: "when", dir: 1 },
-  filterWs: "all", showDoneRequests: false, minSeats: 0,
+  filterWs: "all", showDoneRequests: false, minSeats: 0, minTableSeats: 0,
   assignMode: Prefs.get("assign-mode", "dnd"), selectedGame: null,
   detailLevel: Prefs.get("detail-level", "full"),
 };
@@ -352,6 +379,27 @@ function sortSlots() { S.slots.sort((a, b) => (a.day || "9999-99-99").localeComp
 const roomTagIds = room => S.roomFeatureTags.filter(x => x.room_id === room.id).map(x => x.feature_tag_id);
 const roomBadgesHtml = room => roomTagIds(room).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => `<span class="badge">${esc(f.label)}</span>`).join("");
 const roomHasTagKey = (room, key) => roomTagIds(room).some(id => S.featureTags.find(f => f.id === id)?.key === key);
+const gameReqTagIds = dbId => S.gameRequiredTags.filter(x => x.game_id === dbId).map(x => x.feature_tag_id);
+// Ein Raum "erfüllt" Anforderungen nur, wenn er ALLE hat (UND) — anders als
+// die Workshop-Vorzugsheuristik unten (bewegung ODER laut_ok), die als reiner
+// Fallback dient, wenn ein Spiel selbst keine expliziten Anforderungen trägt.
+const roomSatisfiesTags = (room, tagIds) => !tagIds?.length || tagIds.every(id => roomTagIds(room).includes(id));
+// Klammer-Syntax für Playabl-Beschreibungen/Titel/System: "[[eigenschaft: <Name>]]".
+// Matching ignoriert Groß/Klein, Leerzeichen, Unterstriche und das führende
+// Emoji im Label — "[[eigenschaft: laut ok]]" trifft sowohl den Tag-Key
+// "laut_ok" als auch das Label "🔊 laut ok".
+const FEATURE_BRACKET_RE = /\[\[\s*eigenschaft\s*:\s*([^\]]+?)\s*\]\]/gi;
+const normalizeTagText = s => s.toLowerCase().replace(/[^a-z0-9äöüß]+/g, "");
+function parseRequiredTagIds(text) {
+  if (!text) return [];
+  const ids = new Set();
+  for (const m of text.matchAll(FEATURE_BRACKET_RE)) {
+    const wanted = normalizeTagText(m[1]);
+    const tag = S.featureTags.find(f => normalizeTagText(f.label) === wanted || normalizeTagText(f.key) === wanted);
+    if (tag) ids.add(tag.id);
+  }
+  return [...ids];
+}
 // Baut die DB-Spiele (games-Tabelle) in S.games ein — ersetzt die alte
 // manual_game-jsonb-Ableitung. Ein Spiel ohne zugehörige assignments-Zeile
 // ist "kein Slot" (Anlegen und Terminieren sind entkoppelt, siehe Backlog
@@ -365,7 +413,7 @@ function gamesFromDb() {
       key: "game:" + dg.id, gameId: dg.id, dbId: dg.id, title: dg.title, url: null,
       seats: dg.seats, ws: dg.workshop, manual: true, provider: dg.provider || "",
       slotKey: a ? a.slot_key : null, slotLabel: a ? (slot?.label || a.slot_key) : "– kein Slot –",
-      time: "", start: 0,
+      time: "", start: 0, requiredTagIds: gameReqTagIds(dg.id),
     });
   }
 }
@@ -383,50 +431,92 @@ function matchesSearchG(g) {
 }
 
 /* ---------------- Spiel-Chip (überall wiederverwendet) ---------------- */
-// Detailgrad (S.detailLevel) steuert, wie viel Info pro Chip sichtbar ist —
-// Personenzahl bleibt immer sichtbar, alles andere ist gestuft abschaltbar,
-// um in der Warteschlange Platz zu sparen (minimal ≈ nur Titel+Plätze).
+// Detailgrad (S.detailLevel) steuert, wie viel Info pro Chip sichtbar ist.
+// "minimal" ist bewusst wirklich EINZEILIG (nur gekürzter Titel + Plätze +
+// ggf. Kapazitätswarn-Icon) — der Rest steht trotzdem im aria-label/title,
+// damit weder Screenreader- noch Maus-Nutzer etwas verlieren. Die
+// Kapazitätswarnung selbst läuft auf JEDEM Detailgrad, nie nur bei
+// medium/full (das war ein Bug: eine sicherheitsrelevante Warnung darf
+// "weniger Detail" nicht komplett verschwinden lassen).
 function chipHtml(g, { crew = false } = {}) {
   const a = asgFor(g);
   const table = a && S.tables.find(t => t.id === a.table_id);
   const room = table && roomOfTable(table.id);
-  const over = table && g.seats > table.seats ? `<span class="badge warn">+${g.seats - table.seats} über Kapazität</span>` : "";
-  const titleHtml = g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title);
+  const overSeats = table && g.seats > table.seats ? g.seats - table.seats : 0;
+  const reqTags = (g.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean);
+  const reqUnmet = room && reqTags.length ? reqTags.filter(f => !roomTagIds(room).includes(f.id)) : [];
   const level = S.detailLevel;
-  const whereHtml = level === "minimal" ? "" : (room && table
-    ? `<div class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)} · ${esc(table.name)}</div>`
-    : `<div class="where" style="color:var(--text-muted)">– noch kein Tisch –</div>`);
-  const metaHtml = level === "minimal"
-    ? `<div class="meta-row"><span>${g.seats} Pers.</span></div>`
-    : level === "medium"
-    ? `<div class="meta-row"><span>${g.seats} Pers.</span>${g.provider ? `<span>${esc(g.provider)}</span>` : ""}${g.ws ? '<span class="badge">Workshop</span>' : ""}${over}</div>`
-    : `<div class="meta-row"><span>${esc(g.slotLabel)}</span><span>${esc(g.time || "")}</span><span>${g.seats} Pers.</span>${g.ws ? '<span class="badge">Workshop</span>' : ""}${g.manual ? '<span class="badge">manuell</span>' : ""}${over}</div>`;
+  const titleHtml = g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title);
+  const titleShort = g.title.length > 22 ? g.title.slice(0, 21) + "…" : g.title;
+
+  // Volle Info immer als aria-label/title verfügbar, unabhängig vom
+  // sichtbaren Detailgrad (role="group" auf dem Chip, damit es beim
+  // Screenreader-Navigieren auch tatsächlich vorgelesen wird).
+  const summaryParts = [g.title, `${g.seats} Personen`];
+  if (g.provider) summaryParts.push(`Anbieter ${g.provider}`);
+  if (g.ws) summaryParts.push("Workshop");
+  if (g.manual) summaryParts.push("manuell angelegt");
+  summaryParts.push(g.slotLabel || "kein Slot");
+  if (g.time) summaryParts.push(g.time);
+  summaryParts.push(room && table ? `${room.name} · ${table.name}` : "noch kein Tisch");
+  if (overSeats > 0) summaryParts.push(`${overSeats} Person(en) über Tischkapazität`);
+  if (reqTags.length) summaryParts.push(`braucht: ${reqTags.map(f => f.label).join(", ")}`);
+  if (reqUnmet.length) summaryParts.push(`Tisch erfüllt nicht: ${reqUnmet.map(f => f.label).join(", ")}`);
+  const summary = summaryParts.join(", ");
+
+  const requestIconBtn = !crew ? `<button type="button" class="icon-btn requestBtn" data-game="${esc(g.key)}" aria-label="Änderung zu „${esc(g.title)}“ vorschlagen" title="Änderung vorschlagen">💬</button>` : "";
+  const warnBadgeFull = overSeats > 0 ? `<span class="badge warn">+${overSeats} über Kapazität</span>` : "";
+  const warnIconMinimal = overSeats > 0 ? `<span class="badge warn" aria-hidden="true">⚠</span>` : "";
+  // Anforderungs-Badge: informativ (nicht warn-farbig), solange der Tisch
+  // passt; wird warn-farbig, sobald der aktuelle Tisch eine Anforderung
+  // nachweislich nicht erfüllt — blockiert aber nie die Zuordnung selbst.
+  const reqBadgeFull = reqTags.length ? `<span class="badge${reqUnmet.length ? " warn" : ""}">braucht: ${reqTags.map(f => esc(f.label)).join(", ")}</span>` : "";
+  const reqIconMinimal = reqTags.length ? `<span class="badge${reqUnmet.length ? " warn" : ""}" aria-hidden="true">🔧</span>` : "";
+
+  let bodyHtml;
+  if (level === "minimal") {
+    bodyHtml = `<div class="title-row"><span class="title-short">${esc(titleShort)}</span><span class="seats-short">${g.seats}p</span>${warnIconMinimal}${reqIconMinimal}${requestIconBtn}</div>`;
+  } else {
+    const whereHtml = room && table
+      ? `<div class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)} · ${esc(table.name)}</div>`
+      : `<div class="where" style="color:var(--text-muted)">– noch kein Tisch –</div>`;
+    const metaHtml = level === "medium"
+      ? `<div class="meta-row"><span>${g.seats} Pers.</span>${g.provider ? `<span>${esc(g.provider)}</span>` : ""}${g.ws ? '<span class="badge">Workshop</span>' : ""}${warnBadgeFull}${reqBadgeFull}</div>`
+      : `<div class="meta-row"><span>${esc(g.slotLabel)}</span><span>${esc(g.time || "")}</span><span>${g.seats} Pers.</span>${g.ws ? '<span class="badge">Workshop</span>' : ""}${g.manual ? '<span class="badge">manuell</span>' : ""}${warnBadgeFull}${reqBadgeFull}</div>`;
+    bodyHtml = `<div class="title">${titleHtml}${requestIconBtn}</div>${whereHtml}${metaHtml}`;
+  }
+
   let controlsHtml;
   if (crew) {
     if (S.assignMode === "dnd") {
+      // Reiner Gesten-Modus — bewusst KEIN Dropdown mehr (das war vertauscht):
+      // die Barrierefreiheit ist über den Moduswechsel selbst abgesichert,
+      // nicht über Redundanz innerhalb dieses Modus.
+      controlsHtml = `<div class="controls-row">`;
+      if (a && a.table_id) controlsHtml += `<button type="button" class="small unassignBtn" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="${esc(g.title)} vom Tisch entfernen">✕</button>`;
+    } else {
+      // Einzelauswahl-Modus: der voll barrierefreie Modus — Auswählen-Button
+      // UND Dropdown gemeinsam, beide lösen dieselbe assign()-Aktion aus.
+      const isSel = S.selectedGame === g.key;
       const opts = ['<option value="">– Tisch wählen –</option>'];
       for (const r of S.rooms) for (const t of S.tables.filter(t => t.room_id === r.id)) {
         const sel = a && a.table_id === t.id ? " selected" : "";
         opts.push(`<option value="${t.id}"${sel}>${esc(r.name)} / ${esc(t.name)} (${t.seats})</option>`);
       }
-      controlsHtml = `<div class="controls-row"><select class="assignSel small" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="Tisch zuweisen für ${esc(g.title)}">${opts.join("")}</select>`;
-      if (a && a.table_id) controlsHtml += `<button type="button" class="small unassignBtn" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="${esc(g.title)} vom Tisch entfernen">✕</button>`;
-    } else {
-      // Einzelauswahl-Modus: kein Dropdown — Klick-Ziel-Fluss ersetzt es und
-      // ist selbst tastaturbedienbar (Button statt Drag-Geste).
-      const isSel = S.selectedGame === g.key;
-      controlsHtml = `<div class="controls-row"><button type="button" class="small selectGameBtn${isSel ? " primary" : ""}" data-game="${esc(g.key)}" aria-pressed="${String(isSel)}">${isSel ? "✓ ausgewählt — Tisch anklicken" : "Auswählen"}</button>`;
+      controlsHtml = `<div class="controls-row">
+        <button type="button" class="small selectGameBtn${isSel ? " primary" : ""}" data-game="${esc(g.key)}" aria-pressed="${String(isSel)}">${isSel ? "✓ ausgewählt — Tisch anklicken" : "Auswählen"}</button>
+        <select class="assignSel small" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="Tisch zuweisen für ${esc(g.title)}">${opts.join("")}</select>`;
       if (a && a.table_id) controlsHtml += `<button type="button" class="small unassignBtn" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="${esc(g.title)} vom Tisch entfernen">✕</button>`;
     }
     if (g.manual) controlsHtml += `<button type="button" class="small danger delGameBtn" data-id="${esc(g.dbId)}" aria-label="${esc(g.title)} löschen">🗑</button>`;
     controlsHtml += `</div>`;
   } else {
-    controlsHtml = `<div class="controls-row"><button type="button" class="small requestBtn" data-game="${esc(g.key)}">Änderung vorschlagen</button></div>`;
+    controlsHtml = "";
   }
   const drag = crew && S.assignMode === "dnd" ? ` draggable="true"` : "";
   const selectedClass = crew && S.assignMode === "click" && S.selectedGame === g.key ? " selected" : "";
-  return `<div class="chip${g.ws ? " ws" : ""}${selectedClass}" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}"${drag}>
-    <div class="title">${titleHtml}</div>${whereHtml}${metaHtml}${controlsHtml}
+  return `<div class="chip${g.ws ? " ws" : ""}${level === "minimal" ? " minimal" : ""}${selectedClass}" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}"${drag} role="group" aria-label="${esc(summary)}" title="${esc(summary)}">
+    ${bodyHtml}${controlsHtml}
   </div>`;
 }
 
@@ -472,12 +562,11 @@ function tabelleHtml() {
   const trs = rows.map(g => {
     const a = asgFor(g); const table = a && S.tables.find(t => t.id === a.table_id); const room = table && roomOfTable(table.id);
     return `<tr>
-      <td>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title)}${g.ws ? ' <span class="badge">Workshop</span>' : ""}</td>
+      <td>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title)}${g.ws ? ' <span class="badge">Workshop</span>' : ""} <button type="button" class="icon-btn requestBtn no-print" data-game="${esc(g.key)}" aria-label="Änderung zu „${esc(g.title)}“ vorschlagen" title="Änderung vorschlagen">💬</button></td>
       <td>${esc(g.slotLabel)}</td>
       <td>${room ? `<span class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)}</span>` : '<span style="color:var(--text-muted)">–</span>'}</td>
       <td>${table ? esc(table.name) : "–"}</td>
       <td>${g.seats}</td>
-      <td class="no-print"><button type="button" class="small requestBtn" data-game="${esc(g.key)}">Änderung vorschlagen</button></td>
     </tr>`;
   }).join("");
   return `<div class="card"><div style="overflow-x:auto"><table>
@@ -488,7 +577,6 @@ function tabelleHtml() {
       <th scope="col" data-sort="room">Raum${arrow("room")}</th>
       <th scope="col" data-sort="table">Tisch${arrow("table")}</th>
       <th scope="col" data-sort="seats">Plätze${arrow("seats")}</th>
-      <th scope="col" class="no-print"></th>
     </tr></thead><tbody>${trs}</tbody></table></div></div>`;
 }
 
@@ -553,18 +641,32 @@ function zuordnenHtml() {
     <button type="button" class="filter-chip" data-filterws="all" aria-pressed="${String(S.filterWs === "all")}">Alle</button>
     <button type="button" class="filter-chip" data-filterws="reg" aria-pressed="${String(S.filterWs === "reg")}">Ohne Workshops</button>
     <button type="button" class="filter-chip" data-filterws="ws" aria-pressed="${String(S.filterWs === "ws")}">Nur Workshops</button>
-    <label class="min-seats-filter">mind. <input type="number" id="minSeatsInput" min="0" max="200" value="${S.minSeats}" style="width:3.5em"> Plätze</label>
+    <label class="min-seats-filter">Spiele mit mind. <input type="number" id="minSeatsInput" min="0" max="200" value="${S.minSeats}" style="width:3.5em"> Plätzen</label>
+  </div>`;
+  const tableFilterHtml = `<div class="filter-chips">
+    <label class="min-seats-filter">Tische ab <input type="number" id="minTableSeatsInput" min="0" max="200" value="${S.minTableSeats}" style="width:3.5em"> Plätzen hervorheben</label>
   </div>`;
   const queueHintText = S.assignMode === "click"
     ? "Wähle ein Spiel aus und klicke dann auf einen Tisch (oder auf „Noch ohne Tisch“, um es dort abzulegen)."
     : "Ziehe ein Spiel auf einen Tisch oder nutze das Auswahlfeld am Spiel.";
   const queueHtml = `<div class="assign-queue"><h2>Noch ohne Tisch</h2><p class="hint">${queueHintText}</p>${filterChipsHtml}<div class="chipbar" id="unassignedBar">${unassigned.map(g => chipHtml(g, { crew: true })).join("") || '<p class="hint">🎉 Alles zugeordnet.</p>'}</div></div>`;
+  // Anforderungs-Hinweis auf Tischen: nur fürs aktuell in Einzelauswahl
+  // ausgewählte Spiel sinnvoll berechenbar (bei Drag&Drop gibt es kein
+  // "gerade gehaltenes Spiel" ohne den Drag selbst zu unterbrechen) —
+  // blockiert nichts, ist rein informativ, wie die Kapazitätswarnung.
+  const selectedGameObj = S.selectedGame && gameByKey(S.selectedGame);
   const boardHtml = S.rooms.map(room => {
     const tables = S.tables.filter(t => t.room_id === room.id);
+    const missingForRoom = selectedGameObj
+      ? (selectedGameObj.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).filter(f => !roomTagIds(room).includes(f.id))
+      : [];
     const tablesHtml = tables.map(t => {
       const games = slotGames.filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
       const double = games.length > 1 ? '<span class="badge warn">doppelt belegt!</span>' : "";
-      return `<div class="tablebox" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${t.seats} Plätze</span>${double}</div>${games.map(g => chipHtml(g, { crew: true })).join("") || '<div class="free">frei</div>'}</div>`;
+      const seatMatch = S.minTableSeats > 0 && t.seats >= S.minTableSeats ? " seat-match" : "";
+      const reqMismatch = missingForRoom.length ? " req-mismatch" : "";
+      const reqHint = missingForRoom.length ? `<span class="badge warn" title="Erfüllt nicht: ${esc(missingForRoom.map(f => f.label).join(", "))}">fehlt: ${esc(missingForRoom.map(f => f.label).join(", "))}</span>` : "";
+      return `<div class="tablebox${seatMatch}${reqMismatch}" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${t.seats} Plätze</span>${double}${reqHint}</div>${games.map(g => chipHtml(g, { crew: true })).join("") || '<div class="free">frei</div>'}</div>`;
     }).join("");
     return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><h3>${esc(room.name)}</h3></div>${tablesHtml || '<p class="hint">Noch keine Tische — in „Räume verwalten“ anlegen.</p>'}</div>`;
   }).join("") || emptyState("Noch keine Räume angelegt. Wechsle zu „Räume verwalten“.");
@@ -572,19 +674,13 @@ function zuordnenHtml() {
     <button type="button" class="filter-chip" data-assignmode="dnd" aria-pressed="${String(S.assignMode === "dnd")}">🖐️ Drag &amp; Drop</button>
     <button type="button" class="filter-chip" data-assignmode="click" aria-pressed="${String(S.assignMode === "click")}">🖱️ Einzelauswahl</button>
   </div>`;
-  const autoHintHtml = `<details class="hint-details">
-    <summary>Was macht Auto-Zuordnung?</summary>
-    <p class="hint">Reguläre Runden bekommen möglichst denselben Tisch wie in einem anderen Slot, sonst den
-    kleinsten noch passenden freien Tisch. Workshops/Panels/Vorträge (erkannt an Titel oder System) werden
-    bevorzugt in Räume mit den Eigenschaften „Bewegung ok“ oder „laut ok“ gesetzt. Blockiert nichts — schon
-    zugeordnete Spiele bleiben unangetastet, danach kann jederzeit von Hand nachjustiert werden.</p>
-  </details>`;
   return `${unscheduledBacklogHtml()}${slotTabsHtml(true)}
-    <div class="controls no-print" style="align-items:flex-start;flex-wrap:wrap;gap:var(--sp-3)">
+    <div class="controls no-print" style="align-items:center;flex-wrap:wrap;gap:var(--sp-3)">
       ${assignModeHtml}
-      <div><button type="button" id="autoBtn" class="primary">⚙️ Auto-Zuordnung (dieser Slot)</button>${autoHintHtml}</div>
+      <button type="button" id="autoBtn" class="primary">⚙️ Auto-Zuordnung (dieser Slot)</button>
+      <button type="button" id="autoInfoBtn" class="icon-btn" aria-label="Was macht Auto-Zuordnung? (Erklärung öffnen)" title="Was macht Auto-Zuordnung?">ⓘ</button>
     </div>
-    <div class="assign-layout" style="margin-top:var(--sp-3)">${queueHtml}<div id="board">${boardHtml}</div></div>`;
+    <div class="assign-layout" style="margin-top:var(--sp-3)">${queueHtml}<div>${tableFilterHtml}<div id="board">${boardHtml}</div></div></div>`;
 }
 
 // Spiele aus "Spiele verwalten" ohne Slot — bewusst noch in Zuordnen
@@ -645,8 +741,9 @@ function spieleVerwaltenHtml() {
   const rows = S.dbGames.map(dg => {
     const a = S.assignments.find(x => x.game_id === dg.id);
     const slot = a && S.slots.find(s => s.key === a.slot_key);
+    const reqLabels = gameReqTagIds(dg.id).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => f.label);
     return `<div class="req">
-      <div><strong>${esc(dg.title)}</strong>${dg.provider ? " · " + esc(dg.provider) : ""} · ${dg.seats} Pers.${dg.workshop ? ' <span class="badge">Workshop</span>' : ""}</div>
+      <div><strong>${esc(dg.title)}</strong>${dg.provider ? " · " + esc(dg.provider) : ""} · ${dg.seats} Pers.${dg.workshop ? ' <span class="badge">Workshop</span>' : ""}${reqLabels.length ? ` <span class="badge">braucht: ${esc(reqLabels.join(", "))}</span>` : ""}</div>
       <div class="hint">${slot ? esc(slot.label) : "kein Slot"}${dg.description ? " · " + esc(dg.description) : ""}</div>
       <div class="ractions">
         <button type="button" class="small editGameBtn" data-id="${dg.id}" aria-label="${esc(dg.title)} bearbeiten">✎ bearbeiten</button>
@@ -662,10 +759,13 @@ function spieleVerwaltenHtml() {
   const playablHtml = playablGames.length ? `<div class="card" style="margin-top:var(--sp-4)">
     <h2>Spiele von Playabl</h2>
     <p class="hint">Live von Playabl geladen — hier nur zur Übersicht, bearbeitbar nur direkt auf Playabl.</p>
-    ${playablGames.map(g => `<div class="req">
-      <div>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener"><strong>${esc(g.title)}</strong></a>` : `<strong>${esc(g.title)}</strong>`} · ${g.seats} Pers.${g.ws ? ' <span class="badge">Workshop</span>' : ""}</div>
+    ${playablGames.map(g => {
+      const reqLabels = (g.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => f.label);
+      return `<div class="req">
+      <div>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener"><strong>${esc(g.title)}</strong></a>` : `<strong>${esc(g.title)}</strong>`} · ${g.seats} Pers.${g.ws ? ' <span class="badge">Workshop</span>' : ""}${reqLabels.length ? ` <span class="badge">braucht: ${esc(reqLabels.join(", "))}</span>` : ""}</div>
       <div class="hint">${esc(g.slotLabel)}</div>
-    </div>`).join("")}
+    </div>`;
+    }).join("")}
   </div>` : "";
   return `<div class="controls no-print"><button type="button" id="addGameBtn" class="primary">+ Spiel</button></div>
     <div class="card" style="margin-top:var(--sp-3)">
@@ -746,6 +846,22 @@ function renderActive() {
   }
 }
 
+// Für Live-Filter-Eingaben, die (anders als #globalSearch im persistenten
+// Header) INNERHALB des per renderActive() ersetzten Crew-Contents liegen:
+// ohne das würde jeder Tastendruck den Fokus verlieren, weil innerHTML das
+// Input-Element komplett neu erzeugt.
+function renderActivePreservingFocus() {
+  const active = document.activeElement;
+  const id = active && active.id;
+  const selStart = active && active.selectionStart, selEnd = active && active.selectionEnd;
+  renderActive();
+  if (!id) return;
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.focus();
+  if (selStart != null && el.setSelectionRange) { try { el.setSelectionRange(selStart, selEnd); } catch {} }
+}
+
 /* ---------------- Aktionen ---------------- */
 async function assign(gameKey, slotKey, tableId) {
   const g = gameByKey(gameKey);
@@ -793,12 +909,23 @@ function autoAssign() {
     const prev = prevOf(g);
     let target = null;
     if (prev) { const t = S.tables.find(t => t.id === prev.table_id); if (t && t.seats >= g.seats && !S.assignments.some(a => a.slot_key === slot && a.table_id === t.id) && !jobs.some(j => j.tableId === t.id)) target = t; }
-    if (!target) { const candidates = freeTables().filter(t => t.seats >= g.seats && !jobs.some(j => j.tableId === t.id)).sort((a, b) => a.seats - b.seats); target = candidates[0] || null; }
+    if (!target) {
+      const candidates = freeTables().filter(t => t.seats >= g.seats && !jobs.some(j => j.tableId === t.id)).sort((a, b) => a.seats - b.seats);
+      // Anforderungen (falls das Spiel welche hat) bevorzugen, aber nicht
+      // erzwingen — lieber ein Tisch ohne perfekten Match als gar keiner.
+      const matching = g.requiredTagIds?.length ? candidates.filter(t => roomSatisfiesTags(roomOfTable(t.id), g.requiredTagIds)) : candidates;
+      target = (matching[0] || candidates[0] || null);
+    }
     if (target) jobs.push({ gameKey: g.key, tableId: target.id });
   }
   for (const g of workshops) {
     const candidates = freeTables().filter(t => !jobs.some(j => j.tableId === t.id)).sort((a, b) => b.seats - a.seats);
-    const roomOk = candidates.filter(t => { const r = S.rooms.find(r => r.id === t.room_id); return r && (roomHasTagKey(r, "bewegung") || roomHasTagKey(r, "laut_ok")); });
+    // Explizite Anforderungen (Chip-Picker/Playabl-Klammer) schlagen die
+    // alte hart codierte Workshop-Heuristik (bewegung ODER laut_ok) — die
+    // bleibt nur als Fallback für Workshops ohne eigene Anforderungen.
+    const roomOk = g.requiredTagIds?.length
+      ? candidates.filter(t => roomSatisfiesTags(roomOfTable(t.id), g.requiredTagIds))
+      : candidates.filter(t => { const r = roomOfTable(t.id); return r && (roomHasTagKey(r, "bewegung") || roomHasTagKey(r, "laut_ok")); });
     const target = (roomOk[0] || candidates.find(t => t.seats >= g.seats) || null);
     if (target) jobs.push({ gameKey: g.key, tableId: target.id });
   }
@@ -833,7 +960,15 @@ function wireDnd() {
 document.addEventListener("change", e => {
   if (e.target.matches(".assignSel")) assign(e.target.dataset.game, e.target.dataset.slot, e.target.value || null);
   else if (e.target.id === "showDoneChk") { S.showDoneRequests = e.target.checked; renderActive(); }
-  else if (e.target.id === "minSeatsInput") { S.minSeats = parseInt(e.target.value, 10) || 0; renderActive(); }
+  else if (e.target.matches(".tag-add-select") && e.target.value) { tagPickerSelection.add(e.target.value); renderTagPicker(e.target.closest("[id]").id); }
+});
+// Eigener "input"-Listener (reagiert bei jedem Tastendruck, nicht erst bei
+// Blur/Enter wie "change") — braucht renderActivePreservingFocus(), da
+// #minSeatsInput/#minTableSeatsInput innerhalb des ersetzten Crew-Contents
+// liegen und sonst nach dem ersten Zeichen den Fokus verlieren würden.
+document.addEventListener("input", e => {
+  if (e.target.id === "minSeatsInput") { S.minSeats = parseInt(e.target.value, 10) || 0; renderActivePreservingFocus(); }
+  else if (e.target.id === "minTableSeatsInput") { S.minTableSeats = parseInt(e.target.value, 10) || 0; renderActivePreservingFocus(); }
 });
 document.addEventListener("click", async e => {
   // Einzelauswahl-Modus: Klick auf einen Tisch (oder die Warteschlange
@@ -897,11 +1032,12 @@ document.addEventListener("click", async e => {
     renderActive();
   }
   else if (t.id === "autoBtn") autoAssign();
+  else if (t.id === "autoInfoBtn") document.getElementById("autoInfoDlg").showModal();
   else if (t.id === "addSlotBtn") openSlotDlg(null);
   else if (t.id === "editSlotBtn") openSlotDlg(S.slots.find(s => s.key === S.activeSlot));
   else if (t.id === "addBucketBtn") openBucketDlg(null);
   else if (t.matches(".editBucketBtn")) openBucketDlg(S.slotBuckets.find(b => b.id === t.dataset.id));
-  else if (t.matches(".featChip")) t.setAttribute("aria-pressed", String(t.getAttribute("aria-pressed") !== "true"));
+  else if (t.matches(".tag-remove")) { tagPickerSelection.delete(t.dataset.tagId); renderTagPicker(t.closest("[id]").id); }
   else if (t.matches(".reqStatus")) { await S.store.updateRequest(t.dataset.id, { status: t.dataset.status }); S.requests.find(r => r.id === t.dataset.id).status = t.dataset.status; renderActive(); }
   else if (t.matches(".toggleRoleBtn")) {
     const newRole = t.dataset.role === "admin" ? "editor" : "admin";
@@ -963,21 +1099,43 @@ document.getElementById("requestForm").addEventListener("submit", async e => {
   } catch (err) { out.className = "msg err"; out.textContent = "Senden fehlgeschlagen: " + err.message; }
 });
 
+// ---------------- Eigenschafts-Chip-Picker (wiederverwendbar: Raum-
+// Eigenschaften hier, Spiel-Anforderungen in Phase 6c) ----------------
+// Zeigt NUR die ausgewählten Tags als Pills mit Mini-✕ zum Entfernen, plus
+// ein "+ Eigenschaft"-Dropdown mit den noch nicht gewählten Optionen zum
+// Hinzufügen — bewusst kein Grid aus allen Optionen mehr (Feedback: wirkte
+// wie ein reines Ja/Nein-Toggle-Grid statt eines echten Pickers). Rein
+// clientseitig bis zum Speichern der Dialog-Form.
+let tagPickerSelection = new Set();
+function renderTagPicker(containerId) {
+  const container = document.getElementById(containerId);
+  const selected = [...tagPickerSelection].map(id => S.featureTags.find(f => f.id === id)).filter(Boolean);
+  const remaining = S.featureTags.filter(f => !tagPickerSelection.has(f.id));
+  container.innerHTML = `
+    <div class="tag-pills">${selected.map(f => `<span class="tag-pill">${esc(f.label)}<button type="button" class="tag-remove" data-tag-id="${f.id}" aria-label="${esc(f.label)} entfernen">×</button></span>`).join("") || '<span class="hint">Noch keine ausgewählt.</span>'}</div>
+    <select class="tag-add-select" aria-label="Eigenschaft hinzufügen">
+      <option value="">+ Eigenschaft hinzufügen</option>
+      ${remaining.map(f => `<option value="${f.id}">${esc(f.label)}</option>`).join("")}
+    </select>`;
+}
+function openTagPicker(containerId, selectedIds) {
+  tagPickerSelection = new Set(selectedIds);
+  renderTagPicker(containerId);
+}
+
 function openRoomDlg(room) {
   document.getElementById("roomId").value = room?.id || "";
   document.getElementById("roomName").value = room?.name || "";
   document.getElementById("roomFloor").value = room?.floor || "";
   document.getElementById("roomSort").value = room?.sort || 0;
   document.getElementById("roomNotes").value = room?.notes || "";
-  const selected = new Set(room ? roomTagIds(room) : []);
-  document.getElementById("roomFeatures").innerHTML = S.featureTags.map(f =>
-    `<button type="button" class="filter-chip featChip" data-id="${f.id}" aria-pressed="${String(selected.has(f.id))}">${esc(f.label)}</button>`).join("") || '<p class="hint">Keine Eigenschaften definiert.</p>';
+  openTagPicker("roomFeatures", room ? roomTagIds(room) : []);
   document.getElementById("roomDlg").showModal();
 }
 document.getElementById("roomForm").addEventListener("submit", async e => {
   e.preventDefault();
   const room = { id: document.getElementById("roomId").value || undefined, name: document.getElementById("roomName").value.trim(), floor: document.getElementById("roomFloor").value.trim(), sort: parseInt(document.getElementById("roomSort").value, 10) || 0, notes: document.getElementById("roomNotes").value.trim() };
-  const tagIds = [...document.querySelectorAll('.featChip[aria-pressed="true"]')].map(b => b.dataset.id);
+  const tagIds = [...tagPickerSelection];
   try {
     const saved = await S.store.saveRoom(room);
     if (!room.id) S.rooms.push(saved); else Object.assign(S.rooms.find(r => r.id === room.id), saved);
@@ -1082,6 +1240,7 @@ function openGameDlg(dg) {
   const curA = dg && S.assignments.find(x => x.game_id === dg.id);
   document.getElementById("gameSlot").innerHTML = '<option value="">– kein Slot –</option>' +
     S.slots.map(s => `<option value="${esc(s.key)}"${curA && curA.slot_key === s.key ? " selected" : ""}>${esc(s.label)}</option>`).join("");
+  openTagPicker("gameFeatures", dg ? gameReqTagIds(dg.id) : []);
   document.getElementById("gameDlg").showModal();
 }
 document.getElementById("gameForm").addEventListener("submit", async e => {
@@ -1095,9 +1254,12 @@ document.getElementById("gameForm").addEventListener("submit", async e => {
     description: document.getElementById("gameDesc").value.trim() || null,
   };
   const newSlot = document.getElementById("gameSlot").value || null;
+  const tagIds = [...tagPickerSelection];
   try {
     const saved = await S.store.saveGame(g);
     if (!id) S.dbGames.push(saved); else Object.assign(S.dbGames.find(x => x.id === id), saved);
+    await S.store.setGameTags(saved.id, tagIds);
+    S.gameRequiredTags = S.gameRequiredTags.filter(x => x.game_id !== saved.id).concat(tagIds.map(tid => ({ con_id: S.con.id, game_id: saved.id, feature_tag_id: tid })));
     const oldA = S.assignments.find(x => x.game_id === saved.id);
     if (newSlot && (!oldA || oldA.slot_key !== newSlot)) {
       // Slot neu gesetzt oder gewechselt — Tisch bewusst zurückgesetzt: eine
@@ -1117,14 +1279,14 @@ document.getElementById("gameForm").addEventListener("submit", async e => {
 
 /* ---------------- Detailgrad-Umschalter (global, wie Theme-Switcher) ---------------- */
 const DETAIL_LEVELS = [
-  { key: "minimal", label: "1", name: "Minimal — nur Titel + Plätze" },
-  { key: "medium", label: "2", name: "Mittel — + Anbieter/Wo" },
-  { key: "full", label: "3", name: "Voll — alle Details" },
+  { key: "minimal", label: "Minimal", name: "Minimal — nur Titel + Plätze, einzeilig" },
+  { key: "medium", label: "Mittel", name: "Mittel — zusätzlich Anbieter/Workshop" },
+  { key: "full", label: "Voll", name: "Voll — alle Details (Slot, Uhrzeit, Raum/Tisch)" },
 ];
 function renderDetailSwitch() {
   const el = document.getElementById("detailSwitch");
   el.innerHTML = DETAIL_LEVELS.map(d =>
-    `<button type="button" data-detail-key="${d.key}" aria-pressed="${String(d.key === S.detailLevel)}" title="${esc(d.name)}" aria-label="${esc(d.name)}">${d.label}</button>`).join("");
+    `<button type="button" data-detail-key="${d.key}" aria-pressed="${String(d.key === S.detailLevel)}" title="${esc(d.name)}" aria-label="${esc(d.name)}">${esc(d.label)}</button>`).join("");
 }
 document.getElementById("detailSwitch").addEventListener("click", e => {
   const btn = e.target.closest("button[data-detail-key]");
@@ -1202,6 +1364,7 @@ updateCatEasterEgg();
     S.rooms = data.rooms || []; S.tables = data.tables || []; S.assignments = data.assignments || [];
     S.slotBuckets = data.slotBuckets || []; S.slots = data.slots || [];
     S.featureTags = data.featureTags || []; S.roomFeatureTags = data.roomFeatureTags || [];
+    S.gameRequiredTags = data.gameRequiredTags || [];
     S.games = await loadPlayabl(con.playabl_event_id, S.slotBuckets);
     await refreshRole();
     if (S.games.length) {
