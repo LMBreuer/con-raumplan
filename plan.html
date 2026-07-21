@@ -12,22 +12,22 @@
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
-<a class="skip-link" href="#main">Zum Inhalt springen</a>
+<a class="skip-link no-print" href="#main">Zum Inhalt springen</a>
 <div class="wrap">
   <header>
-    <p class="sub"><a href="index.html">← alle Cons</a></p>
+    <p class="sub no-print"><a href="index.html">← alle Cons</a></p>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);flex-wrap:wrap">
       <div>
         <h1 id="pageTitle">Con-Raumplan</h1>
         <p class="sub" id="pageSub">Lädt …</p>
       </div>
-      <div style="display:flex;gap:var(--sp-3);align-items:center">
+      <div class="no-print" style="display:flex;gap:var(--sp-3);align-items:center">
         <div id="detailSwitch" class="theme-switch" role="group" aria-label="Detailgrad wählen"></div>
         <div id="themeSwitch"></div>
         <button id="authBtn" type="button">Login / Registrieren</button>
       </div>
     </div>
-    <div id="inviteBanner" hidden></div>
+    <div id="inviteBanner" class="no-print" hidden></div>
     <p class="banner no-print" id="viewBanner" hidden></p>
     <p id="status">Lade Daten …</p>
     <div class="kpi-bar no-print" id="kpiBar"></div>
@@ -519,7 +519,7 @@ function rasterHtml() {
 // manage=true ergänzt "+ Slot"/"✎"-Bedienelemente (nur im Crew-Kontext).
 function slotTabsHtml(manage) {
   const tabs = S.slots.map(s => `<button type="button" data-slot="${esc(s.key)}" aria-pressed="${String(s.key === S.activeSlot)}">${esc(s.label)}</button>`).join("");
-  const manageHtml = manage ? `<button type="button" id="editSlotBtn" class="small" aria-label="aktuellen Slot umbenennen/löschen"${S.activeSlot ? "" : " disabled"}>✎</button><button type="button" id="addSlotBtn" class="small">+ Slot</button>` : "";
+  const manageHtml = manage ? `<button type="button" id="editSlotBtn" class="small no-print" aria-label="aktuellen Slot umbenennen/löschen"${S.activeSlot ? "" : " disabled"}>✎</button><button type="button" id="addSlotBtn" class="small no-print">+ Slot</button>` : "";
   return `<div class="slot-tabs local-slot-tabs" role="group" aria-label="Slot wählen">${tabs}${manageHtml}</div>`;
 }
 
@@ -609,7 +609,7 @@ function bucketsHtml() {
     <div class="req">
       <span>${esc(b.label)} (${b.start_hour}–${b.end_hour} Uhr)${b.active ? "" : ' <span class="badge">inaktiv</span>'}</span>
       <span style="float:right;display:flex;gap:4px">
-        <button type="button" class="small editBucketBtn" data-id="${b.id}" aria-label="Zeitabschnitt ${esc(b.label)} bearbeiten">✎</button>
+        <button type="button" class="small no-print editBucketBtn" data-id="${b.id}" aria-label="Zeitabschnitt ${esc(b.label)} bearbeiten">✎</button>
       </span>
     </div>`).join("") || '<p class="hint">Noch keine Zeitabschnitte definiert.</p>';
   return `<div class="card" style="margin-bottom:var(--sp-4)">
@@ -653,9 +653,27 @@ function spieleVerwaltenHtml() {
         <button type="button" class="small danger delGameBtn" data-id="${dg.id}" aria-label="${esc(dg.title)} löschen">🗑 löschen</button>
       </div>
     </div>`;
-  }).join("") || '<p class="hint">Noch keine Spiele angelegt.</p>';
+  }).join("") || '<p class="hint">Noch keine manuellen Spiele angelegt.</p>';
+  // Playabl-Spiele werden live geladen, nicht in der games-Tabelle
+  // gespeichert — hier nur zur Übersicht, damit "Spiele verwalten" nicht
+  // fälschlich wirkt, als gäbe es nur die manuellen Spiele. Bearbeiten geht
+  // nur direkt auf Playabl (Link).
+  const playablGames = S.games.filter(g => !g.manual);
+  const playablHtml = playablGames.length ? `<div class="card" style="margin-top:var(--sp-4)">
+    <h2>Spiele von Playabl</h2>
+    <p class="hint">Live von Playabl geladen — hier nur zur Übersicht, bearbeitbar nur direkt auf Playabl.</p>
+    ${playablGames.map(g => `<div class="req">
+      <div>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener"><strong>${esc(g.title)}</strong></a>` : `<strong>${esc(g.title)}</strong>`} · ${g.seats} Pers.${g.ws ? ' <span class="badge">Workshop</span>' : ""}</div>
+      <div class="hint">${esc(g.slotLabel)}</div>
+    </div>`).join("")}
+  </div>` : "";
   return `<div class="controls no-print"><button type="button" id="addGameBtn" class="primary">+ Spiel</button></div>
-    <div class="card" style="margin-top:var(--sp-3)">${rows}</div>`;
+    <div class="card" style="margin-top:var(--sp-3)">
+      <h2>Manuelle Spiele</h2>
+      <p class="hint">Selbst angelegt — hier bearbeitbar, inkl. optionalem Slot.</p>
+      ${rows}
+    </div>
+    ${playablHtml}`;
 }
 
 /* ---------------- Crew: Änderungswünsche ---------------- */
