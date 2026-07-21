@@ -143,16 +143,22 @@
   </form>
 </dialog>
 
-<!-- Manuelles Spiel -->
-<dialog id="manualDlg" aria-labelledby="manualDlgH">
-  <h2 id="manualDlgH">Manuelles Spiel / Programmpunkt</h2>
-  <form method="dialog" id="manualForm">
-    <div class="frow"><label for="manTitle">Titel *</label><input type="text" id="manTitle" required maxlength="100"></div>
-    <div class="frow"><label for="manSlot">Slot *</label><select id="manSlot"></select></div>
-    <div class="frow"><label for="manSeats">Personen (inkl. Leitung) *</label><input type="number" id="manSeats" min="1" max="200" required value="5"></div>
+<!-- Spiel anlegen/bearbeiten (manuell, ohne Playabl) -->
+<dialog id="gameDlg" aria-labelledby="gameDlgH">
+  <h2 id="gameDlgH">Spiel</h2>
+  <form method="dialog" id="gameForm">
+    <input type="hidden" id="gameId">
+    <div class="frow"><label for="gameTitle">Titel *</label><input type="text" id="gameTitle" required maxlength="100"></div>
+    <div class="fgrid" style="grid-template-columns:2fr 1fr">
+      <div class="frow"><label for="gameProvider">Anbieter (optional)</label><input type="text" id="gameProvider" maxlength="80"></div>
+      <div class="frow"><label for="gameSeats">Personen (inkl. Leitung) *</label><input type="number" id="gameSeats" min="1" max="200" required value="5"></div>
+    </div>
+    <div class="frow"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="gameWs"> Workshop/Panel</label></div>
+    <div class="frow"><label for="gameSlot">Slot (optional — ohne Slot bleibt das Spiel im Backlog von „Spiele verwalten“)</label><select id="gameSlot"><option value="">– kein Slot –</option></select></div>
+    <div class="frow"><label for="gameDesc">Beschreibung (optional)</label><textarea id="gameDesc" rows="2" maxlength="500"></textarea></div>
     <div class="dactions">
       <button type="button" onclick="this.closest('dialog').close()">Abbrechen</button>
-      <button type="submit" class="primary">Anlegen</button>
+      <button type="submit" class="primary">Speichern</button>
     </div>
   </form>
 </dialog>
@@ -217,7 +223,7 @@ function makeStore(conId) {
   const w = () => Auth.accessToken();
   return {
     async init() {
-      const [rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags] = await Promise.all([
+      const [rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags, dbGames] = await Promise.all([
         supaFetch(`rooms?select=*&con_id=eq.${conId}&order=sort,name`),
         supaFetch(`tables?select=*&con_id=eq.${conId}&order=sort,name`),
         supaFetch(`assignments?select=*&con_id=eq.${conId}`),
@@ -225,8 +231,9 @@ function makeStore(conId) {
         supaFetch(`slots?select=*&con_id=eq.${conId}&order=day.asc.nullslast,sort.asc`),
         supaFetch(`feature_tags?select=*&order=sort`),
         supaFetch(`room_feature_tags?select=*&con_id=eq.${conId}`),
+        supaFetch(`games?select=*&con_id=eq.${conId}&order=title`),
       ]);
-      return { rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags };
+      return { rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags, dbGames };
     },
     async saveRoom(r) {
       const token = await w();
@@ -295,13 +302,22 @@ function makeStore(conId) {
         await supaFetch("room_feature_tags", { method: "POST", headers: h, body: JSON.stringify(tagIds.map(id => ({ con_id: conId, room_id: roomId, feature_tag_id: id }))) });
       }
     },
+    async saveGame(g) {
+      const token = await w();
+      const body = { ...g, con_id: conId };
+      const rows = g.id
+        ? await supaFetch(`games?id=eq.${g.id}`, { method: "PATCH", headers: supaHeaders(token, true), body: JSON.stringify(body) })
+        : await supaFetch("games", { method: "POST", headers: supaHeaders(token, true), body: JSON.stringify(body) });
+      return rows[0];
+    },
+    async deleteGame(id) { await supaFetch(`games?id=eq.${id}`, { method: "DELETE", headers: supaHeaders(await w()) }); },
   };
 }
 
 /* ---------------- State ---------------- */
 const S = {
   con: null, store: null,
-  games: [], slots: [], slotBuckets: [], activeSlot: null,
+  games: [], dbGames: [], slots: [], slotBuckets: [], activeSlot: null,
   featureTags: [], roomFeatureTags: [],
   rooms: [], tables: [], assignments: [], requests: [],
   role: null, superadmin: false, search: "",
@@ -314,6 +330,7 @@ const VIEWS = [{ key: "tabelle", label: "Tabelle" }, { key: "raster", label: "Ra
 const CREW_VIEWS = [
   { key: "zuordnen", label: "Zuordnen" },
   { key: "raeume-verwalten", label: "Räume verwalten" },
+  { key: "spiele-verwalten", label: "Spiele verwalten" },
   { key: "wuensche", label: "Änderungswünsche" },
   { key: "crew", label: "Crew verwalten" },
 ];
@@ -332,12 +349,21 @@ function sortSlots() { S.slots.sort((a, b) => (a.day || "9999-99-99").localeComp
 const roomTagIds = room => S.roomFeatureTags.filter(x => x.room_id === room.id).map(x => x.feature_tag_id);
 const roomBadgesHtml = room => roomTagIds(room).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => `<span class="badge">${esc(f.label)}</span>`).join("");
 const roomHasTagKey = (room, key) => roomTagIds(room).some(id => S.featureTags.find(f => f.id === id)?.key === key);
-function manualGamesFromAssignments() {
-  for (const a of S.assignments) {
-    if (a.session_key.startsWith("manual:") && a.manual_game && !gameByKey(a.session_key)) {
-      const m = a.manual_game;
-      S.games.push({ key: a.session_key, gameId: a.session_key, title: m.title, url: null, seats: m.seats, ws: false, manual: true, slotKey: a.slot_key, slotLabel: m.slotLabel || a.slot_key.replace("|", " "), time: m.time || "", start: 0 });
-    }
+// Baut die DB-Spiele (games-Tabelle) in S.games ein — ersetzt die alte
+// manual_game-jsonb-Ableitung. Ein Spiel ohne zugehörige assignments-Zeile
+// ist "kein Slot" (Anlegen und Terminieren sind entkoppelt, siehe Backlog
+// in Zuordnen); slotKey bleibt dann null.
+function gamesFromDb() {
+  S.games = S.games.filter(g => !g.dbId); // vorherigen DB-Spiele-Anteil verwerfen, Playabl-Spiele bleiben
+  for (const dg of S.dbGames) {
+    const a = S.assignments.find(x => x.game_id === dg.id);
+    const slot = a && S.slots.find(s => s.key === a.slot_key);
+    S.games.push({
+      key: "game:" + dg.id, gameId: dg.id, dbId: dg.id, title: dg.title, url: null,
+      seats: dg.seats, ws: dg.workshop, manual: true, provider: dg.provider || "",
+      slotKey: a ? a.slot_key : null, slotLabel: a ? (slot?.label || a.slot_key) : "– kein Slot –",
+      time: "", start: 0,
+    });
   }
 }
 function matchesSearchG(g) {
@@ -373,7 +399,7 @@ function chipHtml(g, { crew = false } = {}) {
     }
     controlsHtml = `<div class="controls-row"><select class="assignSel small" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="Tisch zuweisen für ${esc(g.title)}">${opts.join("")}</select>`;
     if (a && a.table_id) controlsHtml += `<button type="button" class="small unassignBtn" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="${esc(g.title)} vom Tisch entfernen">✕</button>`;
-    if (g.manual) controlsHtml += `<button type="button" class="small danger delManualBtn" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="${esc(g.title)} löschen">🗑</button>`;
+    if (g.manual) controlsHtml += `<button type="button" class="small danger delGameBtn" data-id="${esc(g.dbId)}" aria-label="${esc(g.title)} löschen">🗑</button>`;
     controlsHtml += `</div>`;
   } else {
     controlsHtml = `<div class="controls-row"><button type="button" class="small requestBtn" data-game="${esc(g.key)}">Änderung vorschlagen</button></div>`;
@@ -517,9 +543,25 @@ function zuordnenHtml() {
     }).join("");
     return `<div class="room" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><h3>${esc(room.name)}</h3></div>${tablesHtml || '<p class="hint">Noch keine Tische — in „Räume verwalten“ anlegen.</p>'}</div>`;
   }).join("") || emptyState("Noch keine Räume angelegt. Wechsle zu „Räume verwalten“.");
-  return `${slotTabsHtml(true)}
+  return `${unscheduledBacklogHtml()}${slotTabsHtml(true)}
     <div class="controls no-print"><button type="button" id="autoBtn" class="primary">⚙️ Auto-Zuordnung (dieser Slot)</button></div>
     <div class="assign-layout" style="margin-top:var(--sp-3)">${queueHtml}<div id="board">${boardHtml}</div></div>`;
+}
+
+// Spiele aus "Spiele verwalten" ohne Slot — bewusst noch in Zuordnen
+// sichtbar (nicht nur in Spiele verwalten), damit die Crew sie nicht
+// übersieht. "→ in diesen Slot" übernimmt den aktuell aktiven Slot.
+function unscheduledBacklogHtml() {
+  const unscheduled = S.games.filter(g => g.manual && !g.slotKey);
+  if (!unscheduled.length) return "";
+  return `<details class="hint-details" style="margin-bottom:var(--sp-3)">
+    <summary>${unscheduled.length} Spiel(e) ohne Slot</summary>
+    <div class="chipbar">${unscheduled.map(g => `<div class="chip">
+      <div class="title">${esc(g.title)}</div>
+      <div class="meta-row"><span>${g.seats} Pers.</span>${g.ws ? '<span class="badge">Workshop</span>' : ""}</div>
+      <div class="controls-row"><button type="button" class="small addToActiveSlotBtn" data-game="${esc(g.key)}">→ in diesen Slot</button></div>
+    </div>`).join("")}</div>
+  </details>`;
 }
 
 /* ---------------- Crew: Zeitabschnitts-Vorlagen (Slot-Buckets) ---------------- */
@@ -555,8 +597,26 @@ function raeumeVerwaltenHtml() {
     </div>`;
   }).join("") || emptyState("Noch keine Räume angelegt.");
   return `${bucketsHtml()}
-    <div class="controls no-print"><button type="button" id="addRoomBtn" class="primary">+ Raum</button><button type="button" id="addManualBtn">+ manuelles Spiel</button></div>
+    <div class="controls no-print"><button type="button" id="addRoomBtn" class="primary">+ Raum</button></div>
     <div id="board" style="margin-top:var(--sp-4)">${roomsHtml}</div>`;
+}
+
+/* ---------------- Crew: Spiele verwalten ---------------- */
+function spieleVerwaltenHtml() {
+  const rows = S.dbGames.map(dg => {
+    const a = S.assignments.find(x => x.game_id === dg.id);
+    const slot = a && S.slots.find(s => s.key === a.slot_key);
+    return `<div class="req">
+      <div><strong>${esc(dg.title)}</strong>${dg.provider ? " · " + esc(dg.provider) : ""} · ${dg.seats} Pers.${dg.workshop ? ' <span class="badge">Workshop</span>' : ""}</div>
+      <div class="hint">${slot ? esc(slot.label) : "kein Slot"}${dg.description ? " · " + esc(dg.description) : ""}</div>
+      <div class="ractions">
+        <button type="button" class="small editGameBtn" data-id="${dg.id}" aria-label="${esc(dg.title)} bearbeiten">✎ bearbeiten</button>
+        <button type="button" class="small danger delGameBtn" data-id="${dg.id}" aria-label="${esc(dg.title)} löschen">🗑 löschen</button>
+      </div>
+    </div>`;
+  }).join("") || '<p class="hint">Noch keine Spiele angelegt.</p>';
+  return `<div class="controls no-print"><button type="button" id="addGameBtn" class="primary">+ Spiel</button></div>
+    <div class="card" style="margin-top:var(--sp-3)">${rows}</div>`;
 }
 
 /* ---------------- Crew: Änderungswünsche ---------------- */
@@ -618,6 +678,7 @@ function renderActive() {
     viewC.hidden = true; crewC.hidden = false;
     if (S.crewView === "zuordnen") { crewC.innerHTML = zuordnenHtml(); wireDnd(); }
     else if (S.crewView === "raeume-verwalten") crewC.innerHTML = raeumeVerwaltenHtml();
+    else if (S.crewView === "spiele-verwalten") crewC.innerHTML = spieleVerwaltenHtml();
     else if (S.crewView === "wuensche") crewC.innerHTML = wuenscheHtml();
     else if (S.crewView === "crew") { crewC.innerHTML = crewVerwaltenHtml(); refreshCrewList(); }
   } else {
@@ -632,7 +693,7 @@ function renderActive() {
 async function assign(gameKey, slotKey, tableId) {
   const g = gameByKey(gameKey);
   const a = { slot_key: slotKey, session_key: gameKey, table_id: tableId || null };
-  if (g.manual) a.manual_game = { title: g.title, seats: g.seats, slotLabel: g.slotLabel, time: g.time };
+  if (g.manual) a.game_id = g.dbId;
   try {
     if (!tableId && !g.manual) {
       await S.store.deleteAssignment(slotKey, gameKey);
@@ -640,7 +701,15 @@ async function assign(gameKey, slotKey, tableId) {
     } else {
       await S.store.upsertAssignment(a);
       const ex = S.assignments.find(x => x.slot_key === slotKey && x.session_key === gameKey);
-      if (ex) ex.table_id = a.table_id; else S.assignments.push(a);
+      if (ex) { ex.table_id = a.table_id; if (a.game_id) ex.game_id = a.game_id; }
+      else S.assignments.push(a);
+      // Ein DB-Spiel kann (anders als Playabl-Spiele, deren Slot fix ist) den
+      // Slot wechseln — z.B. aus dem "ohne Slot"-Backlog heraus. g.slotKey
+      // sonst stumpf auf dem alten Wert stehen, obwohl schon neu zugeordnet.
+      if (g.manual && g.slotKey !== slotKey) {
+        g.slotKey = slotKey;
+        g.slotLabel = S.slots.find(s => s.key === slotKey)?.label || slotKey;
+      }
     }
     renderActive();
   } catch (e) { alert("Speichern fehlgeschlagen: " + e.message); }
@@ -706,13 +775,17 @@ document.addEventListener("click", async e => {
   else if (t.matches("[data-crewview]")) { S.mode = "crew"; S.crewView = t.dataset.crewview; renderActive(); }
   else if (t.matches(".local-slot-tabs button")) { S.activeSlot = t.dataset.slot; renderActive(); }
   else if (t.matches(".unassignBtn")) assign(t.dataset.game, t.dataset.slot, null);
-  else if (t.matches(".delManualBtn")) {
-    if (!confirm("Manuelles Spiel löschen?")) return;
-    await S.store.deleteAssignment(t.dataset.slot, t.dataset.game);
-    S.assignments = S.assignments.filter(x => x.session_key !== t.dataset.game);
-    S.games = S.games.filter(g => g.key !== t.dataset.game);
+  else if (t.matches(".delGameBtn")) {
+    if (!confirm("Spiel löschen?")) return;
+    await S.store.deleteGame(t.dataset.id);
+    S.dbGames = S.dbGames.filter(g => g.id !== t.dataset.id);
+    S.assignments = S.assignments.filter(a => a.game_id !== t.dataset.id);
+    gamesFromDb();
     renderActive();
   }
+  else if (t.matches(".editGameBtn")) openGameDlg(S.dbGames.find(g => g.id === t.dataset.id));
+  else if (t.id === "addGameBtn") openGameDlg(null);
+  else if (t.matches(".addToActiveSlotBtn")) assign(t.dataset.game, S.activeSlot, null);
   else if (t.matches(".requestBtn")) openRequestDlg(t.dataset.game);
   else if (t.id === "printBtn") window.print();
   else if (t.id === "flipAxisBtn") { S.rasterAxis = S.rasterAxis === "slots" ? "rooms" : "slots"; renderActive(); }
@@ -737,7 +810,6 @@ document.addEventListener("click", async e => {
     S.assignments = S.assignments.map(a => a.table_id === t.dataset.id ? { ...a, table_id: null } : a).filter(a => a.table_id || a.session_key.startsWith("manual:"));
     renderActive();
   }
-  else if (t.id === "addManualBtn") openManualDlg();
   else if (t.id === "autoBtn") autoAssign();
   else if (t.id === "addSlotBtn") openSlotDlg(null);
   else if (t.id === "editSlotBtn") openSlotDlg(S.slots.find(s => s.key === S.activeSlot));
@@ -914,22 +986,47 @@ document.getElementById("bucketDelBtn").addEventListener("click", async () => {
   } catch (err) { alert("Löschen fehlgeschlagen: " + err.message); }
 });
 
-function openManualDlg() {
-  document.getElementById("manSlot").innerHTML = S.slots.map(s => `<option value="${esc(s.key)}"${s.key === S.activeSlot ? " selected" : ""}>${esc(s.label)}</option>`).join("");
-  document.getElementById("manualDlg").showModal();
+function openGameDlg(dg) {
+  document.getElementById("gameId").value = dg?.id || "";
+  document.getElementById("gameTitle").value = dg?.title || "";
+  document.getElementById("gameProvider").value = dg?.provider || "";
+  document.getElementById("gameSeats").value = dg?.seats || 5;
+  document.getElementById("gameWs").checked = !!dg?.workshop;
+  document.getElementById("gameDesc").value = dg?.description || "";
+  const curA = dg && S.assignments.find(x => x.game_id === dg.id);
+  document.getElementById("gameSlot").innerHTML = '<option value="">– kein Slot –</option>' +
+    S.slots.map(s => `<option value="${esc(s.key)}"${curA && curA.slot_key === s.key ? " selected" : ""}>${esc(s.label)}</option>`).join("");
+  document.getElementById("gameDlg").showModal();
 }
-document.getElementById("manualForm").addEventListener("submit", async e => {
+document.getElementById("gameForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const slotKey = document.getElementById("manSlot").value;
-  const slot = S.slots.find(s => s.key === slotKey);
-  const g = { key: "manual:" + crypto.randomUUID(), gameId: null, title: document.getElementById("manTitle").value.trim(), url: null, seats: parseInt(document.getElementById("manSeats").value, 10), ws: false, manual: true, slotKey, slotLabel: slot.label, time: "", start: 0 };
-  g.gameId = g.key;
+  const id = document.getElementById("gameId").value || undefined;
+  const g = {
+    id, title: document.getElementById("gameTitle").value.trim(),
+    provider: document.getElementById("gameProvider").value.trim() || null,
+    seats: parseInt(document.getElementById("gameSeats").value, 10),
+    workshop: document.getElementById("gameWs").checked,
+    description: document.getElementById("gameDesc").value.trim() || null,
+  };
+  const newSlot = document.getElementById("gameSlot").value || null;
   try {
-    await S.store.upsertAssignment({ slot_key: slotKey, session_key: g.key, table_id: null, manual_game: { title: g.title, seats: g.seats, slotLabel: g.slotLabel, time: "" } });
-    S.games.push(g);
-    S.assignments.push({ slot_key: slotKey, session_key: g.key, table_id: null, manual_game: { title: g.title, seats: g.seats } });
-    document.getElementById("manualDlg").close(); renderActive();
-  } catch (err) { alert("Anlegen fehlgeschlagen: " + err.message); }
+    const saved = await S.store.saveGame(g);
+    if (!id) S.dbGames.push(saved); else Object.assign(S.dbGames.find(x => x.id === id), saved);
+    const oldA = S.assignments.find(x => x.game_id === saved.id);
+    if (newSlot && (!oldA || oldA.slot_key !== newSlot)) {
+      // Slot neu gesetzt oder gewechselt — Tisch bewusst zurückgesetzt: eine
+      // Tischbelegung ist slot-spezifisch, blindes Übernehmen riskiert eine
+      // stille Doppelbelegung im neuen Slot.
+      const body = { slot_key: newSlot, session_key: "game:" + saved.id, table_id: null, game_id: saved.id };
+      await S.store.upsertAssignment(body);
+      if (oldA) Object.assign(oldA, body); else S.assignments.push(body);
+    } else if (!newSlot && oldA) {
+      await S.store.deleteAssignment(oldA.slot_key, oldA.session_key);
+      S.assignments = S.assignments.filter(x => x !== oldA);
+    }
+    gamesFromDb();
+    document.getElementById("gameDlg").close(); renderActive();
+  } catch (err) { alert("Speichern fehlgeschlagen: " + err.message); }
 });
 
 /* ---------------- Start ---------------- */
@@ -999,7 +1096,6 @@ updateCatEasterEgg();
     S.slotBuckets = data.slotBuckets || []; S.slots = data.slots || [];
     S.featureTags = data.featureTags || []; S.roomFeatureTags = data.roomFeatureTags || [];
     S.games = await loadPlayabl(con.playabl_event_id, S.slotBuckets);
-    manualGamesFromAssignments();
     await refreshRole();
     if (S.games.length) {
       const days = [...new Set(S.games.map(g => g.slotKey.split("|")[0]))].filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
@@ -1022,6 +1118,8 @@ updateCatEasterEgg();
       }
       sortSlots();
     }
+    S.dbGames = data.dbGames || [];
+    gamesFromDb();
     S.activeSlot = S.slots[0]?.key || null;
     if (S.role) S.requests = await S.store.listRequests().catch(() => []);
     document.getElementById("status").textContent =
