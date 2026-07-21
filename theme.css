@@ -184,7 +184,20 @@
 }
 :root[data-theme="cyberpunk"] ::selection { background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="cyberpunk"] h1, :root[data-theme="cyberpunk"] h2 { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); }
+/* Neon-Scan: langsam wandernder Gradient-Schimmer über Card/Room, damit die
+   Bento-Flächen im Cyberpunk-Theme selbst ohne Interaktion "leben". */
+:root[data-theme="cyberpunk"] .card, :root[data-theme="cyberpunk"] .room { position: relative; }
+:root[data-theme="cyberpunk"] .card::after, :root[data-theme="cyberpunk"] .room::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(120deg, transparent 35%, rgba(0,240,255,.30) 50%, transparent 65%);
+  background-size: 250% 250%; background-position: 0% 0%; mix-blend-mode: screen;
+}
 @media (prefers-reduced-motion: no-preference) {
+  :root[data-theme="cyberpunk"] .card::after, :root[data-theme="cyberpunk"] .room::after {
+    animation: rp-neon-scan 7s linear infinite;
+  }
+  @keyframes rp-neon-scan { 0% { background-position: 0% 0%; } 100% { background-position: 200% 200%; } }
+
   :root[data-theme="cyberpunk"] .chip.ws, :root[data-theme="cyberpunk"] button.primary {
     animation: rp-neon-pulse 3.2s ease-in-out infinite;
   }
@@ -193,7 +206,12 @@
     50% { box-shadow: 0 0 0 1px var(--border), 0 0 0 1px rgba(0,240,255,.35), 0 0 34px -2px rgba(255,47,208,.65), 0 0 56px -10px rgba(0,240,255,.5); }
   }
   /* Glitch bewusst nur auf dem Seiten-H1 (Hero), nicht auf h2/Chip-Titeln
-     etc. — "spend your boldness in one place" statt verstreuter Effekte. */
+     etc. — "spend your boldness in one place" statt verstreuter Effekte.
+     Läuft als ruhiger Loop mit, damit man ihn auch ohne Hover entdeckt;
+     Hover löst zusätzlich sofort einen frischen Glitch aus. */
+  :root[data-theme="cyberpunk"] h1 {
+    animation: rp-glitch-ambient 8s ease-in-out infinite;
+  }
   :root[data-theme="cyberpunk"] h1:hover {
     animation: rp-glitch .38s steps(2, end) 1;
   }
@@ -203,6 +221,15 @@
     40% { text-shadow: 2px 0 rgba(255,47,208,.85), -2px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(2px, -1px); }
     60% { text-shadow: -1px 0 rgba(255,47,208,.85), 1px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(1px, 0); }
     80% { text-shadow: 1px 0 rgba(0,240,255,.85), -1px 0 rgba(255,47,208,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(-1px, 0); }
+  }
+  /* Dieselbe Verzerrung, aber auf ein kurzes Fenster in einem 8s-Loop
+     komprimiert — den Rest der Zeit ruht der Titel. */
+  @keyframes rp-glitch-ambient {
+    0%, 92%, 100% { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(0, 0); }
+    93% { text-shadow: -2px 0 rgba(255,47,208,.85), 2px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(-2px, 1px); }
+    94.5% { text-shadow: 2px 0 rgba(255,47,208,.85), -2px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(2px, -1px); }
+    96% { text-shadow: -1px 0 rgba(255,47,208,.85), 1px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(1px, 0); }
+    97.5% { text-shadow: 1px 0 rgba(0,240,255,.85), -1px 0 rgba(255,47,208,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(-1px, 0); }
   }
 }
 
@@ -293,6 +320,22 @@ input[type="text"], input[type="number"], input[type="email"], input[type="passw
   padding: var(--sp-2) var(--sp-3); font-size: var(--fs-sm); max-width: 100%;
 }
 label { font-size: var(--fs-xs); color: var(--text-secondary); }
+
+/* Platzanzahl-Stepper: große –/+-Buttons statt der winzigen nativen
+   Zahlenfeld-Pfeile. Zahl selbst bleibt schmal + zentriert, Pfeile am
+   Rand ausgeblendet (das Feld ist trotzdem tippbar, nur ohne Spinner). */
+.stepper { display: inline-flex; align-items: stretch; gap: 0; }
+.stepper input[type="number"] {
+  width: 3em; text-align: center; border-radius: 0; border-left: none; border-right: none;
+  -moz-appearance: textfield;
+}
+.stepper input[type="number"]::-webkit-inner-spin-button, .stepper input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper-btn {
+  padding: 0 var(--sp-2); font-weight: 800; line-height: 1; min-width: 0;
+  border-radius: 0; background: var(--surface-1);
+}
+.stepper-btn:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.stepper-btn:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
 
 button { display: inline-flex; align-items: center; gap: var(--sp-2); background: var(--surface-1); color: var(--text-primary); border: var(--border-w) solid var(--baseline); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-4); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
 button:hover { border-color: var(--accent); }
@@ -462,6 +505,7 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
 .tablebox.dragover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
 .tablebox.seat-match { border-color: var(--good); box-shadow: 0 0 0 1.5px var(--good) inset; }
 .tablebox.req-mismatch { border-color: var(--warn); box-shadow: 0 0 0 1.5px var(--warn) inset; }
+.tablebox.tag-match { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent) inset; }
 .tablebox .thead { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; font-size: var(--fs-sm); margin-bottom: var(--sp-2); }
 .tablebox .thead b { font-weight: 700; }
 .tablebox .thead .seats { color: var(--text-muted); }
@@ -537,7 +581,7 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
 .tag-pill { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 600; padding: 3px 4px 3px var(--sp-3); border-radius: var(--r-pill); background: var(--accent); color: var(--accent-ink); }
 .tag-remove { border: none; background: transparent; color: inherit; font-size: 1em; line-height: 1; padding: 0 4px; cursor: pointer; border-radius: 50%; }
 .tag-remove:hover { background: rgba(0, 0, 0, .18); }
-.tag-add-select { font-size: var(--fs-xs); padding: 4px var(--sp-2); border-radius: var(--r-sm); border: var(--border-w) solid var(--baseline); background: var(--surface-1); }
+.tag-add-select, .filter-tag-select { font-size: var(--fs-xs); padding: 4px var(--sp-2); border-radius: var(--r-sm); border: var(--border-w) solid var(--baseline); background: var(--surface-1); }
 @media (max-width: 900px) {
   .assign-layout { grid-template-columns: 1fr; }
   .assign-queue { position: static; max-height: none; }
