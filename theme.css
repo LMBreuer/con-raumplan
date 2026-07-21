@@ -154,6 +154,79 @@
 .pixel-cat { width: 22px; height: 22px; vertical-align: -6px; }
 .pixel-cat rect { fill: currentColor; }
 
+/* ---------- Cyberpunk (Neon auf Fast-Schwarz, bewusst der einzige
+   deutlich glow-lastige Look — alle anderen Themes bleiben glow-frei) ---------- */
+:root[data-theme="cyberpunk"] {
+  color-scheme: dark;
+  --page:      #0a0612;
+  --surface-1: #140a24;
+  --surface-2: #1c0f30;
+  --text-primary:   #f2e9ff;
+  --text-secondary: #c9a8ff;
+  --text-muted:     #7a5ca3;
+  --grid:      #2a1642;
+  --baseline:  #3d2159;
+  --border:    rgba(255,60,220,0.35);
+  --accent:      #00f0ff;
+  --accent-ink:  #04030a;
+  --accent-soft: #123a42;
+  --good:  #39ff8f;
+  --warn:  #ffe83d;
+  --band:  #170b28;
+  --shadow-card: 0 0 0 1px rgba(0,240,255,.25), 0 0 24px -4px rgba(255,47,208,.5), 0 0 44px -14px rgba(0,240,255,.4);
+  --room-a: #00f0ff; --room-b: #ff2fd0; --room-c: #e8ff2f; --room-d: #7c4dff; --room-e: #ff5470;
+  --font-display: "Orbitron", var(--font-body);
+}
+:root[data-theme="cyberpunk"] .card,
+:root[data-theme="cyberpunk"] .room,
+:root[data-theme="cyberpunk"] dialog {
+  box-shadow: 0 0 0 1px var(--border), var(--shadow-card);
+}
+:root[data-theme="cyberpunk"] ::selection { background: var(--accent); color: var(--accent-ink); }
+:root[data-theme="cyberpunk"] h1, :root[data-theme="cyberpunk"] h2 { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme="cyberpunk"] .chip.ws, :root[data-theme="cyberpunk"] button.primary {
+    animation: rp-neon-pulse 3.2s ease-in-out infinite;
+  }
+  @keyframes rp-neon-pulse {
+    0%, 100% { box-shadow: 0 0 0 1px var(--border), var(--shadow-card); }
+    50% { box-shadow: 0 0 0 1px var(--border), 0 0 0 1px rgba(0,240,255,.35), 0 0 34px -2px rgba(255,47,208,.65), 0 0 56px -10px rgba(0,240,255,.5); }
+  }
+}
+
+/* ---------- Ukiyo-e / Japanischer Minimalismus (sehr ruhig, ein einzelner
+   gedeckter Akzent, feine Trennlinien statt Schatten — bewusste Ausnahme
+   von der sonstigen "Shadow-first"-Regel, wie schon bei Kontrastreich) ---------- */
+:root[data-theme="ukiyo"] {
+  color-scheme: light;
+  --page:      #f7f1e6;
+  --surface-1: #fbf7ee;
+  --surface-2: #f1e9d8;
+  --text-primary:   #2b2620;
+  --text-secondary: #5a5044;
+  --text-muted:     #948a78;
+  --grid:      #e3d9c4;
+  --baseline:  #d8cbb0;
+  --border:    rgba(43,38,32,0.14);
+  --accent:      #8b2f3b;
+  --accent-ink:  #fdf6ec;
+  --accent-soft: #f3e1e0;
+  --good:  #4a6741;
+  --warn:  #a3671f;
+  --band:  #efe6d3;
+  --shadow-card: none;
+  --room-a: #8b2f3b; --room-b: #4a6741; --room-c: #2f5f8b; --room-d: #7a6a3a; --room-e: #5a4a6a;
+  --font-display: "Shippori Mincho", var(--font-body);
+}
+:root[data-theme="ukiyo"] .card,
+:root[data-theme="ukiyo"] .room,
+:root[data-theme="ukiyo"] .chip,
+:root[data-theme="ukiyo"] .kpi-bar .kpi {
+  border-width: 1px;
+}
+:root[data-theme="ukiyo"] .room { border-top-width: 2px; }
+:root[data-theme="ukiyo"] ::selection { background: var(--accent-soft); color: var(--text-primary); }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
 /* ============================================================
@@ -228,7 +301,7 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
 
 .card {
   background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-lg);
-  padding: var(--sp-4) var(--sp-5); margin-bottom: var(--sp-4);
+  padding: var(--sp-5) var(--sp-6); margin-bottom: var(--sp-4);
   box-shadow: var(--shadow-card);
 }
 
@@ -250,13 +323,14 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
 .nav-groups { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: center; margin: var(--sp-3) 0; }
 .nav-groups .label { font-size: var(--fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-right: var(--sp-1); }
 
-/* Kennzahlen-Leiste */
-.kpi-bar { display: flex; gap: var(--sp-3); flex-wrap: wrap; margin: var(--sp-3) 0; }
+/* Kennzahlen-Leiste — Bento-Kacheln: einzeln umrandete Compartments statt
+   einer durchlaufenden Leiste. */
+.kpi-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--sp-3); margin: var(--sp-4) 0; }
 .kpi-bar .kpi {
-  background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-md);
-  padding: var(--sp-2) var(--sp-4); flex: 1 1 130px;
+  background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-lg);
+  padding: var(--sp-3) var(--sp-4); box-shadow: var(--shadow-card);
 }
-.kpi-bar .kpi .v { font-size: var(--fs-lg); font-weight: 800; font-variant-numeric: tabular-nums; }
+.kpi-bar .kpi .v { font-size: var(--fs-xl); font-weight: 800; font-variant-numeric: tabular-nums; }
 .kpi-bar .kpi .l { font-size: var(--fs-xs); color: var(--text-secondary); }
 
 /* Legende */
@@ -285,14 +359,57 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
 .icon { width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; fill: currentColor; flex: none; }
 
 /* ============================================================
+   Dark Kinetic Minimalism — ein gemeinsames, zurückhaltendes
+   Bewegungsvokabular für ALLE Themes (nicht nur Terminal/Cyberpunk):
+   Hover-Lift + Schatten-Zunahme auf den "schwebenden" Bausteinen, ein
+   kurzes Einblenden beim (Neu-)Rendern. Immer hinter
+   prefers-reduced-motion, damit reduce wirklich jede Bewegung abschaltet.
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  .card, .room, .chip, .kpi-bar .kpi, .con-card, .tablebox {
+    transition: transform .16s ease, box-shadow .16s ease;
+  }
+  .card:hover, .room:hover, .kpi-bar .kpi:hover, .con-card:hover {
+    transform: translateY(-2px);
+  }
+  .chip:not(.dragging):hover { transform: translateY(-1px); }
+
+  .card, .room, .chip, .kpi-bar .kpi {
+    animation: rp-fadein .28s ease-out both;
+  }
+  /* leichter Stagger in der Zuordnen-Warteschlange/Chipbars, damit neu
+     gerenderte Listen nicht alle exakt gleichzeitig "poppen" */
+  .chipbar .chip:nth-child(1) { animation-delay: 0ms; }
+  .chipbar .chip:nth-child(2) { animation-delay: 25ms; }
+  .chipbar .chip:nth-child(3) { animation-delay: 50ms; }
+  .chipbar .chip:nth-child(4) { animation-delay: 75ms; }
+  .chipbar .chip:nth-child(5) { animation-delay: 100ms; }
+  .chipbar .chip:nth-child(n+6) { animation-delay: 125ms; }
+
+  /* Kurzes, sichtbares Feedback auf der Zielkarte nach Drop/Einzelauswahl-
+     Zuweisung (assign() in plan.html setzt/entfernt diese Klasse). */
+  .tablebox.just-assigned { animation: rp-flash .7s ease-out; }
+  @keyframes rp-flash {
+    0% { box-shadow: 0 0 0 3px var(--accent); }
+    100% { box-shadow: none; }
+  }
+}
+@keyframes rp-fadein { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ============================================================
    Räume, Tische, Spiel-Chips — Spiel ist die primäre Information,
    Raum/Tisch ein sekundäres, farbig markiertes Label.
    ============================================================ */
-#board { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--sp-5); }
+/* Bento-Tray: Räume sind Kacheln unterschiedlichen Gewichts — ein Raum mit
+   vielen Tischen (.wide, JS-seitig ab 4 Tischen vergeben) bekommt mehr
+   Fläche statt gleich große Boxen wie ein Raum mit einem einzigen Tisch. */
+#board { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--sp-6); align-items: start; }
+.room.wide { grid-column: span 2; }
+@media (max-width: 900px) { .room.wide { grid-column: span 1; } }
 .room {
   position: relative;
   background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-lg);
-  padding: var(--sp-5) var(--sp-4) var(--sp-3); box-shadow: var(--shadow-card);
+  padding: var(--sp-5) var(--sp-5) var(--sp-4); box-shadow: var(--shadow-card);
   border-top: 3px solid var(--room-accent, var(--accent));
 }
 .room[data-order]::before {

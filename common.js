@@ -33,6 +33,8 @@ const THEMES = [
   { key: "contrast", label: "◐", name: "Kontrastreich" },
   { key: "colorful", label: "🎨", name: "Bunt" },
   { key: "terminal", label: "▚", name: "Terminal" },
+  { key: "cyberpunk", label: "⚡", name: "Cyberpunk" },
+  { key: "ukiyo", label: "🌸", name: "Ukiyo-e" },
 ];
 
 const PIXEL_CAT_SVG = `<svg class="pixel-cat" viewBox="0 0 16 16" role="img" aria-label="Eine kleine Pixel-Katze hat sich hier versteckt" xmlns="http://www.w3.org/2000/svg">
