@@ -84,7 +84,7 @@
       <div class="frow"><label for="roomSort">Reihenfolge (1–100)</label><input type="number" id="roomSort" min="0" max="100" value="0"></div>
     </div>
     <fieldset style="border:none;margin-bottom:10px"><legend style="font-size:.78rem;color:var(--text-secondary);margin-bottom:4px">Eigenschaften</legend>
-      <div class="fgrid" id="roomFeatures"></div>
+      <div class="filter-chips" id="roomFeatures"></div>
     </fieldset>
     <div class="frow"><label for="roomNotes">Besonderheiten (Freitext)</label><textarea id="roomNotes" rows="2" maxlength="300"></textarea></div>
     <div class="dactions">
@@ -109,6 +109,40 @@
   </form>
 </dialog>
 
+<!-- Slot anlegen/bearbeiten (v.a. für manuelle Cons ohne Playabl-Spiele) -->
+<dialog id="slotDlg" aria-labelledby="slotDlgH">
+  <h2 id="slotDlgH">Slot</h2>
+  <form method="dialog" id="slotForm">
+    <input type="hidden" id="slotId">
+    <div class="frow"><label for="slotLabel">Bezeichnung *</label><input type="text" id="slotLabel" required maxlength="60" placeholder="z.B. Freitag Abend"></div>
+    <div class="frow"><label for="slotSort">Reihenfolge</label><input type="number" id="slotSort" min="0" max="999" value="0"></div>
+    <div class="dactions">
+      <button type="button" id="slotDelBtn" class="danger" hidden>Löschen</button>
+      <button type="button" onclick="this.closest('dialog').close()">Abbrechen</button>
+      <button type="submit" class="primary">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Zeitabschnitts-Vorlage (Slot-Bucket) anlegen/bearbeiten -->
+<dialog id="bucketDlg" aria-labelledby="bucketDlgH">
+  <h2 id="bucketDlgH">Zeitabschnitt</h2>
+  <form method="dialog" id="bucketForm">
+    <input type="hidden" id="bucketId">
+    <div class="frow"><label for="bucketLabel">Bezeichnung *</label><input type="text" id="bucketLabel" required maxlength="40" placeholder="z.B. Vormittag"></div>
+    <div class="fgrid" style="grid-template-columns:1fr 1fr">
+      <div class="frow"><label for="bucketStart">Von (Stunde)</label><input type="number" id="bucketStart" min="0" max="24" step="0.5" value="0"></div>
+      <div class="frow"><label for="bucketEnd">Bis (Stunde)</label><input type="number" id="bucketEnd" min="0" max="24" step="0.5" value="14"></div>
+    </div>
+    <div class="frow"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="bucketActive" checked> aktiv (wird für neue Tage verwendet)</label></div>
+    <div class="dactions">
+      <button type="button" id="bucketDelBtn" class="danger" hidden>Löschen</button>
+      <button type="button" onclick="this.closest('dialog').close()">Abbrechen</button>
+      <button type="submit" class="primary">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- Manuelles Spiel -->
 <dialog id="manualDlg" aria-labelledby="manualDlgH">
   <h2 id="manualDlgH">Manuelles Spiel / Programmpunkt</h2>
@@ -126,23 +160,17 @@
 <script src="common.js"></script>
 <script>
 /* ============================================================
-   Konfiguration (Standardwerte, per URL überschreibbar:
-   ?cutoff=14&tz=Europe/Vienna — die Playabl-Event-ID kommt aus
-   der geladenen Con selbst, nicht mehr aus dieser Konfiguration.)
+   Konfiguration (Standardwerte, per URL überschreibbar: ?tz=Europe/Vienna
+   — die Playabl-Event-ID kommt aus der geladenen Con selbst. Die
+   Tagesabschnitte (früher: fixer ?cutoff=-Parameter) sind jetzt pro Con in
+   der DB konfigurierbar, siehe S.slotBuckets.)
    ============================================================ */
 const params = new URLSearchParams(location.search);
-const CUTOFF = parseInt(params.get("cutoff") || "14", 10);
 const TZ = params.get("tz") || "Europe/Vienna";
 const WS_RE = /workshop|panel|vortrag/i;
 
 const CON_PARAM = params.get("con");
 if (!CON_PARAM) location.href = "index.html";
-
-const FEATURES = {
-  barrierefrei: "♿ barrierefrei", ruhig: "🤫 ruhig", laut_ok: "🔊 laut ok",
-  bewegung: "🕺 Bewegung ok", tageslicht: "☀️ Tageslicht", kuehl: "❄️ eher kühl",
-  warm: "🌡️ eher warm", steckdosen: "🔌 Steckdosen", beamer: "📽️ Beamer/Screen",
-};
 
 const fmtDay = new Intl.DateTimeFormat("de-AT", { timeZone: TZ, weekday: "long", day: "2-digit", month: "2-digit" });
 const fmtTime = new Intl.DateTimeFormat("de-AT", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
@@ -158,12 +186,18 @@ async function loadCon(idOrSlug) {
 }
 
 /* ---------------- Playabl-Spiele laden ---------------- */
-async function loadPlayabl(eventId) {
+// buckets: die aktiven Tagesabschnitts-Vorlagen dieser Con (S.slotBuckets),
+// ersetzen den früher hart codierten CUTOFF-Vergleich. Sessions, die in
+// keinen Bucket fallen (z.B. Lücke zwischen zwei Abschnitten), landen in
+// einem Pro-Tag-Sammelslot "Unsortiert" statt zu verschwinden.
+async function loadPlayabl(eventId, buckets) {
   if (!eventId) return [];
   const sessions = await playablApi(`sessions?select=id,start_time,end_time,participant_count,game_id!inner(id,title,system,event_id)&deleted_at=is.null&game_id.event_id=eq.${eventId}&order=start_time.asc`);
   return sessions.map(s => {
     const date = dayKey.format(new Date(s.start_time));
-    const part = hourOf(s.start_time) < CUTOFF ? "Vormittag" : "Nachmittag";
+    const h = hourOf(s.start_time);
+    const bucket = buckets.find(b => h >= b.start_hour && h < b.end_hour);
+    const part = bucket ? bucket.label : "Unsortiert";
     return {
       key: "playabl:" + s.id, gameId: s.game_id.id,
       title: (s.game_id.title.replace(/\s*[\[(][^\])]*(?:3W6|Offline|Con)[^\])]*[\])]\s*/gi, "").trim() || s.game_id.title),
@@ -183,12 +217,16 @@ function makeStore(conId) {
   const w = () => Auth.accessToken();
   return {
     async init() {
-      const [rooms, tables, assignments] = await Promise.all([
+      const [rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags] = await Promise.all([
         supaFetch(`rooms?select=*&con_id=eq.${conId}&order=sort,name`),
         supaFetch(`tables?select=*&con_id=eq.${conId}&order=sort,name`),
         supaFetch(`assignments?select=*&con_id=eq.${conId}`),
+        supaFetch(`slot_buckets?select=*&con_id=eq.${conId}&order=sort`),
+        supaFetch(`slots?select=*&con_id=eq.${conId}&order=day.asc.nullslast,sort.asc`),
+        supaFetch(`feature_tags?select=*&order=sort`),
+        supaFetch(`room_feature_tags?select=*&con_id=eq.${conId}`),
       ]);
-      return { rooms, tables, assignments };
+      return { rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags };
     },
     async saveRoom(r) {
       const token = await w();
@@ -226,13 +264,45 @@ function makeStore(conId) {
     },
     async listRequests() { return supaFetch(`requests?select=*&con_id=eq.${conId}&order=created_at.desc`, { headers: supaHeaders(await w()) }); },
     async updateRequest(id, fields) { await supaFetch(`requests?id=eq.${id}`, { method: "PATCH", headers: supaHeaders(await w(), true), body: JSON.stringify(fields) }); },
+    async ensureSlotsForDays(days) {
+      const token = await w();
+      if (!token || !days.length) return; // anon kann nicht materialisieren — Slot erscheint erst, wenn Crew die Seite lädt
+      await supaRpc("ensure_slots_for_days", { target_con: conId, days }, token).catch(() => {});
+    },
+    async saveSlot(s) {
+      const token = await w();
+      const body = { ...s, con_id: conId };
+      const rows = s.id
+        ? await supaFetch(`slots?id=eq.${s.id}`, { method: "PATCH", headers: supaHeaders(token, true), body: JSON.stringify(body) })
+        : await supaFetch("slots", { method: "POST", headers: supaHeaders(token, true), body: JSON.stringify(body) });
+      return rows[0];
+    },
+    async deleteSlot(id) { await supaFetch(`slots?id=eq.${id}`, { method: "DELETE", headers: supaHeaders(await w()) }); },
+    async saveBucket(b) {
+      const token = await w();
+      const body = { ...b, con_id: conId };
+      const rows = b.id
+        ? await supaFetch(`slot_buckets?id=eq.${b.id}`, { method: "PATCH", headers: supaHeaders(token, true), body: JSON.stringify(body) })
+        : await supaFetch("slot_buckets", { method: "POST", headers: supaHeaders(token, true), body: JSON.stringify(body) });
+      return rows[0];
+    },
+    async deleteBucket(id) { await supaFetch(`slot_buckets?id=eq.${id}`, { method: "DELETE", headers: supaHeaders(await w()) }); },
+    async setRoomTags(roomId, tagIds) {
+      const token = await w();
+      const h = supaHeaders(token, true);
+      await supaFetch(`room_feature_tags?con_id=eq.${conId}&room_id=eq.${roomId}`, { method: "DELETE", headers: h });
+      if (tagIds.length) {
+        await supaFetch("room_feature_tags", { method: "POST", headers: h, body: JSON.stringify(tagIds.map(id => ({ con_id: conId, room_id: roomId, feature_tag_id: id }))) });
+      }
+    },
   };
 }
 
 /* ---------------- State ---------------- */
 const S = {
   con: null, store: null,
-  games: [], slots: [], activeSlot: null,
+  games: [], slots: [], slotBuckets: [], activeSlot: null,
+  featureTags: [], roomFeatureTags: [],
   rooms: [], tables: [], assignments: [], requests: [],
   role: null, superadmin: false, search: "",
   mode: "view", view: "tabelle", crewView: "zuordnen",
@@ -255,12 +325,13 @@ const roomOfTable = tableId => { const t = S.tables.find(x => x.id === tableId);
 const roomAccentVar = room => room ? `var(--room-${"abcde"[S.rooms.indexOf(room) % 5]})` : "var(--accent)";
 const emptyState = msg => `<div class="empty-state"><span class="glyph"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10l8-6 8 6v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span>${esc(msg)}</div>`;
 
-function slotList() {
-  const set = new Map();
-  for (const g of S.games) if (!set.has(g.slotKey)) set.set(g.slotKey, g.slotLabel);
-  const ord = k => k.replace("|Vormittag", "|1").replace("|Nachmittag", "|2");
-  return [...set.entries()].sort((a, b) => ord(a[0]).localeCompare(ord(b[0]))).map(([key, label]) => ({ key, label }));
-}
+// S.slots kommt direkt aus der DB (siehe store.init()/ensureMissingSlots),
+// nicht mehr aus den geladenen Spielen abgeleitet — behebt das
+// Henne-Ei-Problem für manuelle Cons ohne Playabl-Spiele.
+function sortSlots() { S.slots.sort((a, b) => (a.day || "9999-99-99").localeCompare(b.day || "9999-99-99") || a.sort - b.sort); }
+const roomTagIds = room => S.roomFeatureTags.filter(x => x.room_id === room.id).map(x => x.feature_tag_id);
+const roomBadgesHtml = room => roomTagIds(room).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => `<span class="badge">${esc(f.label)}</span>`).join("");
+const roomHasTagKey = (room, key) => roomTagIds(room).some(id => S.featureTags.find(f => f.id === id)?.key === key);
 function manualGamesFromAssignments() {
   for (const a of S.assignments) {
     if (a.session_key.startsWith("manual:") && a.manual_game && !gameByKey(a.session_key)) {
@@ -378,7 +449,7 @@ function tabelleHtml() {
 /* ---------------- Ansicht: Raster ---------------- */
 function rasterHtml() {
   if (!S.rooms.length) return emptyState("Noch keine Räume angelegt.");
-  if (!S.slots.length) return emptyState("Noch keine Spiele geladen.");
+  if (!S.slots.length) return emptyState("Noch keine Slots angelegt.");
   const rows = S.rasterAxis === "slots" ? S.slots : S.rooms;
   const cols = S.rasterAxis === "slots" ? S.rooms : S.slots;
   const headHtml = cols.map(c => `<th scope="col">${esc(S.rasterAxis === "slots" ? c.name : c.label)}</th>`).join("");
@@ -398,12 +469,18 @@ function rasterHtml() {
     <div class="grid-view"><table class="grid-table"><thead><tr><th></th>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
 }
 
+/* ---------------- Slot-Tabs (geteilt: Räume-Ansicht + Zuordnen) ---------------- */
+// manage=true ergänzt "+ Slot"/"✎"-Bedienelemente (nur im Crew-Kontext).
+function slotTabsHtml(manage) {
+  const tabs = S.slots.map(s => `<button type="button" data-slot="${esc(s.key)}" aria-pressed="${String(s.key === S.activeSlot)}">${esc(s.label)}</button>`).join("");
+  const manageHtml = manage ? `<button type="button" id="editSlotBtn" class="small" aria-label="aktuellen Slot umbenennen/löschen"${S.activeSlot ? "" : " disabled"}>✎</button><button type="button" id="addSlotBtn" class="small">+ Slot</button>` : "";
+  return `<div class="slot-tabs local-slot-tabs" role="group" aria-label="Slot wählen">${tabs}${manageHtml}</div>`;
+}
+
 /* ---------------- Ansicht: Räume (öffentlich, lesend) ---------------- */
 function raeumeReadHtml() {
-  if (!S.slots.length) return emptyState("Noch keine Spiele geladen.");
-  const slotTabsHtml = `<div class="slot-tabs local-slot-tabs" role="group" aria-label="Slot wählen">${S.slots.map(s => `<button type="button" data-slot="${esc(s.key)}" aria-pressed="${String(s.key === S.activeSlot)}">${esc(s.label)}</button>`).join("")}</div>`;
+  if (!S.slots.length) return emptyState("Noch keine Slots angelegt.");
   const boardHtml = S.rooms.map(room => {
-    const badges = Object.entries(room.features || {}).filter(([, v]) => v).map(([k]) => `<span class="badge">${esc(FEATURES[k] || k)}</span>`).join("");
     const tables = S.tables.filter(t => t.room_id === room.id);
     const tablesHtml = tables.map(t => {
       const games = S.games.filter(g => g.slotKey === S.activeSlot && matchesSearchG(g)).filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
@@ -411,18 +488,17 @@ function raeumeReadHtml() {
     }).join("");
     return `<div class="room" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
       <div class="room-head"><h3>${esc(room.name)}</h3></div>
-      <div class="room-badges">${badges}</div>
+      <div class="room-badges">${roomBadgesHtml(room)}</div>
       ${room.notes || room.floor ? `<details class="room-more"><summary>Details</summary>${room.floor ? `<div class="room-notes">Lage: ${esc(room.floor)}</div>` : ""}${room.notes ? `<div class="room-notes">${esc(room.notes)}</div>` : ""}</details>` : ""}
       ${tablesHtml || '<p class="hint">Noch keine Tische.</p>'}
     </div>`;
   }).join("") || emptyState("Noch keine Räume angelegt.");
-  return `${slotTabsHtml}<div id="board" style="margin-top:var(--sp-4)">${boardHtml}</div>`;
+  return `${slotTabsHtml(false)}<div id="board" style="margin-top:var(--sp-4)">${boardHtml}</div>`;
 }
 
 /* ---------------- Crew: Zuordnen ---------------- */
 function zuordnenHtml() {
-  if (!S.slots.length) return emptyState("Noch keine Spiele geladen.");
-  const slotTabsHtml = `<div class="slot-tabs local-slot-tabs" role="group" aria-label="Slot wählen">${S.slots.map(s => `<button type="button" data-slot="${esc(s.key)}" aria-pressed="${String(s.key === S.activeSlot)}">${esc(s.label)}</button>`).join("")}</div>`;
+  if (!S.slots.length) return emptyState("Noch keine Slots angelegt.") + `<div class="controls no-print" style="margin-top:var(--sp-3)"><button type="button" id="addSlotBtn" class="primary">+ ersten Slot anlegen</button></div>`;
   const slotGames = bySlot(S.activeSlot);
   const unassigned = slotGames.filter(g => { const a = asgFor(g); return !a || !a.table_id; })
     .filter(g => S.filterWs === "all" || (S.filterWs === "ws" && g.ws) || (S.filterWs === "reg" && !g.ws));
@@ -441,9 +517,26 @@ function zuordnenHtml() {
     }).join("");
     return `<div class="room" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><h3>${esc(room.name)}</h3></div>${tablesHtml || '<p class="hint">Noch keine Tische — in „Räume verwalten“ anlegen.</p>'}</div>`;
   }).join("") || emptyState("Noch keine Räume angelegt. Wechsle zu „Räume verwalten“.");
-  return `${slotTabsHtml}
+  return `${slotTabsHtml(true)}
     <div class="controls no-print"><button type="button" id="autoBtn" class="primary">⚙️ Auto-Zuordnung (dieser Slot)</button></div>
     <div class="assign-layout" style="margin-top:var(--sp-3)">${queueHtml}<div id="board">${boardHtml}</div></div>`;
+}
+
+/* ---------------- Crew: Zeitabschnitts-Vorlagen (Slot-Buckets) ---------------- */
+function bucketsHtml() {
+  const rows = S.slotBuckets.map(b => `
+    <div class="req">
+      <span>${esc(b.label)} (${b.start_hour}–${b.end_hour} Uhr)${b.active ? "" : ' <span class="badge">inaktiv</span>'}</span>
+      <span style="float:right;display:flex;gap:4px">
+        <button type="button" class="small editBucketBtn" data-id="${b.id}" aria-label="Zeitabschnitt ${esc(b.label)} bearbeiten">✎</button>
+      </span>
+    </div>`).join("") || '<p class="hint">Noch keine Zeitabschnitte definiert.</p>';
+  return `<div class="card" style="margin-bottom:var(--sp-4)">
+    <h2>Zeitabschnitte (Slot-Vorlagen)</h2>
+    <p class="hint">Bestimmen, wie Playabl-Spiele automatisch in Tages-Slots einsortiert werden (z.B. Vormittag/Nachmittag) — beliebig viele Abschnitte möglich, wirkt erst auf neue Tage.</p>
+    ${rows}
+    <div class="controls no-print" style="margin-top:var(--sp-2)"><button type="button" id="addBucketBtn" class="small">+ Zeitabschnitt</button></div>
+  </div>`;
 }
 
 /* ---------------- Crew: Räume verwalten ---------------- */
@@ -456,12 +549,13 @@ function raeumeVerwaltenHtml() {
       <div class="room-head"><h3>${esc(room.name)}</h3><span class="floor">${esc(room.floor || "")}</span>
         <span class="room-actions"><button type="button" class="small addTableBtn" data-room="${room.id}">+ Tisch</button><button type="button" class="small editRoomBtn" data-id="${room.id}" aria-label="Raum ${esc(room.name)} bearbeiten">✎</button><button type="button" class="small danger delRoomBtn" data-id="${room.id}" aria-label="Raum ${esc(room.name)} löschen">🗑</button></span>
       </div>
-      <div class="room-badges">${Object.entries(room.features || {}).filter(([, v]) => v).map(([k]) => `<span class="badge">${esc(FEATURES[k] || k)}</span>`).join("")}</div>
+      <div class="room-badges">${roomBadgesHtml(room)}</div>
       ${room.notes ? `<p class="hint">${esc(room.notes)}</p>` : ""}
       ${tablesHtml || '<p class="hint">Noch keine Tische.</p>'}
     </div>`;
   }).join("") || emptyState("Noch keine Räume angelegt.");
-  return `<div class="controls no-print"><button type="button" id="addRoomBtn" class="primary">+ Raum</button><button type="button" id="addManualBtn">+ manuelles Spiel</button></div>
+  return `${bucketsHtml()}
+    <div class="controls no-print"><button type="button" id="addRoomBtn" class="primary">+ Raum</button><button type="button" id="addManualBtn">+ manuelles Spiel</button></div>
     <div id="board" style="margin-top:var(--sp-4)">${roomsHtml}</div>`;
 }
 
@@ -569,7 +663,7 @@ function autoAssign() {
   }
   for (const g of workshops) {
     const candidates = freeTables().filter(t => !jobs.some(j => j.tableId === t.id)).sort((a, b) => b.seats - a.seats);
-    const roomOk = candidates.filter(t => { const r = S.rooms.find(r => r.id === t.room_id); return r?.features?.bewegung || r?.features?.laut_ok; });
+    const roomOk = candidates.filter(t => { const r = S.rooms.find(r => r.id === t.room_id); return r && (roomHasTagKey(r, "bewegung") || roomHasTagKey(r, "laut_ok")); });
     const target = (roomOk[0] || candidates.find(t => t.seats >= g.seats) || null);
     if (target) jobs.push({ gameKey: g.key, tableId: target.id });
   }
@@ -645,6 +739,11 @@ document.addEventListener("click", async e => {
   }
   else if (t.id === "addManualBtn") openManualDlg();
   else if (t.id === "autoBtn") autoAssign();
+  else if (t.id === "addSlotBtn") openSlotDlg(null);
+  else if (t.id === "editSlotBtn") openSlotDlg(S.slots.find(s => s.key === S.activeSlot));
+  else if (t.id === "addBucketBtn") openBucketDlg(null);
+  else if (t.matches(".editBucketBtn")) openBucketDlg(S.slotBuckets.find(b => b.id === t.dataset.id));
+  else if (t.matches(".featChip")) t.setAttribute("aria-pressed", String(t.getAttribute("aria-pressed") !== "true"));
   else if (t.matches(".reqStatus")) { await S.store.updateRequest(t.dataset.id, { status: t.dataset.status }); S.requests.find(r => r.id === t.dataset.id).status = t.dataset.status; renderActive(); }
   else if (t.matches(".toggleRoleBtn")) {
     const newRole = t.dataset.role === "admin" ? "editor" : "admin";
@@ -712,18 +811,21 @@ function openRoomDlg(room) {
   document.getElementById("roomFloor").value = room?.floor || "";
   document.getElementById("roomSort").value = room?.sort || 0;
   document.getElementById("roomNotes").value = room?.notes || "";
-  document.getElementById("roomFeatures").innerHTML = Object.entries(FEATURES).map(([k, label]) => `<label><input type="checkbox" name="feat" value="${k}" ${room?.features?.[k] ? "checked" : ""}> ${esc(label)}</label>`).join("");
+  const selected = new Set(room ? roomTagIds(room) : []);
+  document.getElementById("roomFeatures").innerHTML = S.featureTags.map(f =>
+    `<button type="button" class="filter-chip featChip" data-id="${f.id}" aria-pressed="${String(selected.has(f.id))}">${esc(f.label)}</button>`).join("") || '<p class="hint">Keine Eigenschaften definiert.</p>';
   document.getElementById("roomDlg").showModal();
 }
 document.getElementById("roomForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const features = {};
-  document.querySelectorAll('#roomFeatures input:checked').forEach(i => features[i.value] = true);
-  const room = { id: document.getElementById("roomId").value || undefined, name: document.getElementById("roomName").value.trim(), floor: document.getElementById("roomFloor").value.trim(), sort: parseInt(document.getElementById("roomSort").value, 10) || 0, notes: document.getElementById("roomNotes").value.trim(), features };
+  const room = { id: document.getElementById("roomId").value || undefined, name: document.getElementById("roomName").value.trim(), floor: document.getElementById("roomFloor").value.trim(), sort: parseInt(document.getElementById("roomSort").value, 10) || 0, notes: document.getElementById("roomNotes").value.trim() };
+  const tagIds = [...document.querySelectorAll('.featChip[aria-pressed="true"]')].map(b => b.dataset.id);
   try {
     const saved = await S.store.saveRoom(room);
     if (!room.id) S.rooms.push(saved); else Object.assign(S.rooms.find(r => r.id === room.id), saved);
     S.rooms.sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name));
+    await S.store.setRoomTags(saved.id, tagIds);
+    S.roomFeatureTags = S.roomFeatureTags.filter(x => x.room_id !== saved.id).concat(tagIds.map(id => ({ con_id: S.con.id, room_id: saved.id, feature_tag_id: id })));
     document.getElementById("roomDlg").close(); renderActive();
   } catch (err) { alert("Speichern fehlgeschlagen: " + err.message); }
 });
@@ -744,6 +846,72 @@ document.getElementById("tableForm").addEventListener("submit", async e => {
     if (!t.id) S.tables.push(saved); else Object.assign(S.tables.find(x => x.id === t.id), saved);
     document.getElementById("tableDlg").close(); renderActive();
   } catch (err) { alert("Speichern fehlgeschlagen: " + err.message); }
+});
+
+function openSlotDlg(slot) {
+  document.getElementById("slotId").value = slot?.id || "";
+  document.getElementById("slotLabel").value = slot?.label || "";
+  document.getElementById("slotSort").value = slot?.sort ?? (S.slots.length ? Math.max(...S.slots.map(s => s.sort)) + 1 : 0);
+  document.getElementById("slotDelBtn").hidden = !slot;
+  document.getElementById("slotDlg").showModal();
+}
+document.getElementById("slotForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("slotId").value || undefined;
+  const s = { id, label: document.getElementById("slotLabel").value.trim(), sort: parseInt(document.getElementById("slotSort").value, 10) || 0 };
+  if (!id) s.key = crypto.randomUUID(); // Key ist stabil — beim Umbenennen unangetastet lassen
+  try {
+    const saved = await S.store.saveSlot(s);
+    if (!id) S.slots.push(saved); else Object.assign(S.slots.find(x => x.id === id), saved);
+    sortSlots();
+    if (!S.activeSlot) S.activeSlot = saved.key;
+    document.getElementById("slotDlg").close(); renderActive();
+  } catch (err) { alert("Speichern fehlgeschlagen: " + err.message); }
+});
+document.getElementById("slotDelBtn").addEventListener("click", async () => {
+  const id = document.getElementById("slotId").value;
+  if (!id || !confirm("Slot löschen? Nur möglich, wenn ihm keine Spiele mehr zugeordnet sind.")) return;
+  try {
+    await S.store.deleteSlot(id);
+    S.slots = S.slots.filter(s => s.id !== id);
+    if (!S.slots.some(s => s.key === S.activeSlot)) S.activeSlot = S.slots[0]?.key || null;
+    document.getElementById("slotDlg").close(); renderActive();
+  } catch (err) { alert("Löschen fehlgeschlagen (sind noch Spiele in diesem Slot?): " + err.message); }
+});
+
+function openBucketDlg(bucket) {
+  document.getElementById("bucketId").value = bucket?.id || "";
+  document.getElementById("bucketLabel").value = bucket?.label || "";
+  document.getElementById("bucketStart").value = bucket?.start_hour ?? 0;
+  document.getElementById("bucketEnd").value = bucket?.end_hour ?? 14;
+  document.getElementById("bucketActive").checked = bucket ? bucket.active : true;
+  document.getElementById("bucketDelBtn").hidden = !bucket;
+  document.getElementById("bucketDlg").showModal();
+}
+document.getElementById("bucketForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("bucketId").value || undefined;
+  const b = {
+    id, label: document.getElementById("bucketLabel").value.trim(),
+    start_hour: parseFloat(document.getElementById("bucketStart").value) || 0,
+    end_hour: parseFloat(document.getElementById("bucketEnd").value) || 24,
+    active: document.getElementById("bucketActive").checked,
+  };
+  try {
+    const saved = await S.store.saveBucket(b);
+    if (!id) S.slotBuckets.push(saved); else Object.assign(S.slotBuckets.find(x => x.id === id), saved);
+    S.slotBuckets.sort((a, b) => a.sort - b.sort);
+    document.getElementById("bucketDlg").close(); renderActive();
+  } catch (err) { alert("Speichern fehlgeschlagen: " + err.message); }
+});
+document.getElementById("bucketDelBtn").addEventListener("click", async () => {
+  const id = document.getElementById("bucketId").value;
+  if (!id || !confirm("Zeitabschnitt löschen? Bereits angelegte Slots bleiben erhalten.")) return;
+  try {
+    await S.store.deleteBucket(id);
+    S.slotBuckets = S.slotBuckets.filter(b => b.id !== id);
+    document.getElementById("bucketDlg").close(); renderActive();
+  } catch (err) { alert("Löschen fehlgeschlagen: " + err.message); }
 });
 
 function openManualDlg() {
@@ -824,13 +992,37 @@ updateCatEasterEgg();
       ? `Spiele von Playabl-Event ${con.playabl_event_id}` : "Kein Playabl-Event verknüpft — nur manuelle Spiele.";
     document.title = con.name + " – Con-Raumplan";
 
-    const [games, data] = await Promise.all([loadPlayabl(con.playabl_event_id), S.store.init()]);
-    S.games = games;
+    // store.init() zuerst (nicht parallel zu loadPlayabl): die Slot-Buckets
+    // daraus werden gebraucht, um Playabl-Sessions in Tages-Slots einzusortieren.
+    const data = await S.store.init();
     S.rooms = data.rooms || []; S.tables = data.tables || []; S.assignments = data.assignments || [];
+    S.slotBuckets = data.slotBuckets || []; S.slots = data.slots || [];
+    S.featureTags = data.featureTags || []; S.roomFeatureTags = data.roomFeatureTags || [];
+    S.games = await loadPlayabl(con.playabl_event_id, S.slotBuckets);
     manualGamesFromAssignments();
-    S.slots = slotList();
-    S.activeSlot = S.slots[0]?.key || null;
     await refreshRole();
+    if (S.games.length) {
+      const days = [...new Set(S.games.map(g => g.slotKey.split("|")[0]))].filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+      await S.store.ensureSlotsForDays(days);
+      S.slots = await supaFetch(`slots?select=*&con_id=eq.${con.id}&order=day.asc.nullslast,sort.asc`);
+      // Rand-Fall (siehe loadPlayabl): Sessions außerhalb aller Buckets ("Unsortiert")
+      // materialisieren sich nicht über ensure_slots_for_days (das kennt nur Buckets)
+      // — hier direkt nachziehen, damit sie trotzdem zuordenbar bleiben. Nur als
+      // Crew möglich (anon darf slots nicht schreiben, siehe RLS).
+      const known = new Set(S.slots.map(s => s.key));
+      const missing = new Map();
+      for (const g of S.games) if (!known.has(g.slotKey) && !missing.has(g.slotKey)) missing.set(g.slotKey, g);
+      if (missing.size && S.role) {
+        const token = await Auth.accessToken();
+        const rows = [...missing.values()].map(g => ({ con_id: con.id, key: g.slotKey, label: g.slotLabel, day: g.slotKey.split("|")[0], sort: 99 }));
+        const h = supaHeaders(token, true);
+        h.Prefer = "resolution=ignore-duplicates,return=representation";
+        const inserted = await supaFetch("slots?on_conflict=con_id,key", { method: "POST", headers: h, body: JSON.stringify(rows) }).catch(() => []);
+        S.slots.push(...(inserted || []));
+      }
+      sortSlots();
+    }
+    S.activeSlot = S.slots[0]?.key || null;
     if (S.role) S.requests = await S.store.listRequests().catch(() => []);
     document.getElementById("status").textContent =
       "Stand: " + new Intl.DateTimeFormat("de-AT", { timeZone: TZ, dateStyle: "full", timeStyle: "short" }).format(new Date()) + " Uhr";
