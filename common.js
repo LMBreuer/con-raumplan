@@ -35,7 +35,12 @@ const THEMES = [
   { key: "terminal", label: "▚", nameKey: "themeTerminal" },
   { key: "cyberpunk", label: "⚡", nameKey: "themeCyberpunk" },
   { key: "ukiyo", label: "🌸", nameKey: "themeUkiyo" },
+  { key: "solarpunk", label: "🌱", nameKey: "themeSolarpunk" },
+  { key: "comic", label: "💥", nameKey: "themeComic" },
 ];
+// Core-3 bleiben als flache Buttons im Header sichtbar, der Rest wandert in
+// ein "Weitere Themes"-Popover — siehe renderThemeSwitch().
+const CORE_THEME_KEYS = ["dark", "light", "contrast"];
 
 const PIXEL_CAT_SVG = `<svg class="pixel-cat" viewBox="0 0 16 16" role="img" aria-label="Eine kleine Pixel-Katze hat sich hier versteckt" xmlns="http://www.w3.org/2000/svg">
   <rect x="2" y="6" width="2" height="2"/><rect x="12" y="6" width="2" height="2"/>
@@ -80,23 +85,95 @@ function applyTheme(key) {
   if (key === "ukiyo") pickUkiyoBackground();
 }
 
+// Core-3 (Dunkel/Hell/Kontrastreich) bleiben flache Buttons, der Rest wandert
+// in ein "Weitere Themes"-Popover (Trigger zeigt das aktive Special-Theme,
+// sonst ✨) — reduziert die Kopfzeile deutlich, ohne Themes wegzunehmen.
+// Reiner Re-Render bei jeder Auswahl (Listener werden nur EINMAL gebunden,
+// per container.dataset.wired-Flag, sonst würden sie sich bei jedem
+// Re-Render duplizieren).
+// Popover lebt als EIN gemeinsames Element direkt in <body> (Portal), nicht
+// verschachtelt im Header — sonst würde es unter später im DOM folgende
+// .card-Flächen rutschen: unsere Fade-in-Animation setzt auf jeder .card
+// einen transform-Wert (auch nur translateY(0) im Ruhezustand zählt), und
+// JEDER transform ≠ none erzeugt einen neuen Stacking-Kontext, gegen den
+// ein z-index innerhalb des Headers nicht ankommt.
+function ensureThemeMorePopoverEl() {
+  let el = document.getElementById("themeMorePopover");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "themeMorePopover";
+    el.className = "theme-more-popover";
+    el.hidden = true;
+    document.body.appendChild(el);
+    // Einmalig verdrahtet (Singleton-Element, lebt über alle renderThemeSwitch()-
+    // Aufrufe hinweg) — Klick auf eine Zeile wendet direkt das Theme an und
+    // aktualisiert JEDEN #themeSwitch/#langSwitch-Switcher auf der Seite neu.
+    el.addEventListener("click", e => {
+      const btn = e.target.closest("button[data-theme-key]");
+      if (!btn) return;
+      applyTheme(btn.dataset.themeKey);
+      closeThemeMorePopover();
+      document.querySelectorAll(".theme-switch-group").forEach(c => renderThemeSwitch(c));
+    });
+  }
+  return el;
+}
+function closeThemeMorePopover() {
+  const popover = document.getElementById("themeMorePopover");
+  if (popover) popover.hidden = true;
+  document.querySelectorAll(".theme-more-trigger[aria-expanded='true']").forEach(t => t.setAttribute("aria-expanded", "false"));
+}
 function renderThemeSwitch(container) {
   const current = document.documentElement.getAttribute("data-theme") || "dark";
   if (current === "terminal") terminalEasterEgg();
   if (current === "ukiyo") pickUkiyoBackground();
   updateCatEasterEgg();
-  container.className = "theme-switch";
+  const core = THEMES.filter(t => CORE_THEME_KEYS.includes(t.key));
+  const specials = THEMES.filter(t => !CORE_THEME_KEYS.includes(t.key));
+  const activeSpecial = specials.find(t => t.key === current);
+  container.className = "theme-switch-group";
   container.setAttribute("role", "group");
   container.setAttribute("aria-label", tr("themeSwitchLabel"));
-  container.innerHTML = THEMES.map(th =>
-    `<button type="button" data-theme-key="${th.key}" aria-pressed="${String(th.key === current)}" title="${esc(tr(th.nameKey))}" aria-label="${esc(tr(th.nameKey))}">${th.label}</button>`
-  ).join("");
-  container.addEventListener("click", e => {
-    const btn = e.target.closest("button[data-theme-key]");
-    if (!btn) return;
-    applyTheme(btn.dataset.themeKey);
-    container.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
-  });
+  container.innerHTML = `
+    <div class="theme-switch">
+      ${core.map(th => `<button type="button" data-theme-key="${th.key}" aria-pressed="${String(th.key === current)}" title="${esc(tr(th.nameKey))}" aria-label="${esc(tr(th.nameKey))}">${th.label}</button>`).join("")}
+    </div>
+    <div class="theme-more-wrap">
+      <button type="button" class="theme-more-trigger" aria-haspopup="true" aria-expanded="false" title="${esc(tr("moreThemes"))}" aria-label="${esc(tr("moreThemes"))}">
+        <span>${activeSpecial ? activeSpecial.label : "✨"}</span><span class="theme-more-chevron">⌄</span>
+      </button>
+    </div>`;
+  ensureThemeMorePopoverEl();
+  if (!container.dataset.wired) {
+    container.dataset.wired = "1";
+    // Delegiert von container aus (bleibt über Re-Renders hinweg bestehen —
+    // anders als die Buttons selbst, die bei jedem innerHTML-Neuaufbau
+    // frisch erzeugt werden und jeden direkt angehängten Listener verlieren).
+    container.addEventListener("click", e => {
+      const themeBtn = e.target.closest("button[data-theme-key]");
+      if (themeBtn) { applyTheme(themeBtn.dataset.themeKey); closeThemeMorePopover(); renderThemeSwitch(container); return; }
+      const trigger = e.target.closest(".theme-more-trigger");
+      if (!trigger) return;
+      e.stopPropagation();
+      const popover = ensureThemeMorePopoverEl();
+      const willOpen = popover.hidden;
+      closeThemeMorePopover();
+      if (!willOpen) return;
+      const r = trigger.getBoundingClientRect();
+      popover.style.top = `${r.bottom + 6}px`;
+      popover.style.left = `${Math.max(8, r.right - 210)}px`;
+      popover.innerHTML = THEMES.filter(t => !CORE_THEME_KEYS.includes(t.key)).map(th => {
+        const isCurrent = th.key === (document.documentElement.getAttribute("data-theme") || "dark");
+        return `<button type="button" data-theme-key="${th.key}" class="theme-more-row" aria-pressed="${String(isCurrent)}"><span>${th.label}</span><span style="flex:1;text-align:left">${esc(tr(th.nameKey))}</span><span>${isCurrent ? "✓" : ""}</span></button>`;
+      }).join("");
+      popover.hidden = false;
+      trigger.setAttribute("aria-expanded", "true");
+    });
+    document.addEventListener("click", e => {
+      if (e.target.closest(".theme-more-wrap") || e.target.closest("#themeMorePopover")) return;
+      closeThemeMorePopover();
+    });
+  }
 }
 
 /* ---------- Prefs: kleiner localStorage-Wrapper für UI-Einstellungen
@@ -118,8 +195,9 @@ const Prefs = {
 const STRINGS = {
   de: {
     // Theme-/Sprach-Switcher, Login
-    themeDark: "Dunkel", themeLight: "Hell", themeContrast: "Kontrastreich", themeColorful: "Bunt",
+    themeDark: "Dunkel", themeLight: "Hell", themeContrast: "Kontrastreich", themeColorful: "Playabl",
     themeTerminal: "Terminal", themeCyberpunk: "Cyberpunk", themeUkiyo: "Ukiyo-e",
+    themeSolarpunk: "Solarpunk", themeComic: "Comic", moreThemes: "Weitere Themes",
     themeSwitchLabel: "Farbschema wählen", langSwitchLabel: "Sprache wählen",
     langDe: "Deutsch", langEn: "English",
     loginRegister: "Login / Registrieren", logout: "Logout", login: "Login", register: "Registrieren", loggingIn: "Einloggen",
@@ -135,9 +213,11 @@ const STRINGS = {
     accept: "Annehmen", decline: "Ablehnen",
     acceptFailed: "Annehmen fehlgeschlagen: {err}", declineFailed: "Ablehnen fehlgeschlagen: {err}",
     // index.html
-    headerLabel: "Kopfzeile", heroSub: "Wer spielt wann wo? Raum- und Tischverteilung für Tabletop-Cons — mit Playabl-Anbindung, für beliebig viele Conventions gleichzeitig.",
+    headerLabel: "Kopfzeile", heroSub: "Raum- und Tischplan für Cons — live synchronisiert mit Playabl. Sieh, wo noch Platz ist, oder öffne den vollen Plan.",
     loadingCons: "Lade Cons …", openConDirectly: "Con direkt öffnen", openConHint: "Link oder ID einer bestehenden Con einfügen.",
-    directInputPlaceholder: "z.B. 3w6-con-2026-a1b2 oder ein plan.html-Link", open: "Öffnen",
+    nextConEyebrow: "Nächste Con", nextConToday: "heute", nextConTomorrow: "morgen", nextConInDays: "in {n} Tagen",
+    nextConCrewBadge: "Crew-Zugriff", goToOverview: "Zur Übersicht →",
+    directInputPlaceholder: "…oder Link/ID direkt öffnen", open: "Öffnen",
     existingCons: "Bestehende Cons", existingConsHint: "Zeigt Cons mit verknüpftem Playabl-Event oder bewusst gelistete manuelle Cons. Bearbeiten kann nur, wer Mitglied der jeweiligen Crew ist.",
     searchCon: "Con suchen …",
     createConTitle: "Neue Con für die Raumplanung anlegen", createConHint: "Du wirst automatisch erstes Crew-Mitglied dieser Con.",
@@ -157,9 +237,14 @@ const STRINGS = {
     globalSearchPlaceholder: "Spiel, Raum oder Tisch suchen …",
     viewLabel: "Ansicht", detailsLabel: "Details", printCurrentView: "Aktuelle Ansicht drucken",
     printBtn: "🖨️ Drucken", crewLabel: "Crew",
+    printSettingsTitle: "Druckeinstellungen", printModeLabel: "Modus", printAxisLabel: "Achse", printSlotLabel: "Slot",
+    printDetailLabel: "Detailgrad", printOrientationLabel: "Ausrichtung", printColorLabel: "Farbe",
+    printOrientationAuto: "Automatisch", printOrientationPortrait: "Hochformat", printOrientationLandscape: "Querformat",
+    printColorColor: "Farbig", printColorBw: "Schwarzweiß",
     footPlayabl: "Spiele werden bei jedem Öffnen live von der Playabl-API geladen; Plätze = Spielplätze + 1 anbietende Person.",
     footRequest: "Über „Änderung vorschlagen“ am Spiel kann jede*r der Crew einen Wunsch schicken — bitte kurz begründen.",
     proposeChange: "Änderung vorschlagen", concerns: "Betrifft", reqMsgLabel: "Was soll anders sein – und warum? *",
+    proposeChangeHint: "Änderung vorschlagen — für alle offen",
     reqMsgPlaceholder: "z.B. Bitte in einen ruhigeren Raum – Runde mit viel Konzentration.",
     reqContactLabel: "Rückfragen an (optional, z.B. Discord-Name)", submit: "Absenden",
     room: "Raum", nameRequired: "Name *", floorLocation: "Stock / Lage", floorLocationPlaceholder: "z.B. EG, 1. Stock links",
@@ -184,13 +269,14 @@ const STRINGS = {
     assignTableFor: "Tisch zuweisen für {title}", removeFromTable: "{title} vom Tisch entfernen", deleteItemNamed: "{title} löschen",
     gamesLabel: "Spiele", roomsLabel: "Räume", tablesLabel: "Tische",
     legendColorRoom: "Farbe = Raum", legendDashedWorkshop: "gestrichelt = Workshop", legendOverCapacity: "über Kapazität (blockiert nichts)",
+    legendInfoText: "Raumfarbe: jeder Raum hat eine feste Farbe (Raster, Tabelle, Räume-Ansicht). Spieltitel anklicken öffnet Playabl (falls verknüpft). 💬 (bei Hover) schlägt eine Änderung vor — für alle offen, kein Login nötig.",
     noSearchResults: "Keine Treffer für diese Suche.", noGamesYet: "Noch keine Spiele.",
     tableCaption: "Alle Spiele mit Slot, Raum, Tisch und Plätzen",
     gameCol: "Spiel", slotCol: "Slot", roomCol: "Raum", tableCol: "Tisch", seatsCol: "Plätze",
     noRoomsYet: "Noch keine Räume angelegt.", noSlotsYet: "Noch keine Slots angelegt.",
     viewRaster: "Raster", viewTable: "Tabelle", viewRooms: "Räume",
-    crewViewAssign: "Zuordnen", crewViewRooms: "Räume verwalten", crewViewGames: "Spiele verwalten",
-    crewViewRequests: "Änderungswünsche", crewViewCrew: "Crew verwalten",
+    crewViewAssign: "Zuordnen", crewViewSetup: "Setup", crewViewRooms: "Räume verwalten", crewViewGames: "Spiele verwalten",
+    crewViewRequests: "Änderungswünsche", crewViewCrew: "Crew verwalten", setupSubTabsAriaLabel: "Setup-Bereich wählen",
     // plan.html — Raster/Räume/Zuordnen
     noGames: "Keine Spiele", flipAxisBtn: "⇄ Achsen tauschen (aktuell: {axis})", axisSlotsRows: "Slots als Zeilen", axisRoomsRows: "Räume als Zeilen",
     chooseSlotAriaLabel: "Slot wählen", editSlotTitle: "Aktuellen Termin ({label}) umbenennen/löschen", editSlotAriaLabel: "Aktuellen Termin umbenennen oder löschen",
@@ -200,13 +286,24 @@ const STRINGS = {
     addFirstSlotBtn: "+ ersten Slot anlegen",
     minSeatsFilterLabel: "Spiele mit mind. {stepper} Plätzen", reqFilterLabel: "Anforderungen: {picker}",
     minTableSeatsFilterLabel: "Tische ab {stepper} Plätzen hervorheben", reqSatisfiedFilterLabel: "Anforderungen erfüllt: {picker}",
-    queueHintClick: "Wähle ein Spiel aus und klicke dann auf einen Tisch (oder auf „Noch ohne Tisch“, um es dort abzulegen).",
+    queueHintClick: "Wähle ein Spiel aus und klicke dann auf einen Tisch (oder auf „Warteschlange“, um es dort abzulegen).",
     queueHintDnd: "Ziehe ein Spiel auf einen Tisch oder nutze das Auswahlfeld am Spiel.",
-    unassignedTitle: "Noch ohne Tisch", allAssigned: "🎉 Alles zugeordnet.",
+    unassignedTitle: "Warteschlange", allAssigned: "🎉 Alles zugeordnet.",
     doubleBooked: "doppelt belegt!", doesNotMeet: "Erfüllt nicht: {tags}", missingTags: "fehlt: {tags}",
     noTablesCreateInRooms: "Noch keine Tische — in „Räume verwalten“ anlegen.", noRoomsGoToManage: "Noch keine Räume angelegt. Wechsle zu „Räume verwalten“.",
-    assignModeAriaLabel: "Zuordnungs-Modus", dragDropLabel: "🖐️ Drag & Drop", singleSelectLabel: "🖱️ Einzelauswahl",
-    autoAssignBtn: "⚙️ Auto-Zuordnung (dieser Slot)", autoAssignInfoAriaLabel: "Was macht Auto-Zuordnung? (Erklärung öffnen)",
+    assignModeAriaLabel: "Zuordnungs-Modus", dragDropLabel: "🖐️ Drag & Drop", singleSelectLabel: "🖱️ Auswahl",
+    autoAssignBtn: "⚙️ Auto zuordnen", autoAssignBtnTitle: "Zeigt einen Vorschlag zur Bestätigung, bevor etwas zugeordnet wird.",
+    autoAssignInfoAriaLabel: "Was macht Auto-Zuordnung? (Erklärung öffnen)",
+    autoAssignPreviewTitle: "Vorschlag: Auto-Zuordnung", apply: "Übernehmen",
+    roomsInfoAriaLabel: "Was ist „Räume verwalten“? (Erklärung öffnen)", roomsInfoTitle: "Räume verwalten",
+    roomsInfoText: "Hier legst du Räume und ihre Tische an und vergibst Eigenschaften (z.B. „Bewegung ok“, „laut ok“), nach denen später automatisch oder manuell zugeordnet wird. Die Zeitabschnitte oben bestimmen, wie Playabl-Spiele automatisch in Tages-Slots (z.B. Vormittag/Nachmittag) einsortiert werden — das wirkt erst auf neue Tage.",
+    gamesInfoAriaLabel: "Was ist „Spiele verwalten“? (Erklärung öffnen)", gamesInfoTitle: "Spiele verwalten",
+    gamesInfoText: "Playabl-Spiele werden hier nur zur Übersicht angezeigt — bearbeiten geht direkt auf Playabl. Manuelle Spiele (ohne Playabl-Anbindung) legst du komplett hier an, inklusive Anforderungen an Tisch/Raum fürs Matching bei der Zuordnung.",
+    requestsInfoAriaLabel: "Was sind Änderungswünsche? (Erklärung öffnen)", requestsInfoTitle: "Änderungswünsche",
+    requestsInfoText: "Kommen aus der öffentlichen Ansicht — jede·r kann hier einen Wunsch zu einem Spiel oder allgemein einreichen. Als Crew markierst du sie als erledigt oder abgelehnt, optional mit einer internen Notiz. „Zum Spiel →“ springt direkt zur Zuordnen-Ansicht und markiert das betroffene Spiel.",
+    crewInfoAriaLabel: "Was kann die Crew? (Erklärung öffnen)", crewInfoTitle: "Crew",
+    crewInfoText: "Crew-Mitglieder haben Zugriff auf alle Zuordnungs- und Verwaltungsfunktionen. Admins können zusätzlich Rollen ändern sowie Mitglieder einladen oder entfernen.",
+    jumpToGameBtn: "Zum Spiel →", closeBanner: "Leiste schließen",
     unscheduledCount: "{n} Spiel(e) ohne Slot", moveToActiveSlot: "→ in diesen Slot",
     bucketTimeRange: "{start}–{end} Uhr", inactiveBadge: "inaktiv", noBucketsYet: "Noch keine Zeitabschnitte definiert.",
     editBucketAriaLabel: "Zeitabschnitt {label} bearbeiten", bucketsTitle: "Zeitabschnitte (Slot-Vorlagen)",
@@ -226,6 +323,7 @@ const STRINGS = {
     inviteTitle: "Einladen", inviteEmailLabel: "E-Mail (muss bereits registriert sein)", roleLabel: "Rolle", inviteBtn: "Einladen",
     toEditor: "→ Bearbeiter", toAdmin: "→ Admin", removeBtn: "Entfernen", noMembersFound: "Keine Mitglieder gefunden.",
     saveFailed: "Speichern fehlgeschlagen: {err}", nothingToAssign: "Nichts zuzuordnen – entweder alles verteilt oder keine passenden freien Tische.",
+    autoAssignNothingToDo: "Nichts zu tun.", autoAssignNoFittingTables: "Keine passenden freien Tische gefunden.",
     autoAssignResult: "Auto-Zuordnung: {n} Spiele zugeordnet{rest}.", autoAssignRest: ", {n} weiterhin ohne passenden Tisch",
     confirmDeleteGame: "Spiel löschen?", confirmDeleteRoom: "Raum samt Tischen löschen?", confirmDeleteTable: "Tisch löschen?",
     confirmRemoveCrew: "Diese Person aus der Crew entfernen?", inviteSent: "{email} wurde eingeladen — wird aktiv, sobald die Person zustimmt.",
@@ -251,8 +349,9 @@ const STRINGS = {
     imprintResponsible: "Verantwortlich:", imprintContact: "Kontakt:", imprintDisclaimer: "Diese Angaben sind keine Rechtsberatung.",
   },
   en: {
-    themeDark: "Dark", themeLight: "Light", themeContrast: "High contrast", themeColorful: "Colorful",
+    themeDark: "Dark", themeLight: "Light", themeContrast: "High contrast", themeColorful: "Playabl",
     themeTerminal: "Terminal", themeCyberpunk: "Cyberpunk", themeUkiyo: "Ukiyo-e",
+    themeSolarpunk: "Solarpunk", themeComic: "Comic", moreThemes: "More themes",
     themeSwitchLabel: "Choose color scheme", langSwitchLabel: "Choose language",
     langDe: "Deutsch", langEn: "English",
     loginRegister: "Log in / Register", logout: "Log out", login: "Log in", register: "Register", loggingIn: "Log in",
@@ -267,9 +366,11 @@ const STRINGS = {
     accept: "Accept", decline: "Decline",
     acceptFailed: "Accept failed: {err}", declineFailed: "Decline failed: {err}",
     // index.html
-    headerLabel: "Header", heroSub: "Who's playing what, when, where? Room and table assignment for tabletop cons — with Playabl integration, for any number of conventions at once.",
+    headerLabel: "Header", heroSub: "Room and table plan for cons — synced live with Playabl. See where there's still space, or open the full plan.",
     loadingCons: "Loading cons …", openConDirectly: "Open a con directly", openConHint: "Paste a link or ID of an existing con.",
-    directInputPlaceholder: "e.g. 3w6-con-2026-a1b2 or a plan.html link", open: "Open",
+    nextConEyebrow: "Next con", nextConToday: "today", nextConTomorrow: "tomorrow", nextConInDays: "in {n} days",
+    nextConCrewBadge: "Crew access", goToOverview: "To overview →",
+    directInputPlaceholder: "…or open a link/ID directly", open: "Open",
     existingCons: "Existing cons", existingConsHint: "Shows cons with a linked Playabl event, or manual cons that chose to be listed. Only crew members of a con can edit it.",
     searchCon: "Search cons …",
     createConTitle: "Create a new con for room planning", createConHint: "You'll automatically become that con's first crew member.",
@@ -289,9 +390,14 @@ const STRINGS = {
     globalSearchPlaceholder: "Search game, room or table …",
     viewLabel: "View", detailsLabel: "Detail", printCurrentView: "Print current view",
     printBtn: "🖨️ Print", crewLabel: "Crew",
+    printSettingsTitle: "Print settings", printModeLabel: "Mode", printAxisLabel: "Axis", printSlotLabel: "Slot",
+    printDetailLabel: "Detail level", printOrientationLabel: "Orientation", printColorLabel: "Color",
+    printOrientationAuto: "Automatic", printOrientationPortrait: "Portrait", printOrientationLandscape: "Landscape",
+    printColorColor: "Color", printColorBw: "Black & white",
     footPlayabl: "Games are loaded live from the Playabl API on every visit; seats = game seats + 1 GM.",
     footRequest: "Anyone on the crew can send a change request via “Propose change” on a game — please explain briefly.",
     proposeChange: "Propose change", concerns: "Regarding", reqMsgLabel: "What should be different – and why? *",
+    proposeChangeHint: "Propose a change — open to everyone",
     reqMsgPlaceholder: "e.g. Please move to a quieter room – this round needs a lot of concentration.",
     reqContactLabel: "Follow-up contact (optional, e.g. Discord name)", submit: "Send",
     room: "Room", nameRequired: "Name *", floorLocation: "Floor / location", floorLocationPlaceholder: "e.g. ground floor, 1st floor left",
@@ -316,13 +422,14 @@ const STRINGS = {
     assignTableFor: "Assign table for {title}", removeFromTable: "Remove {title} from table", deleteItemNamed: "Delete {title}",
     gamesLabel: "Games", roomsLabel: "Rooms", tablesLabel: "Tables",
     legendColorRoom: "Color = room", legendDashedWorkshop: "dashed = workshop", legendOverCapacity: "over capacity (blocks nothing)",
+    legendInfoText: "Room color: every room has a fixed color (grid, table, rooms view). Clicking a game title opens Playabl (if linked). 💬 (on hover) proposes a change — open to everyone, no login needed.",
     noSearchResults: "No results for this search.", noGamesYet: "No games yet.",
     tableCaption: "All games with slot, room, table and seats",
     gameCol: "Game", slotCol: "Slot", roomCol: "Room", tableCol: "Table", seatsCol: "Seats",
     noRoomsYet: "No rooms set up yet.", noSlotsYet: "No slots set up yet.",
     viewRaster: "Grid", viewTable: "Table", viewRooms: "Rooms",
-    crewViewAssign: "Assign", crewViewRooms: "Manage rooms", crewViewGames: "Manage games",
-    crewViewRequests: "Change requests", crewViewCrew: "Manage crew",
+    crewViewAssign: "Assign", crewViewSetup: "Setup", crewViewRooms: "Manage rooms", crewViewGames: "Manage games",
+    crewViewRequests: "Change requests", crewViewCrew: "Manage crew", setupSubTabsAriaLabel: "Choose setup section",
     // plan.html — grid/rooms/assign
     noGames: "No games", flipAxisBtn: "⇄ Swap axes (currently: {axis})", axisSlotsRows: "slots as rows", axisRoomsRows: "rooms as rows",
     chooseSlotAriaLabel: "Choose slot", editSlotTitle: "Rename/delete current slot ({label})", editSlotAriaLabel: "Rename or delete current slot",
@@ -332,13 +439,24 @@ const STRINGS = {
     addFirstSlotBtn: "+ Add first slot",
     minSeatsFilterLabel: "Games with at least {stepper} seats", reqFilterLabel: "Requirements: {picker}",
     minTableSeatsFilterLabel: "Highlight tables with at least {stepper} seats", reqSatisfiedFilterLabel: "Requirements met: {picker}",
-    queueHintClick: "Select a game, then click a table (or click “Unassigned” to drop it there).",
+    queueHintClick: "Select a game, then click a table (or click “Queue” to drop it there).",
     queueHintDnd: "Drag a game onto a table, or use the dropdown on the game.",
-    unassignedTitle: "Unassigned", allAssigned: "🎉 Everything's assigned.",
+    unassignedTitle: "Queue", allAssigned: "🎉 Everything's assigned.",
     doubleBooked: "double-booked!", doesNotMeet: "Doesn't meet: {tags}", missingTags: "missing: {tags}",
     noTablesCreateInRooms: "No tables yet — add some under “Manage rooms”.", noRoomsGoToManage: "No rooms yet. Switch to “Manage rooms”.",
-    assignModeAriaLabel: "Assignment mode", dragDropLabel: "🖐️ Drag & drop", singleSelectLabel: "🖱️ Single-select",
-    autoAssignBtn: "⚙️ Auto-assign (this slot)", autoAssignInfoAriaLabel: "What does auto-assign do? (open explanation)",
+    assignModeAriaLabel: "Assignment mode", dragDropLabel: "🖐️ Drag & drop", singleSelectLabel: "🖱️ Select",
+    autoAssignBtn: "⚙️ Auto-assign", autoAssignBtnTitle: "Shows a suggestion to confirm before anything is assigned.",
+    autoAssignInfoAriaLabel: "What does auto-assign do? (open explanation)",
+    autoAssignPreviewTitle: "Suggestion: auto-assign", apply: "Apply",
+    roomsInfoAriaLabel: "What is “Manage rooms”? (open explanation)", roomsInfoTitle: "Manage rooms",
+    roomsInfoText: "Here you create rooms and their tables and give them features (e.g. “movement ok”, “loud ok”) used later for automatic or manual assignment. The time blocks above determine how Playabl games are automatically sorted into daily slots (e.g. morning/afternoon) — only affects new days.",
+    gamesInfoAriaLabel: "What is “Manage games”? (open explanation)", gamesInfoTitle: "Manage games",
+    gamesInfoText: "Playabl games are shown here for reference only — edit them directly on Playabl. Manual games (without a Playabl link) are created entirely here, including table/room requirements for matching during assignment.",
+    requestsInfoAriaLabel: "What are change requests? (open explanation)", requestsInfoTitle: "Change requests",
+    requestsInfoText: "These come from the public view — anyone can submit a request about a game or in general. As crew you mark them done or rejected, optionally with an internal note. “To game →” jumps straight to the assign view and highlights the affected game.",
+    crewInfoAriaLabel: "What can crew do? (open explanation)", crewInfoTitle: "Crew",
+    crewInfoText: "Crew members have access to all assignment and management functions. Admins can additionally change roles and invite or remove members.",
+    jumpToGameBtn: "To game →", closeBanner: "Close banner",
     unscheduledCount: "{n} game(s) without a slot", moveToActiveSlot: "→ to this slot",
     bucketTimeRange: "{start}–{end}", inactiveBadge: "inactive", noBucketsYet: "No time blocks defined yet.",
     editBucketAriaLabel: "Edit time block {label}", bucketsTitle: "Time blocks (slot templates)",
@@ -358,6 +476,7 @@ const STRINGS = {
     inviteTitle: "Invite", inviteEmailLabel: "Email (must already be registered)", roleLabel: "Role", inviteBtn: "Invite",
     toEditor: "→ Editor", toAdmin: "→ Admin", removeBtn: "Remove", noMembersFound: "No members found.",
     saveFailed: "Save failed: {err}", nothingToAssign: "Nothing to assign – everything is placed, or no fitting free tables.",
+    autoAssignNothingToDo: "Nothing to do.", autoAssignNoFittingTables: "No fitting free tables found.",
     autoAssignResult: "Auto-assign: {n} games assigned{rest}.", autoAssignRest: ", {n} still without a fitting table",
     confirmDeleteGame: "Delete game?", confirmDeleteRoom: "Delete room including all its tables?", confirmDeleteTable: "Delete table?",
     confirmRemoveCrew: "Remove this person from the crew?", inviteSent: "{email} was invited — becomes active once they accept.",
@@ -493,6 +612,17 @@ const Auth = {
     if (s.expires_at * 1000 < Date.now() + 60000) await this.refresh().catch(() => {});
     return this.session()?.access_token || null;
   },
+  // E-Mail steht nicht in der lokal gespeicherten Session — sie steckt aber
+  // schon im Supabase-JWT selbst (email-Claim), kein Extra-Feld/-Request nötig.
+  email() {
+    const s = this.session();
+    if (!s?.access_token) return null;
+    try {
+      const base64 = s.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      const json = decodeURIComponent(atob(base64).split("").map(c => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""));
+      return JSON.parse(json).email || null;
+    } catch { return null; }
+  },
 };
 
 /* ---------- Geteiltes Login/Registrierungs-Dialog (von beiden Seiten genutzt) ---------- */
@@ -534,7 +664,23 @@ function mountAuthUI({ buttonId, onChange }) {
   document.getElementById("tabSignup").addEventListener("click", () => setAuthMode("signup"));
 
   const btn = document.getElementById(buttonId);
-  function refresh() { btn.textContent = Auth.session() ? tr("logout") : tr("loginRegister"); }
+  function initialsOf(email) {
+    if (!email) return "?";
+    const name = email.split("@")[0];
+    const parts = name.split(/[._-]+/).filter(Boolean);
+    return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase();
+  }
+  function refresh() {
+    const session = Auth.session();
+    btn.classList.toggle("has-avatar", !!session);
+    if (session) {
+      btn.innerHTML = `<span class="auth-avatar" aria-hidden="true">${esc(initialsOf(Auth.email()))}<span class="auth-online-dot"></span></span>`;
+      btn.title = tr("logout"); btn.setAttribute("aria-label", tr("logout"));
+    } else {
+      btn.textContent = tr("loginRegister");
+      btn.removeAttribute("title"); btn.removeAttribute("aria-label");
+    }
+  }
   btn.addEventListener("click", () => {
     if (Auth.session()) { Auth.logout(); refresh(); onChange?.(); return; }
     setAuthMode("login");

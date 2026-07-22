@@ -8,7 +8,7 @@
   try { document.documentElement.setAttribute("data-theme", localStorage.getItem("raumplan-theme") || "dark"); } catch {}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&family=Quicksand:wght@600;700&family=Nunito:wght@400;600;700&family=Bangers&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
@@ -21,7 +21,7 @@
         <h1 id="pageTitle">Con-Raumplan</h1>
         <p class="sub" id="pageSub" data-i18n="loading">Lädt …</p>
       </div>
-      <div class="no-print" style="display:flex;gap:var(--sp-3);align-items:center">
+      <div class="no-print" style="display:flex;gap:var(--sp-3);align-items:center;flex-wrap:wrap">
         <div id="themeSwitch"></div>
         <div id="langSwitch"></div>
         <button id="authBtn" type="button">Login / Registrieren</button>
@@ -156,6 +156,85 @@
   in Räume mit „Bewegung ok“ oder „laut ok“ gesetzt. Blockiert nichts — schon zugeordnete Spiele
   bleiben unangetastet, danach kann jederzeit von Hand nachjustiert werden.</p>
   <div class="dactions"><button type="button" onclick="this.closest('dialog').close()" class="primary" data-i18n="understood">Verstanden</button></div>
+</dialog>
+
+<!-- Auto-Zuordnung: Vorschau vor der Übernahme -->
+<dialog id="autoPreviewDlg" aria-labelledby="autoPreviewDlgH">
+  <h2 id="autoPreviewDlgH" data-i18n="autoAssignPreviewTitle">Vorschlag: Auto-Zuordnung</h2>
+  <div class="auto-preview-list" id="autoPreviewList"></div>
+  <div class="dactions">
+    <button type="button" onclick="this.closest('dialog').close()" data-i18n="cancel">Abbrechen</button>
+    <button type="button" id="autoPreviewApplyBtn" class="primary" data-i18n="apply">Übernehmen</button>
+  </div>
+</dialog>
+
+<!-- Info: was macht "Räume verwalten" -->
+<dialog id="roomsInfoDlg" aria-labelledby="roomsInfoDlgH">
+  <h2 id="roomsInfoDlgH" data-i18n="roomsInfoTitle">Räume verwalten</h2>
+  <p class="hint" data-i18n="roomsInfoText">Hier legst du Räume und ihre Tische an und vergibst Eigenschaften (z.B. „Bewegung ok“,
+  „laut ok“), nach denen später automatisch oder manuell zugeordnet wird. Die Zeitabschnitte oben
+  bestimmen, wie Playabl-Spiele automatisch in Tages-Slots (z.B. Vormittag/Nachmittag) einsortiert
+  werden — das wirkt erst auf neue Tage.</p>
+  <div class="dactions"><button type="button" onclick="this.closest('dialog').close()" class="primary" data-i18n="understood">Verstanden</button></div>
+</dialog>
+
+<!-- Info: was macht "Spiele verwalten" -->
+<dialog id="gamesInfoDlg" aria-labelledby="gamesInfoDlgH">
+  <h2 id="gamesInfoDlgH" data-i18n="gamesInfoTitle">Spiele verwalten</h2>
+  <p class="hint" data-i18n="gamesInfoText">Playabl-Spiele werden hier nur zur Übersicht angezeigt — bearbeiten geht direkt auf Playabl.
+  Manuelle Spiele (ohne Playabl-Anbindung) legst du komplett hier an, inklusive Anforderungen an
+  Tisch/Raum fürs Matching bei der Zuordnung.</p>
+  <div class="dactions"><button type="button" onclick="this.closest('dialog').close()" class="primary" data-i18n="understood">Verstanden</button></div>
+</dialog>
+
+<!-- Info: was sind Änderungswünsche -->
+<dialog id="requestsInfoDlg" aria-labelledby="requestsInfoDlgH">
+  <h2 id="requestsInfoDlgH" data-i18n="requestsInfoTitle">Änderungswünsche</h2>
+  <p class="hint" data-i18n="requestsInfoText">Kommen aus der öffentlichen Ansicht — jede·r kann hier einen Wunsch zu einem Spiel oder allgemein
+  einreichen. Als Crew markierst du sie als erledigt oder abgelehnt, optional mit einer internen
+  Notiz. „Zum Spiel →“ springt direkt zur Zuordnen-Ansicht und markiert das betroffene Spiel.</p>
+  <div class="dactions"><button type="button" onclick="this.closest('dialog').close()" class="primary" data-i18n="understood">Verstanden</button></div>
+</dialog>
+
+<!-- Info: was kann die Crew -->
+<dialog id="crewInfoDlg" aria-labelledby="crewInfoDlgH">
+  <h2 id="crewInfoDlgH" data-i18n="crewInfoTitle">Crew</h2>
+  <p class="hint" data-i18n="crewInfoText">Crew-Mitglieder haben Zugriff auf alle Zuordnungs- und Verwaltungsfunktionen. Admins können
+  zusätzlich Rollen ändern sowie Mitglieder einladen oder entfernen.</p>
+  <div class="dactions"><button type="button" onclick="this.closest('dialog').close()" class="primary" data-i18n="understood">Verstanden</button></div>
+</dialog>
+
+<!-- Druckeinstellungen -->
+<dialog id="printDlg" aria-labelledby="printDlgH">
+  <h2 id="printDlgH" data-i18n="printSettingsTitle">Druckeinstellungen</h2>
+  <div class="frow">
+    <label data-i18n="printModeLabel">Modus</label>
+    <div class="slot-tabs" id="printModeTabs" role="group" aria-label="Modus wählen"></div>
+  </div>
+  <div class="frow" id="printAxisRow">
+    <label data-i18n="printAxisLabel">Achse</label>
+    <div class="slot-tabs" id="printAxisTabs" role="group" aria-label="Achse wählen"></div>
+  </div>
+  <div class="frow" id="printSlotRow">
+    <label for="printSlotSelect" data-i18n="printSlotLabel">Slot</label>
+    <select id="printSlotSelect"></select>
+  </div>
+  <div class="frow">
+    <label data-i18n="printDetailLabel">Detailgrad</label>
+    <div class="slot-tabs" id="printDetailTabs" role="group" aria-label="Detailgrad wählen"></div>
+  </div>
+  <div class="frow">
+    <label data-i18n="printOrientationLabel">Ausrichtung</label>
+    <div class="slot-tabs" id="printOrientationTabs" role="group" aria-label="Ausrichtung wählen"></div>
+  </div>
+  <div class="frow">
+    <label data-i18n="printColorLabel">Farbe</label>
+    <div class="slot-tabs" id="printColorTabs" role="group" aria-label="Farbe wählen"></div>
+  </div>
+  <div class="dactions">
+    <button type="button" onclick="this.closest('dialog').close()" data-i18n="cancel">Abbrechen</button>
+    <button type="button" id="printApplyBtn" class="primary" data-i18n="printBtn">🖨️ Drucken</button>
+  </div>
 </dialog>
 
 <!-- Spiel anlegen/bearbeiten (manuell, ohne Playabl) -->
@@ -350,26 +429,49 @@ const S = {
   featureTags: [], roomFeatureTags: [], gameRequiredTags: [],
   rooms: [], tables: [], assignments: [], requests: [],
   role: null, superadmin: false, search: "",
-  mode: "view", view: "raster", crewView: "zuordnen",
+  mode: "view", view: "raster", crewView: "zuordnen", setupTab: "raeume",
   rasterAxis: "rooms", tableSort: { key: "when", dir: 1 },
   showDoneRequests: false, minSeats: 0, minTableSeats: 0,
   filterReqTags: [], tableFilterReqTags: [],
   assignMode: Prefs.get("assign-mode", "dnd"), selectedGame: null,
-  detailLevel: Prefs.get("detail-level", "full"),
+  detailLevel: Prefs.get("detail-level", "full"), pinnedRequest: null,
+  printMode: "raster", printAxis: "rooms", printSlot: null, printDetail: "full",
+  printOrientation: "auto", printColor: "bw",
 };
 
 const VIEWS = [{ key: "raster", nameKey: "viewRaster" }, { key: "tabelle", nameKey: "viewTable" }, { key: "raeume", nameKey: "viewRooms" }];
+// Nur noch 3 Top-Level-Einträge — Räume/Spiele/Crew verwalten wandern als
+// gleichwertige Unter-Pills unter "Setup" (siehe SETUP_VIEWS/setupHtml()),
+// Inhalte selbst bleiben unverändert.
 const CREW_VIEWS = [
   { key: "zuordnen", nameKey: "crewViewAssign" },
-  { key: "raeume-verwalten", nameKey: "crewViewRooms" },
-  { key: "spiele-verwalten", nameKey: "crewViewGames" },
+  { key: "setup", nameKey: "crewViewSetup" },
   { key: "wuensche", nameKey: "crewViewRequests" },
+];
+const SETUP_VIEWS = [
+  { key: "raeume", nameKey: "crewViewRooms" },
+  { key: "spiele", nameKey: "crewViewGames" },
   { key: "crew", nameKey: "crewViewCrew" },
 ];
 
 const bySlot = slot => S.games.filter(g => g.slotKey === slot);
 const gameByKey = key => S.games.find(g => g.key === key);
 const asgFor = g => S.assignments.find(a => a.slot_key === g.slotKey && a.session_key === g.key);
+// game_ref ist Freitext, aber immer im Format "{title} ({slotLabel})" gesetzt
+// (siehe openRequestDlg) — reicht für ein Best-Effort-Zurückfinden zum Spiel.
+const findGameByRef = ref => ref ? S.games.find(g => `${g.title} (${g.slotLabel})` === ref) : null;
+function jumpToGameInZuordnen(gameKey, slotKey, message) {
+  S.mode = "crew"; S.crewView = "zuordnen"; S.activeSlot = slotKey;
+  S.pinnedRequest = { gameKey, message };
+  renderActive();
+  requestAnimationFrame(() => {
+    const chip = document.querySelector(`.chip[data-game="${gameKey}"]`);
+    if (!chip) return;
+    chip.scrollIntoView({ behavior: "smooth", block: "center" });
+    chip.classList.add("pulse-highlight");
+    chip.addEventListener("animationend", () => chip.classList.remove("pulse-highlight"), { once: true });
+  });
+}
 const roomOfTable = tableId => { const t = S.tables.find(x => x.id === tableId); return t && S.rooms.find(r => r.id === t.room_id); };
 const roomAccentVar = room => room ? `var(--room-${"abcde"[S.rooms.indexOf(room) % 5]})` : "var(--accent)";
 const emptyState = msg => `<div class="empty-state"><span class="glyph"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10l8-6 8 6v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span>${esc(msg)}</div>`;
@@ -491,7 +593,7 @@ function chipHtml(g, { crew = false } = {}) {
   if (reqUnmet.length) summaryParts.push(tr("tableDoesNotMeet", { tags: reqUnmet.map(f => f.label).join(", ") }));
   const summary = summaryParts.join(", ");
 
-  const requestIconBtn = !crew ? `<button type="button" class="icon-btn requestBtn" data-game="${esc(g.key)}" aria-label="${esc(tr("proposeChangeTo", { title: g.title }))}" title="${esc(tr("proposeChange"))}">💬</button>` : "";
+  const requestIconBtn = !crew ? `<button type="button" class="icon-btn requestBtn" data-game="${esc(g.key)}" aria-label="${esc(tr("proposeChangeTo", { title: g.title }))}" title="${esc(tr("proposeChangeHint"))}">💬</button>` : "";
   const warnBadgeFull = overSeats > 0 ? `<span class="badge warn">${esc(tr("overCapacityBadge", { n: overSeats }))}</span>` : "";
   const warnIconMinimal = overSeats > 0 ? `<span class="badge warn" aria-hidden="true">⚠</span>` : "";
   // Anforderungs-Badge: informativ (nicht warn-farbig), solange der Tisch
@@ -542,8 +644,11 @@ function chipHtml(g, { crew = false } = {}) {
   }
   const drag = crew && S.assignMode === "dnd" ? ` draggable="true"` : "";
   const selectedClass = crew && S.assignMode === "click" && S.selectedGame === g.key ? " selected" : "";
+  // Greif-Icon nur im Drag&Drop-Modus — im Auswahl-Modus gibt es ohnehin
+  // schon den Auswählen-Button, ein Greif-Icon wäre dort irreführend.
+  const gripHtml = crew && S.assignMode === "dnd" ? `<span class="chip-grip" aria-hidden="true">⠿</span>` : "";
   return `<div class="chip${g.ws ? " ws" : ""}${level === "minimal" ? " minimal" : ""}${selectedClass}" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}"${drag} role="group" aria-label="${esc(summary)}" title="${esc(summary)}">
-    ${bodyHtml}${controlsHtml}
+    ${gripHtml}${bodyHtml}${controlsHtml}
   </div>`;
 }
 
@@ -558,7 +663,8 @@ function renderLegend() {
   document.getElementById("legend").innerHTML = `
     <span class="item"><span class="swatch"></span> ${esc(tr("legendColorRoom"))}</span>
     <span class="item"><span class="swatch dashed"></span> ${esc(tr("legendDashedWorkshop"))}</span>
-    <span class="item"><span class="badge warn">+X</span> ${esc(tr("legendOverCapacity"))}</span>`;
+    <span class="item"><span class="badge warn">+X</span> ${esc(tr("legendOverCapacity"))}</span>
+    <span class="icon-btn" tabindex="0" role="note" aria-label="${esc(tr("legendInfoText"))}" title="${esc(tr("legendInfoText"))}">ⓘ</span>`;
 }
 function renderNav() {
   document.getElementById("viewTabs").innerHTML = VIEWS.map(v =>
@@ -589,7 +695,7 @@ function tabelleHtml() {
   const trs = rows.map(g => {
     const a = asgFor(g); const table = a && S.tables.find(t => t.id === a.table_id); const room = table && roomOfTable(table.id);
     return `<tr>
-      <td>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title)}${g.ws ? ` <span class="badge">${esc(tr("workshop"))}</span>` : ""} <button type="button" class="icon-btn requestBtn no-print" data-game="${esc(g.key)}" aria-label="${esc(tr("proposeChangeTo", { title: g.title }))}" title="${esc(tr("proposeChange"))}">💬</button></td>
+      <td>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title)}${g.ws ? ` <span class="badge">${esc(tr("workshop"))}</span>` : ""} <button type="button" class="icon-btn requestBtn no-print" data-game="${esc(g.key)}" aria-label="${esc(tr("proposeChangeTo", { title: g.title }))}" title="${esc(tr("proposeChangeHint"))}">💬</button></td>
       <td>${esc(g.slotLabel)}</td>
       <td>${room ? `<span class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)}</span>` : '<span style="color:var(--text-muted)">–</span>'}</td>
       <td>${table ? esc(table.name) : "–"}</td>
@@ -691,7 +797,15 @@ function zuordnenHtml() {
       const seatMatch = S.minTableSeats > 0 && t.seats >= S.minTableSeats ? " seat-match" : "";
       const reqMismatch = missingForRoom.length ? " req-mismatch" : "";
       const reqHint = missingForRoom.length ? `<span class="badge warn" title="${esc(tr("doesNotMeet", { tags: missingForRoom.map(f => f.label).join(", ") }))}">${esc(tr("missingTags", { tags: missingForRoom.map(f => f.label).join(", ") }))}</span>` : "";
-      return `<div class="tablebox${seatMatch}${tagMatch}${reqMismatch}" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span>${double}${reqHint}</div>${games.map(g => chipHtml(g, { crew: true })).join("") || `<div class="free">${esc(tr("freeLabel"))}</div>`}</div>`;
+      // Zieltisch-Scoring: nur im Auswahl-Modus mit einem gewählten Spiel
+      // sinnvoll (siehe missingForRoom oben) — solide Outline, wenn Plätze
+      // UND Anforderungen passen, gestrichelt bei nur Plätzen, gedimmt sonst.
+      let gameMatch = "";
+      if (S.assignMode === "click" && selectedGameObj) {
+        const seatsFit = t.seats >= selectedGameObj.seats;
+        gameMatch = seatsFit && !missingForRoom.length ? " gm-full" : seatsFit ? " gm-partial" : " gm-none";
+      }
+      return `<div class="tablebox${seatMatch}${tagMatch}${reqMismatch}${gameMatch}" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span>${double}${reqHint}</div>${games.map(g => chipHtml(g, { crew: true })).join("") || `<div class="free">${esc(tr("freeLabel"))}</div>`}</div>`;
     }).join("");
     return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><h3>${esc(room.name)}</h3></div>${tablesHtml || `<p class="hint">${esc(tr("noTablesCreateInRooms"))}</p>`}</div>`;
   }).join("") || emptyState(tr("noRoomsGoToManage"));
@@ -699,10 +813,15 @@ function zuordnenHtml() {
     <button type="button" class="filter-chip" data-assignmode="dnd" aria-pressed="${String(S.assignMode === "dnd")}">${esc(tr("dragDropLabel"))}</button>
     <button type="button" class="filter-chip" data-assignmode="click" aria-pressed="${String(S.assignMode === "click")}">${esc(tr("singleSelectLabel"))}</button>
   </div>`;
-  return `${unscheduledBacklogHtml()}${slotTabsHtml(true)}
+  const pinnedBannerHtml = (() => {
+    if (!S.pinnedRequest) return "";
+    const g = gameByKey(S.pinnedRequest.gameKey);
+    return `<div class="pinned-banner no-print"><div><strong>${esc(g ? g.title : "")}</strong> — ${esc(S.pinnedRequest.message)}</div><button type="button" id="pinnedBannerCloseBtn" class="icon-btn" aria-label="${esc(tr("closeBanner"))}">✕</button></div>`;
+  })();
+  return `${pinnedBannerHtml}${unscheduledBacklogHtml()}${slotTabsHtml(true)}
     <div class="controls no-print" style="align-items:center;flex-wrap:wrap;gap:var(--sp-3)">
       ${assignModeHtml}
-      <button type="button" id="autoBtn" class="primary">${esc(tr("autoAssignBtn"))}</button>
+      <button type="button" id="autoBtn" class="primary" title="${esc(tr("autoAssignBtnTitle"))}">${esc(tr("autoAssignBtn"))}</button>
       <button type="button" id="autoInfoBtn" class="icon-btn" aria-label="${esc(tr("autoAssignInfoAriaLabel"))}" title="${esc(tr("autoAssignInfoTitle"))}">ⓘ</button>
     </div>
     <div class="assign-layout" style="margin-top:var(--sp-3)">${queueHtml}<div>${tableFilterHtml}<div id="board">${boardHtml}</div></div></div>`;
@@ -757,7 +876,7 @@ function raeumeVerwaltenHtml() {
     </div>`;
   }).join("") || emptyState(tr("noRoomsYet"));
   return `${bucketsHtml()}
-    <div class="controls no-print"><button type="button" id="addRoomBtn" class="primary">${esc(tr("addRoomBtn"))}</button></div>
+    <div class="controls no-print"><button type="button" id="addRoomBtn" class="primary">${esc(tr("addRoomBtn"))}</button><button type="button" id="roomsInfoBtn" class="icon-btn" aria-label="${esc(tr("roomsInfoAriaLabel"))}" title="${esc(tr("roomsInfoTitle"))}">ⓘ</button></div>
     <div id="board" style="margin-top:var(--sp-4)">${roomsHtml}</div>`;
 }
 
@@ -792,7 +911,7 @@ function spieleVerwaltenHtml() {
     </div>`;
     }).join("")}
   </div>` : "";
-  return `<div class="controls no-print"><button type="button" id="addGameBtn" class="primary">${esc(tr("addGameBtn"))}</button></div>
+  return `<div class="controls no-print"><button type="button" id="addGameBtn" class="primary">${esc(tr("addGameBtn"))}</button><button type="button" id="gamesInfoBtn" class="icon-btn" aria-label="${esc(tr("gamesInfoAriaLabel"))}" title="${esc(tr("gamesInfoTitle"))}">ⓘ</button></div>
     <div class="card" style="margin-top:var(--sp-3)">
       <h2>${esc(tr("manualGamesTitle"))}</h2>
       <p class="hint">${esc(tr("manualGamesHint"))}</p>
@@ -805,10 +924,13 @@ function spieleVerwaltenHtml() {
 const REQ_STATUS_KEY = { offen: "statusOpen", erledigt: "statusDone", abgelehnt: "statusRejected" };
 function wuenscheHtml() {
   const list = S.showDoneRequests ? S.requests : S.requests.filter(r => r.status === "offen");
-  const rowsHtml = list.map(r => `
+  const rowsHtml = list.map(r => {
+    const matchedGame = findGameByRef(r.game_ref);
+    const jumpBtn = matchedGame ? `<button type="button" class="small jumpToGameBtn" data-game="${esc(matchedGame.key)}" data-slot="${esc(matchedGame.slotKey)}" data-msg="${esc(r.message)}">${esc(tr("jumpToGameBtn"))}</button>` : "";
+    return `
     <div class="req ${r.status !== "offen" ? "done" : ""}">
       <div class="rmeta">${esc(new Date(r.created_at).toLocaleString(LANG === "en" ? "en-GB" : "de-AT", { timeZone: TZ }))}${r.contact ? " · " + esc(tr("fromContact", { contact: r.contact })) : ""} · <strong>${esc(tr(REQ_STATUS_KEY[r.status] || r.status))}</strong></div>
-      <div><strong>${esc(r.game_ref || tr("general"))}</strong></div>
+      <div><strong>${esc(r.game_ref || tr("general"))}</strong> ${jumpBtn}</div>
       <div class="rmsg">${esc(r.message)}</div>
       <div class="ractions">
         <button type="button" class="small reqStatus" data-id="${r.id}" data-status="erledigt">${esc(tr("statusDoneBtn"))}</button>
@@ -816,15 +938,19 @@ function wuenscheHtml() {
         <button type="button" class="small reqStatus" data-id="${r.id}" data-status="offen">${esc(tr("statusOpenBtn"))}</button>
         <input type="text" class="reqNote" data-id="${r.id}" placeholder="${esc(tr("crewNotePlaceholder"))}" value="${esc(r.orga_notiz || "")}" style="flex:1;min-width:140px">
       </div>
-    </div>`).join("") || `<p class="hint">${esc(tr("noOpenRequests"))}</p>`;
-  return `<div class="controls no-print"><label style="display:flex;gap:6px;align-items:center;font-size:var(--fs-sm);cursor:pointer"><input type="checkbox" id="showDoneChk" ${S.showDoneRequests ? "checked" : ""}> ${esc(tr("showDoneCheckbox"))}</label></div>
+    </div>`;
+  }).join("") || `<p class="hint">${esc(tr("noOpenRequests"))}</p>`;
+  return `<div class="controls no-print" style="justify-content:space-between">
+      <label style="display:flex;gap:6px;align-items:center;font-size:var(--fs-sm);cursor:pointer"><input type="checkbox" id="showDoneChk" ${S.showDoneRequests ? "checked" : ""}> ${esc(tr("showDoneCheckbox"))}</label>
+      <button type="button" id="requestsInfoBtn" class="icon-btn" aria-label="${esc(tr("requestsInfoAriaLabel"))}" title="${esc(tr("requestsInfoTitle"))}">ⓘ</button>
+    </div>
     <div class="card" style="margin-top:var(--sp-3)">${rowsHtml}</div>`;
 }
 
 /* ---------------- Crew: Crew verwalten ---------------- */
 function crewVerwaltenHtml() {
   return `<div class="card">
-    <h2>${esc(tr("crewTitle"))}</h2>
+    <h2>${esc(tr("crewTitle"))} <button type="button" id="crewInfoBtn" class="icon-btn" aria-label="${esc(tr("crewInfoAriaLabel"))}" title="${esc(tr("crewInfoTitle"))}">ⓘ</button></h2>
     <p class="hint">${esc(S.role === "admin" ? tr("adminCanManage") : tr("onlyAdminsCanManage"))}</p>
     <div id="crewList"><p class="hint">${esc(tr("loading"))}</p></div>
     ${S.role === "admin" ? `<h3>${esc(tr("inviteTitle"))}</h3>
@@ -853,6 +979,14 @@ async function refreshCrewList() {
   } catch (err) { listEl.innerHTML = `<p class="msg err">${esc(err.message)}</p>`; }
 }
 
+/* ---------------- Crew: Setup (fasst Räume/Spiele/Crew verwalten zusammen) --- */
+function setupHtml() {
+  const subTabsHtml = `<div class="slot-tabs" role="group" aria-label="${esc(tr("setupSubTabsAriaLabel"))}">${SETUP_VIEWS.map(v =>
+    `<button type="button" data-setuptab="${v.key}" aria-pressed="${String(S.setupTab === v.key)}">${esc(tr(v.nameKey))}</button>`).join("")}</div>`;
+  const contentHtml = S.setupTab === "spiele" ? spieleVerwaltenHtml() : S.setupTab === "crew" ? crewVerwaltenHtml() : raeumeVerwaltenHtml();
+  return `${subTabsHtml}<div style="margin-top:var(--sp-3)">${contentHtml}</div>`;
+}
+
 /* ---------------- Render-Dispatcher ---------------- */
 function renderActive() {
   renderKpiBar(); renderLegend(); renderNav();
@@ -860,10 +994,8 @@ function renderActive() {
   if (S.mode === "crew" && S.role) {
     viewC.hidden = true; crewC.hidden = false;
     if (S.crewView === "zuordnen") { crewC.innerHTML = zuordnenHtml(); if (S.assignMode === "dnd") wireDnd(); }
-    else if (S.crewView === "raeume-verwalten") crewC.innerHTML = raeumeVerwaltenHtml();
-    else if (S.crewView === "spiele-verwalten") crewC.innerHTML = spieleVerwaltenHtml();
+    else if (S.crewView === "setup") { crewC.innerHTML = setupHtml(); if (S.setupTab === "crew") refreshCrewList(); }
     else if (S.crewView === "wuensche") crewC.innerHTML = wuenscheHtml();
-    else if (S.crewView === "crew") { crewC.innerHTML = crewVerwaltenHtml(); refreshCrewList(); }
   } else {
     viewC.hidden = false; crewC.hidden = true;
     if (S.view === "tabelle") viewC.innerHTML = tabelleHtml();
@@ -923,7 +1055,7 @@ async function assign(gameKey, slotKey, tableId) {
   } catch (e) { alert(tr("saveFailed", { err: e.message })); }
 }
 
-function autoAssign() {
+function computeAutoAssignJobs() {
   const slot = S.activeSlot;
   const freeTables = () => S.tables.filter(t => !S.assignments.some(a => a.slot_key === slot && a.table_id === t.id));
   const un = bySlot(slot).filter(g => { const a = asgFor(g); return !a || !a.table_id; });
@@ -955,12 +1087,34 @@ function autoAssign() {
     const target = (roomOk[0] || candidates.find(t => t.seats >= g.seats) || null);
     if (target) jobs.push({ gameKey: g.key, tableId: target.id });
   }
-  if (!jobs.length) { alert(tr("nothingToAssign")); return; }
-  (async () => {
-    for (const j of jobs) await assign(j.gameKey, slot, j.tableId);
-    const rest = bySlot(slot).filter(g => { const a = asgFor(g); return !a || !a.table_id; }).length;
-    document.getElementById("status").textContent = tr("autoAssignResult", { n: jobs.length, rest: rest ? tr("autoAssignRest", { n: rest }) : "" });
-  })();
+  return { jobs, totalUnassigned: un.length };
+}
+
+let pendingAutoAssignJobs = null;
+
+function openAutoAssignPreview() {
+  const { jobs, totalUnassigned } = computeAutoAssignJobs();
+  if (!totalUnassigned) { alert(tr("autoAssignNothingToDo")); return; }
+  if (!jobs.length) { alert(tr("autoAssignNoFittingTables")); return; }
+  pendingAutoAssignJobs = jobs;
+  document.getElementById("autoPreviewList").innerHTML = jobs.map(j => {
+    const g = gameByKey(j.gameKey);
+    const table = S.tables.find(t => t.id === j.tableId);
+    const room = roomOfTable(j.tableId);
+    return `<div class="auto-preview-row"><span class="auto-preview-game">${esc(g.title)}</span><span class="auto-preview-arrow">→</span><span class="auto-preview-target">${esc(room.name)} · ${esc(table.name)}</span></div>`;
+  }).join("");
+  document.getElementById("autoPreviewDlg").showModal();
+}
+
+async function applyPendingAutoAssignJobs() {
+  const jobs = pendingAutoAssignJobs;
+  pendingAutoAssignJobs = null;
+  document.getElementById("autoPreviewDlg").close();
+  if (!jobs) return;
+  const slot = S.activeSlot;
+  for (const j of jobs) await assign(j.gameKey, slot, j.tableId);
+  const rest = bySlot(slot).filter(g => { const a = asgFor(g); return !a || !a.table_id; }).length;
+  document.getElementById("status").textContent = tr("autoAssignResult", { n: jobs.length, rest: rest ? tr("autoAssignRest", { n: rest }) : "" });
 }
 
 /* ---------------- Drag & Drop (nur Zuordnen) ---------------- */
@@ -1036,6 +1190,7 @@ document.addEventListener("click", async e => {
   }
   if (t.matches("[data-view]")) { S.mode = "view"; S.view = t.dataset.view; renderActive(); }
   else if (t.matches("[data-crewview]")) { S.mode = "crew"; S.crewView = t.dataset.crewview; renderActive(); }
+  else if (t.matches("[data-setuptab]")) { S.setupTab = t.dataset.setuptab; renderActive(); }
   else if (t.matches(".local-slot-tabs button[data-slot]")) { S.activeSlot = t.dataset.slot; renderActive(); }
   else if (t.matches(".unassignBtn")) assign(t.dataset.game, t.dataset.slot, null);
   else if (t.matches(".delGameBtn")) {
@@ -1050,7 +1205,7 @@ document.addEventListener("click", async e => {
   else if (t.id === "addGameBtn") openGameDlg(null);
   else if (t.matches(".addToActiveSlotBtn")) assign(t.dataset.game, S.activeSlot, null);
   else if (t.matches(".requestBtn")) openRequestDlg(t.dataset.game);
-  else if (t.id === "printBtn") window.print();
+  else if (t.id === "printBtn") openPrintDlg();
   else if (t.id === "flipAxisBtn") { S.rasterAxis = S.rasterAxis === "slots" ? "rooms" : "slots"; renderActive(); }
   else if (t.matches(".filter-tag-remove")) {
     const key = t.dataset.filterkey === "games" ? "filterReqTags" : "tableFilterReqTags";
@@ -1077,8 +1232,15 @@ document.addEventListener("click", async e => {
     S.assignments = S.assignments.map(a => a.table_id === t.dataset.id ? { ...a, table_id: null } : a).filter(a => a.table_id || a.session_key.startsWith("manual:"));
     renderActive();
   }
-  else if (t.id === "autoBtn") autoAssign();
+  else if (t.id === "autoBtn") openAutoAssignPreview();
+  else if (t.id === "autoPreviewApplyBtn") applyPendingAutoAssignJobs();
   else if (t.id === "autoInfoBtn") document.getElementById("autoInfoDlg").showModal();
+  else if (t.id === "roomsInfoBtn") document.getElementById("roomsInfoDlg").showModal();
+  else if (t.id === "gamesInfoBtn") document.getElementById("gamesInfoDlg").showModal();
+  else if (t.id === "requestsInfoBtn") document.getElementById("requestsInfoDlg").showModal();
+  else if (t.id === "crewInfoBtn") document.getElementById("crewInfoDlg").showModal();
+  else if (t.id === "pinnedBannerCloseBtn") { S.pinnedRequest = null; renderActive(); }
+  else if (t.matches(".jumpToGameBtn")) jumpToGameInZuordnen(t.dataset.game, t.dataset.slot, t.dataset.msg);
   else if (t.id === "addSlotBtn") openSlotDlg(null);
   else if (t.id === "editSlotBtn") openSlotDlg(S.slots.find(s => s.key === S.activeSlot));
   else if (t.id === "addBucketBtn") openBucketDlg(null);
@@ -1143,6 +1305,75 @@ document.getElementById("requestForm").addEventListener("submit", async e => {
     out.className = "msg ok"; out.textContent = tr("thanksFullMsg");
     setTimeout(() => document.getElementById("requestDlg").close(), 1400);
   } catch (err) { out.className = "msg err"; out.textContent = tr("sendFailed", { err: err.message }); }
+});
+
+/* ---------------- Druckeinstellungen ---------------- */
+const PRINT_MODES = [{ key: "raster", nameKey: "viewRaster" }, { key: "tabelle", nameKey: "viewTable" }, { key: "raeume", nameKey: "viewRooms" }];
+const PRINT_ORIENTATIONS = [
+  { key: "auto", nameKey: "printOrientationAuto" },
+  { key: "portrait", nameKey: "printOrientationPortrait" },
+  { key: "landscape", nameKey: "printOrientationLandscape" },
+];
+const PRINT_COLORS = [{ key: "color", nameKey: "printColorColor" }, { key: "bw", nameKey: "printColorBw" }];
+
+function printTabsGroupHtml(items, dataAttr, current) {
+  return items.map(it =>
+    `<button type="button" data-${dataAttr}="${it.key}" aria-pressed="${String(it.key === current)}">${esc(tr(it.nameKey))}</button>`).join("");
+}
+function renderPrintDlgControls() {
+  document.getElementById("printModeTabs").innerHTML = printTabsGroupHtml(PRINT_MODES, "printmode", S.printMode);
+  document.getElementById("printAxisTabs").innerHTML = printTabsGroupHtml(
+    [{ key: "rooms", nameKey: "axisRoomsRows" }, { key: "slots", nameKey: "axisSlotsRows" }], "printaxis", S.printAxis);
+  document.getElementById("printAxisRow").hidden = S.printMode !== "raster";
+  document.getElementById("printSlotSelect").innerHTML = S.slots.map(s =>
+    `<option value="${esc(s.key)}"${s.key === S.printSlot ? " selected" : ""}>${esc(s.label)}</option>`).join("");
+  document.getElementById("printSlotRow").hidden = S.printMode !== "raeume";
+  document.getElementById("printDetailTabs").innerHTML = printTabsGroupHtml(DETAIL_LEVELS.map(d => ({ key: d.key, nameKey: d.labelKey })), "printdetail", S.printDetail);
+  document.getElementById("printOrientationTabs").innerHTML = printTabsGroupHtml(PRINT_ORIENTATIONS, "printorientation", S.printOrientation);
+  document.getElementById("printColorTabs").innerHTML = printTabsGroupHtml(PRINT_COLORS, "printcolor", S.printColor);
+}
+function openPrintDlg() {
+  if (!S.printSlot) S.printSlot = S.activeSlot || S.slots[0]?.key || null;
+  renderPrintDlgControls();
+  document.getElementById("printDlg").showModal();
+}
+document.getElementById("printDlg").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-printmode], button[data-printaxis], button[data-printdetail], button[data-printorientation], button[data-printcolor]");
+  if (!btn) return;
+  if (btn.dataset.printmode) S.printMode = btn.dataset.printmode;
+  else if (btn.dataset.printaxis) S.printAxis = btn.dataset.printaxis;
+  else if (btn.dataset.printdetail) S.printDetail = btn.dataset.printdetail;
+  else if (btn.dataset.printorientation) S.printOrientation = btn.dataset.printorientation;
+  else if (btn.dataset.printcolor) S.printColor = btn.dataset.printcolor;
+  renderPrintDlgControls();
+});
+document.getElementById("printSlotSelect").addEventListener("change", e => { S.printSlot = e.target.value; });
+
+function applyPrintOrientationStyle(orientation) {
+  let el = document.getElementById("printOrientationStyle");
+  if (!el) { el = document.createElement("style"); el.id = "printOrientationStyle"; document.head.appendChild(el); }
+  el.textContent = orientation === "auto" ? "" : `@media print { @page { size: ${orientation}; } }`;
+}
+document.getElementById("printApplyBtn").addEventListener("click", () => {
+  document.getElementById("printDlg").close();
+  // Druck-Steuerung wirkt auf dieselben echten View-Render-Funktionen wie die
+  // normale Ansicht (kein separates Druck-Template) — Zustand vorher merken,
+  // Einstellungen kurz anwenden, drucken, danach zurücksetzen.
+  const snapshot = { mode: S.mode, view: S.view, rasterAxis: S.rasterAxis, activeSlot: S.activeSlot, detailLevel: S.detailLevel };
+  S.mode = "view"; S.view = S.printMode; S.detailLevel = S.printDetail;
+  if (S.printMode === "raster") S.rasterAxis = S.printAxis;
+  else if (S.printMode === "raeume") S.activeSlot = S.printSlot;
+  renderActive();
+  applyPrintOrientationStyle(S.printOrientation);
+  document.documentElement.classList.toggle("print-bw", S.printColor === "bw");
+  const restore = () => {
+    S.mode = snapshot.mode; S.view = snapshot.view; S.rasterAxis = snapshot.rasterAxis;
+    S.activeSlot = snapshot.activeSlot; S.detailLevel = snapshot.detailLevel;
+    renderActive();
+    window.removeEventListener("afterprint", restore);
+  };
+  window.addEventListener("afterprint", restore);
+  setTimeout(() => window.print(), 30);
 });
 
 // ---------------- Eigenschafts-Chip-Picker (wiederverwendbar: Raum-

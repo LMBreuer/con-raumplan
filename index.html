@@ -9,7 +9,7 @@
   try { document.documentElement.setAttribute("data-theme", localStorage.getItem("raumplan-theme") || "dark"); } catch {}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&family=Quicksand:wght@600;700&family=Nunito:wght@400;600;700&family=Bangers&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
@@ -19,10 +19,10 @@
     <div class="hero card" style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);flex-wrap:wrap">
       <div>
         <h1>Con-Raumplan</h1>
-        <p class="sub" data-i18n="heroSub">Wer spielt wann wo? Raum- und Tischverteilung für Tabletop-Cons — mit
-        Playabl-Anbindung, für beliebig viele Conventions gleichzeitig.</p>
+        <p class="sub" data-i18n="heroSub">Raum- und Tischplan für Cons — live synchronisiert mit Playabl. Sieh, wo noch
+        Platz ist, oder öffne den vollen Plan.</p>
       </div>
-      <div style="display:flex;gap:var(--sp-3);align-items:center">
+      <div style="display:flex;gap:var(--sp-3);align-items:center;flex-wrap:wrap">
         <div id="themeSwitch"></div>
         <div id="langSwitch"></div>
         <button id="authBtn" type="button">Login / Registrieren</button>
@@ -33,19 +33,16 @@
   </header>
 
   <main id="main">
-    <section class="card">
-      <h2 data-i18n="openConDirectly">Con direkt öffnen</h2>
-      <p class="hint" data-i18n="openConHint">Link oder ID einer bestehenden Con einfügen.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input type="text" id="directInput" placeholder="z.B. 3w6-con-2026-a1b2 oder ein plan.html-Link" data-i18n-placeholder="directInputPlaceholder" style="flex:1;min-width:220px">
-        <button id="directGo" type="button" data-i18n="open">Öffnen</button>
-      </div>
-    </section>
+    <div id="nextConCard"></div>
 
     <section class="card">
       <h2 data-i18n="existingCons">Bestehende Cons</h2>
       <p class="hint" data-i18n="existingConsHint">Zeigt Cons mit verknüpftem Playabl-Event oder bewusst gelistete manuelle Cons. Bearbeiten kann nur, wer Mitglied der jeweiligen Crew ist.</p>
-      <input type="search" id="conSearch" placeholder="Con suchen …" data-i18n-placeholder="searchCon" aria-label="Con suchen" data-i18n-aria-label="searchCon" style="margin-bottom:var(--sp-3);width:100%;max-width:320px">
+      <div class="cons-toolbar">
+        <input type="search" id="conSearch" placeholder="Con suchen …" data-i18n-placeholder="searchCon" aria-label="Con suchen" data-i18n-aria-label="searchCon">
+        <input type="text" id="directInput" placeholder="…oder Link/ID direkt öffnen" data-i18n-placeholder="directInputPlaceholder" aria-label="Con direkt öffnen" data-i18n-aria-label="openConDirectly">
+        <button id="directGo" type="button" data-i18n="open">Öffnen</button>
+      </div>
       <div class="con-list" id="conList"></div>
     </section>
 
@@ -96,6 +93,7 @@ const authUI = mountAuthUI({
     renderPendingInvites(document.getElementById("inviteBanner"), () => location.reload());
     await refreshSuperadmin();
     await reloadCons();
+    renderNextConCard();
   },
 });
 renderPendingInvites(document.getElementById("inviteBanner"));
@@ -110,6 +108,52 @@ async function reloadCons() {
   const q = isSuperadmin ? `cons?select=${fields}&order=created_at.desc` : `cons?select=${fields}&listed=eq.true&order=created_at.desc`;
   allCons = await supaFetch(q).catch(() => []);
   renderCons();
+}
+
+/* ---------- Hervorgehobene "nächste Con"-Karte ---------- */
+// Cons selbst haben kein Datumsfeld — für Playabl-Cons nehmen wir den
+// start_time des verknüpften Events (allEvents ist ohnehin schon geladen,
+// kein Extra-Request nötig). Rein manuelle Cons haben kein Datum und nehmen
+// deshalb nie an der Hervorhebung teil.
+function computeNextCon() {
+  const now = new Date();
+  const candidates = allCons.map(c => {
+    const ev = c.playabl_event_id ? allEvents.find(e => String(e.id) === String(c.playabl_event_id)) : null;
+    if (!ev?.start_time) return null;
+    const date = new Date(ev.start_time);
+    return date >= now ? { con: c, date } : null;
+  }).filter(Boolean);
+  candidates.sort((a, b) => a.date - b.date);
+  return candidates[0] || null;
+}
+function formatCountdown(date) {
+  const days = Math.ceil((date - new Date()) / 86400000);
+  if (days <= 0) return tr("nextConToday");
+  if (days === 1) return tr("nextConTomorrow");
+  return tr("nextConInDays", { n: days });
+}
+async function renderNextConCard() {
+  const el = document.getElementById("nextConCard");
+  const next = computeNextCon();
+  if (!next) { el.innerHTML = ""; return; }
+  const { con, date } = next;
+  let crewBadge = "";
+  const token = await Auth.accessToken();
+  if (token) {
+    // Best-effort: RLS lässt Mitglieder nur die eigene Zeile sehen — schlägt
+    // die Anfrage fehl oder kommt leer zurück, bleibt das Badge einfach weg.
+    try {
+      const rows = await supaFetch(`con_members?con_id=eq.${con.id}&select=role`, { headers: supaHeaders(token) });
+      if (rows?.length) crewBadge = `<span class="crew-badge"><span class="dot"></span>${esc(tr("nextConCrewBadge"))}</span>`;
+    } catch {}
+  }
+  el.innerHTML = `<div class="next-con-card">
+    <div>
+      <div class="eyebrow">${esc(tr("nextConEyebrow"))}<span class="countdown">${esc(formatCountdown(date))}</span>${crewBadge}</div>
+      <div class="t">${esc(con.name)}</div>
+    </div>
+    <a class="btn primary" href="plan.html?con=${esc(con.slug || con.id)}">${esc(tr("goToOverview"))}</a>
+  </div>`;
 }
 
 document.getElementById("credits").innerHTML = `
@@ -228,6 +272,7 @@ document.getElementById("createConBtn").addEventListener("click", async () => {
     await refreshSuperadmin();
     const [, events] = await Promise.all([reloadCons(), loadPlayablEventsList()]);
     fillEventsList(events);
+    renderNextConCard();
     authUI.refresh();
     document.getElementById("status").textContent =
       tr("asOf", { date: new Intl.DateTimeFormat(LANG === "en" ? "en-GB" : "de-AT", { dateStyle: "full", timeStyle: "short" }).format(new Date()) });
