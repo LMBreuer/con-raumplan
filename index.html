@@ -9,7 +9,7 @@
   try { document.documentElement.setAttribute("data-theme", localStorage.getItem("raumplan-theme") || "dark"); } catch {}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&family=Quicksand:wght@600;700&family=Nunito:wght@400;600;700&family=Bangers&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&family=Space+Grotesk:wght@600;700&family=Nunito:wght@400;600;700&family=Bangers&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div class="wrap">
   <header class="app-header" aria-label="Kopfzeile" data-i18n-aria-label="headerLabel">
     <div class="header-inner">
-      <span class="brand">Con-Raumplan</span>
+      <span class="brand"><span class="brand-eyebrow" aria-hidden="true">&gt; </span>Con-Raumplan<span class="brand-cursor" aria-hidden="true">_</span></span>
       <nav class="page-tabs slot-tabs" id="pageTabs" role="group" aria-label="Seite wählen"></nav>
       <div class="header-right">
         <div class="controls-group">
@@ -172,13 +172,17 @@ async function renderNextConCard() {
       if (rows?.length) crewBadge = `<span class="crew-badge"><span class="dot"></span>${esc(tr("nextConCrewBadge"))}</span>`;
     } catch {}
   }
-  el.innerHTML = `<div class="next-con-card">
-    <div>
-      <div class="eyebrow">${esc(tr("nextConBadgeText", { countdown: formatCountdown(date) }))}${crewBadge}</div>
-      <div class="t">${esc(con.name)}</div>
-    </div>
-    <a class="btn primary" href="plan.html?con=${esc(con.slug || con.id)}">${esc(tr("goToOverview"))}</a>
-  </div>`;
+  // 1:1 aus der Vorlage (nextConCardStyle/-BadgeStyle/-NameStyle/-MetaStyle/
+  // -OpenStyle): die GANZE Karte ist ein Link, mit vier gestapelten Zeilen
+  // (Badge / Name(+Crew-Badge) / Meta / "Zur Übersicht →") statt einer
+  // horizontalen Name-links/Button-rechts-Zeile.
+  const meta = `${esc(tr("createdOn", { date: new Date(con.created_at).toLocaleDateString(LANG === "en" ? "en-GB" : "de-AT") }))}${con.playabl_event_id ? ` · ${esc(tr("playablEvent"))}` : ""}`;
+  el.innerHTML = `<a class="next-con-card" href="plan.html?con=${esc(con.slug || con.id)}">
+    <div class="eyebrow">${esc(tr("nextConBadgeText", { countdown: formatCountdown(date) }))}</div>
+    <div class="t">${esc(con.name)}${crewBadge}</div>
+    <div class="m">${meta}</div>
+    <div class="open">${esc(tr("goToOverview"))}</div>
+  </a>`;
 }
 
 // Header-Seiten-Leiste: "Cons" ist die aktuelle Seite, "Raumplan" verlinkt zur

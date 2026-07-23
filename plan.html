@@ -8,7 +8,7 @@
   try { document.documentElement.setAttribute("data-theme", localStorage.getItem("raumplan-theme") || "dark"); } catch {}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&family=Quicksand:wght@600;700&family=Nunito:wght@400;600;700&family=Bangers&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&family=Space+Grotesk:wght@600;700&family=Nunito:wght@400;600;700&family=Bangers&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
@@ -16,7 +16,7 @@
 <div class="wrap">
   <header class="app-header no-print">
     <div class="header-inner">
-      <a class="brand" href="index.html">Con-Raumplan</a>
+      <a class="brand" href="index.html"><span class="brand-eyebrow" aria-hidden="true">&gt; </span>Con-Raumplan<span class="brand-cursor" aria-hidden="true">_</span></a>
       <nav class="page-tabs slot-tabs" id="pageTabs" role="group" aria-label="Seite wählen"></nav>
       <div class="header-right">
         <div class="controls-group">
@@ -406,6 +406,16 @@ const emptyState = msg => `<div class="empty-state"><span class="glyph"><svg cla
 function numberStepperHtml(id, { value = 0, min = 0, max = 999, step = 1, width = "3.5em", required = false } = {}) {
   return `<span class="stepper"><button type="button" class="stepper-btn" data-target="${id}" data-step="${-step}" aria-label="weniger">–</button><input type="number" id="${id}" min="${min}" max="${max}" step="${step}" value="${value}" style="width:${width}"${required ? " required" : ""}><button type="button" class="stepper-btn" data-target="${id}" data-step="${step}" aria-label="mehr">+</button></span>`;
 }
+// 1:1 aus der Vorlage (stepperStyle/stepperBtnStyle/stepperValStyle): der
+// Mindestplätze-Filter ist ein reiner Anzeige-Stepper (kein tippbares
+// Zahlenfeld wie numberStepperHtml) — Pill-Hintergrund + zwei 22×22-Buttons.
+function minSeatsStepperHtml() {
+  return `<span class="min-seats-stepper">
+    <button type="button" class="min-seats-btn" data-dir="-1" aria-label="${esc(tr("decreaseMinSeats"))}">–</button>
+    <span class="min-seats-val">${esc(tr("minSeatsLabel", { n: S.minSeats }))}</span>
+    <button type="button" class="min-seats-btn" data-dir="1" aria-label="${esc(tr("increaseMinSeats"))}">+</button>
+  </span>`;
+}
 // wireNumberStepper(): für statische Dialog-Felder, die schon fest im DOM
 // stehen (Tisch-/Spiel-Dialog) — verschiebt das bestehende Input samt aller
 // Attribute (required, min, max) in einen neuen Wrapper, statt es zu ersetzen.
@@ -503,7 +513,8 @@ function chipHtml(g, { crew = false, forceMinimal = false } = {}) {
   // Vorlage (crewShowDetails wirkt nur auf die Board-Ansicht, nicht global).
   const level = forceMinimal ? "minimal" : S.detailLevel;
   const titleHtml = g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title);
-  const titleShort = g.title.length > 22 ? g.title.slice(0, 21) + "…" : g.title;
+  const titleShortText = g.title.length > 22 ? g.title.slice(0, 21) + "…" : g.title;
+  const titleShort = g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(titleShortText)}</a>` : esc(titleShortText);
 
   // Volle Info immer als aria-label/title verfügbar, unabhängig vom
   // sichtbaren Detailgrad (role="group" auf dem Chip, damit es beim
@@ -520,7 +531,7 @@ function chipHtml(g, { crew = false, forceMinimal = false } = {}) {
   if (reqUnmet.length) summaryParts.push(tr("tableDoesNotMeet", { tags: reqUnmet.map(f => f.label).join(", ") }));
   const summary = summaryParts.join(", ");
 
-  const requestIconBtn = !crew ? `<button type="button" class="icon-btn requestBtn" data-game="${esc(g.key)}" aria-label="${esc(tr("proposeChangeTo", { title: g.title }))}" title="${esc(tr("proposeChangeHint"))}">💬</button>` : "";
+  const requestIconBtn = !crew ? `<button type="button" class="icon-btn requestBtn" data-game="${esc(g.key)}" aria-label="${esc(tr("proposeChangeTo", { title: g.title }))}" title="${esc(tr("proposeChangeHint"))}">✎</button>` : "";
   const warnBadgeFull = overSeats > 0 ? `<span class="badge warn">${esc(tr("overCapacityBadge", { n: overSeats }))}</span>` : "";
   const warnIconMinimal = overSeats > 0 ? `<span class="badge warn" aria-hidden="true">⚠</span>` : "";
   // Anforderungs-Badge: informativ (nicht warn-farbig), solange der Tisch
@@ -531,7 +542,7 @@ function chipHtml(g, { crew = false, forceMinimal = false } = {}) {
 
   let bodyHtml;
   if (level === "minimal") {
-    bodyHtml = `<div class="title-row"><span class="title-short">${esc(titleShort)}</span><span class="seats-short">${g.seats}p</span>${warnIconMinimal}${reqIconMinimal}${requestIconBtn}</div>`;
+    bodyHtml = `<div class="title-row"><span class="title-short">${titleShort}</span><span class="seats-short">${g.seats}p</span>${warnIconMinimal}${reqIconMinimal}${requestIconBtn}</div>`;
   } else {
     const whereHtml = room && table
       ? `<div class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)} · ${esc(table.name)}</div>`
@@ -591,7 +602,7 @@ function renderLegend() {
     <span class="item"><span class="swatch"></span> ${esc(tr("legendColorRoom"))}</span>
     <span class="item"><span class="swatch dashed"></span> ${esc(tr("legendDashedWorkshop"))}</span>
     <span class="item"><span class="badge warn">+X</span> ${esc(tr("legendOverCapacity"))}</span>
-    <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("legendInfoText"))}" data-info-text="${esc(tr("legendInfoText"))}">ⓘ</span>`;
+    <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("legendInfoText"))}" data-info-text="${esc(tr("legendInfoText"))}">i</span>`;
 }
 // Header-Seiten-Leiste: "Cons" ist ein echter Link zurück zu index.html,
 // "Raumplan"/"🔒 Crew" sind die zwei internen Top-Level-Zustände von
@@ -610,6 +621,11 @@ function renderNav() {
   document.getElementById("viewNavGroup").hidden = S.mode !== "view";
   document.getElementById("viewTabs").innerHTML = VIEWS.map(v =>
     `<button type="button" data-view="${v.key}" aria-pressed="${String(S.mode === "view" && S.view === v.key)}">${esc(tr(v.nameKey))}</button>`).join("");
+  // 1:1 aus der Vorlage (showDetailToggle = !viewIsTable): der Detailgrad-
+  // Switch wirkt sich in der Tabellen-Ansicht nicht aus (tableRows liest
+  // S.detailLevel nirgends) — dort ausblenden statt ein totes Bedienelement
+  // stehen zu lassen.
+  document.getElementById("detailSwitch").hidden = S.view === "tabelle";
 }
 
 /* ---------------- Ansicht: Tabelle ---------------- */
@@ -630,7 +646,7 @@ function tabelleHtml() {
   const trs = rows.map(g => {
     const a = asgFor(g); const table = a && S.tables.find(t => t.id === a.table_id); const room = table && roomOfTable(table.id);
     return `<tr>
-      <td>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title)}${g.ws ? ` <span class="badge">${esc(tr("workshop"))}</span>` : ""} <button type="button" class="icon-btn requestBtn no-print" data-game="${esc(g.key)}" aria-label="${esc(tr("proposeChangeTo", { title: g.title }))}" title="${esc(tr("proposeChangeHint"))}">💬</button></td>
+      <td>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title)}${g.ws ? ` <span class="badge">${esc(tr("workshop"))}</span>` : ""} <button type="button" class="icon-btn requestBtn no-print" data-game="${esc(g.key)}" aria-label="${esc(tr("proposeChangeTo", { title: g.title }))}" title="${esc(tr("proposeChangeHint"))}">✎</button></td>
       <td>${esc(g.slotLabel)}</td>
       <td>${room ? `<span class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)}</span>` : '<span style="color:var(--text-muted)">–</span>'}</td>
       <td>${table ? esc(table.name) : "–"}</td>
@@ -723,12 +739,16 @@ function zuordnenHtml() {
   // blockiert nichts, ist rein informativ, wie die Kapazitätswarnung.
   const selectedGameObj = S.selectedGame && gameByKey(S.selectedGame);
   const forceMinimal = !S.crewShowDetails;
-  const boardHtml = S.rooms.map(room => {
+  // 1:1 aus der Vorlage (roomBoardsCrew-Filter): Tag-Filter blenden nicht
+  // passende Räume komplett aus dem Grid aus, statt sie nur hervorzuheben —
+  // deckt sich mit dem eigenen Info-Text ("...zeigen dann nur passende
+  // Räume").
+  const filteredRooms = S.filterReqTags.length ? S.rooms.filter(room => roomSatisfiesTags(room, S.filterReqTags)) : S.rooms;
+  const boardHtml = filteredRooms.map(room => {
     const tables = S.tables.filter(t => t.room_id === room.id);
     const missingForRoom = selectedGameObj
       ? (selectedGameObj.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).filter(f => !roomTagIds(room).includes(f.id))
       : [];
-    const tagMatch = S.filterReqTags.length && roomSatisfiesTags(room, S.filterReqTags) ? " tag-match" : "";
     const tablesHtml = tables.map(t => {
       const games = slotGames.filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
       const double = games.length > 1 ? `<span class="badge warn">${esc(tr("doubleBooked"))}</span>` : "";
@@ -742,7 +762,7 @@ function zuordnenHtml() {
         const seatsFit = t.seats >= selectedGameObj.seats;
         gameMatch = seatsFit && !missingForRoom.length ? " gm-full" : seatsFit ? " gm-partial" : " gm-none";
       }
-      return `<div class="tablebox${tagMatch}${reqMismatch}${gameMatch}" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span>${double}${reqHint}</div>${games.map(g => chipHtml(g, { crew: true, forceMinimal })).join("") || `<div class="free">${esc(tr("freeLabel"))}</div>`}</div>`;
+      return `<div class="tablebox${reqMismatch}${gameMatch}" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span>${double}${reqHint}</div>${games.map(g => chipHtml(g, { crew: true, forceMinimal })).join("") || `<div class="free">${esc(tr("freeLabel"))}</div>`}</div>`;
     }).join("");
     return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><h3>${esc(room.name)}</h3></div>${tablesHtml || `<p class="hint">${esc(tr("noTablesCreateInRooms"))}</p>`}</div>`;
   }).join("") || emptyState(tr("noRoomsGoToManage"));
@@ -771,7 +791,7 @@ function zuordnenHtml() {
     <div class="toolbar-group">
       <span class="toolbar-label">${esc(tr("toolbarFilterLabel"))}</span>
       <div class="toolbar-pill-row">
-        ${numberStepperHtml("minSeatsInput", { value: S.minSeats, max: 200 })}
+        ${minSeatsStepperHtml()}
         ${filterTagPickerHtml("games", S.filterReqTags)}
       </div>
     </div>
@@ -825,7 +845,7 @@ function bucketsHtml() {
 // ansichten optisch gleich aufgebaut sind (Crew verwalten hatte das schon).
 function setupHeadHtml(titleText, infoAriaLabel, infoText, btnId, btnLabel) {
   return `<div class="controls no-print setup-head">
-    <div class="setup-head-title"><h2>${esc(titleText)}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(infoAriaLabel)}" data-info-text="${esc(infoText)}">ⓘ</span></div>
+    <div class="setup-head-title"><h2>${esc(titleText)}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(infoAriaLabel)}" data-info-text="${esc(infoText)}">i</span></div>
     <button type="button" id="${btnId}" class="primary">${esc(btnLabel)}</button>
   </div>`;
 }
@@ -927,23 +947,27 @@ function wuenscheHtml() {
   const rowsHtml = list.map(r => {
     const matchedGame = findGameByRef(r.game_ref);
     const jumpBtn = matchedGame ? `<button type="button" class="small jumpToGameBtn" data-game="${esc(matchedGame.key)}" data-slot="${esc(matchedGame.slotKey)}" data-msg="${esc(r.message)}">${esc(tr("jumpToGameBtn"))}</button>` : "";
+    // 1:1 aus der Vorlage: Kontakt steht als EIGENE letzte Zeile (mit
+    // "—"-Fallback statt Weglassen), das Erstelldatum steht nicht in der
+    // Vorlage — bleibt nur informativ am Zeilenende der Aktionen erhalten.
     return `
     <div class="req ${r.status !== "offen" ? "done" : ""}">
-      <div class="rmeta">${esc(new Date(r.created_at).toLocaleString(LANG === "en" ? "en-GB" : "de-AT", { timeZone: TZ }))}${r.contact ? " · " + esc(tr("fromContact", { contact: r.contact })) : ""}</div>
       <div><strong>${esc(r.game_ref || tr("general"))}</strong> <span class="badge ${REQ_STATUS_BADGE[r.status] || "muted"}">${esc(tr(REQ_STATUS_KEY[r.status] || r.status))}</span> ${jumpBtn}</div>
       <div class="rmsg">${esc(r.message)}</div>
       ${requestContextHtml(matchedGame)}
+      <div class="rcontact">${r.contact ? esc(r.contact) : "—"}</div>
       <div class="ractions">
         <button type="button" class="small reqStatus" data-id="${r.id}" data-status="erledigt">${esc(tr("statusDoneBtn"))}</button>
         <button type="button" class="small reqStatus" data-id="${r.id}" data-status="abgelehnt">${esc(tr("statusRejectedBtn"))}</button>
         <button type="button" class="small reqStatus" data-id="${r.id}" data-status="offen">${esc(tr("statusOpenBtn"))}</button>
         <input type="text" class="reqNote" data-id="${r.id}" placeholder="${esc(tr("crewNotePlaceholder"))}" value="${esc(r.orga_notiz || "")}" style="flex:1;min-width:140px">
+        <span class="rdate">${esc(new Date(r.created_at).toLocaleString(LANG === "en" ? "en-GB" : "de-AT", { timeZone: TZ }))}</span>
       </div>
     </div>`;
   }).join("") || `<p class="hint">${esc(tr("noOpenRequests"))}</p>`;
   return `<div class="controls no-print" style="justify-content:space-between">
+      <div class="setup-head-title"><h2>${esc(tr("requestsInfoTitle"))}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("requestsInfoAriaLabel"))}" data-info-text="${esc(tr("requestsInfoText"))}">i</span></div>
       <label style="display:flex;gap:6px;align-items:center;font-size:var(--fs-sm);cursor:pointer"><input type="checkbox" id="showDoneChk" ${S.showDoneRequests ? "checked" : ""}> ${esc(tr("showDoneCheckbox"))}</label>
-      <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("requestsInfoAriaLabel"))}" data-info-text="${esc(tr("requestsInfoText"))}">ⓘ</span>
     </div>
     <div class="card" style="margin-top:var(--sp-3)">${rowsHtml}</div>`;
 }
@@ -953,10 +977,10 @@ function crewVerwaltenHtml() {
   // 1:1 aus der Vorlage (quickOpenRowStyle vor crewMembers-sc-for): die
   // Einladen-Zeile steht VOR der Mitgliederliste, nicht danach.
   return `<div class="card">
-    <h2>${esc(tr("crewTitle"))} <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("crewInfoAriaLabel"))}" data-info-text="${esc(tr("crewInfoText"))}">ⓘ</span></h2>
+    <h2>${esc(tr("crewTitle"))} <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("crewInfoAriaLabel"))}" data-info-text="${esc(tr("crewInfoText"))}">i</span></h2>
     <p class="hint">${esc(S.role === "admin" ? tr("adminCanManage") : tr("onlyAdminsCanManage"))}</p>
     ${S.role === "admin" ? `<form id="inviteForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:var(--sp-3)">
-      <div class="frow" style="margin:0;flex:1;min-width:200px"><label for="inviteEmail">${esc(tr("inviteEmailLabel"))}</label><input type="email" id="inviteEmail" required></div>
+      <div class="frow" style="margin:0;flex:1;min-width:200px"><label for="inviteEmail">${esc(tr("inviteEmailLabel"))}</label><input type="email" id="inviteEmail" placeholder="crew@beispiel.de" required></div>
       <div class="frow" style="margin:0"><label for="inviteRole">${esc(tr("roleLabel"))}</label><select id="inviteRole"><option value="editor">${esc(tr("roleEditor"))}</option><option value="admin">${esc(tr("roleAdmin"))}</option></select></div>
       <button type="submit" class="primary">${esc(tr("inviteBtn"))}</button>
     </form>` : ""}
@@ -1155,10 +1179,31 @@ async function applyPendingAutoAssignJobs() {
 }
 
 /* ---------------- Drag & Drop (nur Zuordnen) ---------------- */
+// 1:1 aus der Vorlage (fitStyle wird über activeGameId berechnet, das im
+// dnd-Modus auch beim Ziehen gesetzt ist): Passungs-Highlighting auf ALLEN
+// Tischen schon während des Ziehens, nicht nur im Auswahl-Modus.
+function applyDragFitHighlight(gameKey) {
+  const g = gameByKey(gameKey);
+  if (!g) return;
+  document.querySelectorAll(".tablebox[data-table]").forEach(box => {
+    const table = S.tables.find(x => x.id === box.dataset.table);
+    const room = table && roomOfTable(table.id);
+    if (!table || !room) return;
+    const fits = table.seats >= g.seats;
+    const roomTags = roomTagIds(room);
+    const fitsTag = (g.requiredTagIds || []).every(id => roomTags.includes(id));
+    box.classList.remove("gm-full", "gm-partial", "gm-none");
+    box.classList.add(fits && fitsTag ? "gm-full" : fits ? "gm-partial" : "gm-none");
+  });
+}
+function clearDragFitHighlight() {
+  document.querySelectorAll(".tablebox.gm-full, .tablebox.gm-partial, .tablebox.gm-none").forEach(box =>
+    box.classList.remove("gm-full", "gm-partial", "gm-none"));
+}
 function wireDnd() {
   document.querySelectorAll('.chip[draggable="true"]').forEach(chip => {
-    chip.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", JSON.stringify({ g: chip.dataset.game, s: chip.dataset.slot })); chip.classList.add("dragging"); });
-    chip.addEventListener("dragend", () => chip.classList.remove("dragging"));
+    chip.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", JSON.stringify({ g: chip.dataset.game, s: chip.dataset.slot })); chip.classList.add("dragging"); applyDragFitHighlight(chip.dataset.game); });
+    chip.addEventListener("dragend", () => { chip.classList.remove("dragging"); clearDragFitHighlight(); });
   });
   document.querySelectorAll(".tablebox").forEach(box => {
     box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("dragover"); });
@@ -1247,13 +1292,6 @@ document.addEventListener("change", e => {
     })();
   }
 });
-// Eigener "input"-Listener (reagiert bei jedem Tastendruck, nicht erst bei
-// Blur/Enter wie "change") — braucht renderActivePreservingFocus(), da
-// #minSeatsInput innerhalb des ersetzten Crew-Contents liegt und sonst nach
-// dem ersten Zeichen den Fokus verlieren würde.
-document.addEventListener("input", e => {
-  if (e.target.id === "minSeatsInput") { S.minSeats = parseInt(e.target.value, 10) || 0; renderActivePreservingFocus(); }
-});
 document.addEventListener("click", async e => {
   // Einzelauswahl-Modus: Klick auf einen Tisch (oder die Warteschlange
   // selbst) übernimmt das aktuell ausgewählte Spiel — Ersatz fürs Dropdown.
@@ -1265,7 +1303,11 @@ document.addEventListener("click", async e => {
   }
   const t = e.target.closest("button, th[data-sort]");
   if (!t) return;
-  if (t.matches(".stepper-btn")) {
+  if (t.matches(".min-seats-btn")) {
+    S.minSeats = Math.max(0, S.minSeats + Number(t.dataset.dir));
+    renderActive();
+  }
+  else if (t.matches(".stepper-btn")) {
     const el = document.getElementById(t.dataset.target);
     if (!el) return;
     const step = Number(t.dataset.step);
@@ -1550,8 +1592,11 @@ function printPageHtml() {
 function filterTagPickerHtml(filterKey, selectedIds) {
   const selected = selectedIds.map(id => S.featureTags.find(f => f.id === id)).filter(Boolean);
   const remaining = S.featureTags.filter(f => !selectedIds.includes(f.id));
-  const pills = selected.map(f => `<span class="tag-pill">${esc(f.label)}<button type="button" class="filter-tag-remove" data-filterkey="${filterKey}" data-tag-id="${f.id}" aria-label="${esc(tr("removeFromFilterAriaLabel", { label: f.label }))}">×</button></span>`).join("");
-  return `<span class="tag-pills" style="display:inline-flex;margin:0 6px 0 0">${pills}</span><select class="filter-tag-select" data-filterkey="${filterKey}" aria-label="${esc(tr("addRequirementToFilterAriaLabel"))}"><option value="">${esc(tr("addRequirementOption"))}</option>${remaining.map(f => `<option value="${f.id}">${esc(f.label)}</option>`).join("")}</select>`;
+  const pills = selected.map(f => `<span class="tag-pill filter-pill">${esc(f.label)}<button type="button" class="filter-tag-remove" data-filterkey="${filterKey}" data-tag-id="${f.id}" aria-label="${esc(tr("removeFromFilterAriaLabel", { label: f.label }))}">×</button></span>`).join("");
+  // 1:1 aus der Vorlage (hasMoreTags): Add-Dropdown nur zeigen, wenn noch
+  // etwas hinzufügbar ist.
+  const addSelect = remaining.length ? `<select class="filter-tag-select" data-filterkey="${filterKey}" aria-label="${esc(tr("addRequirementToFilterAriaLabel"))}"><option value="">${esc(tr("addRequirementOption"))}</option>${remaining.map(f => `<option value="${f.id}">${esc(f.label)}</option>`).join("")}</select>` : "";
+  return `<span class="tag-pills" style="display:inline-flex;margin:0 6px 0 0">${pills}</span>${addSelect}`;
 }
 
 let tagPickerSelection = new Set();

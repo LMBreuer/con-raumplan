@@ -18,6 +18,12 @@
   --font-display: "Manrope", var(--font-body);
   --shadow-card: none;
   --border-w: 1px;
+  /* 1:1 aus der Vorlage (chromeShadow/chromeBorder): Header-Controls-Pille
+     und "Weitere Themes"-Popover haben ein EIGENES, von der Card-Optik
+     unabhängiges Schatten-/Rahmen-Token — per Default = Card-Werte,
+     Ukiyo/Comic/Solarpunk überschreiben es (siehe jeweiliger Theme-Block). */
+  --chrome-shadow: var(--shadow-card);
+  --chrome-border-w: var(--border-w);
 }
 
 /* ---------- Dark (Standard) ---------- */
@@ -130,7 +136,10 @@
   --good:  #7dffb0;
   --warn:  #ffb648;
   --band:  #0c1b0f;
-  --shadow-card: 0 0 0 1px rgba(80,255,140,.12), 0 0 18px -6px rgba(70,255,140,.35);
+  /* 1:1 aus der Vorlage (cardBase: box-shadow:...,0 0 16px -6px ${t.accent}66) —
+     ein einzelner Glow-Layer, kein zusätzlicher Ring (der kommt schon über
+     die feste 3px/4px-Doppelkontur in der .card/.room/dialog-Regel unten). */
+  --shadow-card: 0 0 16px -6px rgba(61,255,133,.4);
   --room-a: #3dff85; --room-b: #ffb648; --room-c: #58e0ff; --room-d: #b98bff; --room-e: #ff6ec9;
   --font-body: "Share Tech Mono", "Courier New", monospace;
   --font-display: "Share Tech Mono", "Courier New", monospace;
@@ -139,22 +148,34 @@
 }
 :root[data-theme="terminal"] body {
   background-image: repeating-linear-gradient(180deg,
-    rgba(80,255,140,0.035) 0px, rgba(80,255,140,0.035) 1px, transparent 1px, transparent 3px);
+    rgba(80,255,140,0.05) 0px, rgba(80,255,140,0.05) 1px, transparent 1px, transparent 3px);
 }
+/* 1:1 aus der Vorlage (cardBase: border:1px solid ${t.accent}) — voll
+   deckender Akzent-Rahmen statt des transluzenten Standard-Borders. */
 :root[data-theme="terminal"] .card,
 :root[data-theme="terminal"] .room,
 :root[data-theme="terminal"] dialog {
+  border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--page), 0 0 0 4px var(--border), var(--shadow-card);
 }
 :root[data-theme="terminal"] ::selection { background: var(--accent); color: var(--accent-ink); }
+/* 1:1 aus der Vorlage (eyebrowPrefix/cursorStyle): "> "-Prompt-Präfix +
+   blinkender "_"-Cursor am Markennamen, nur im Terminal-Theme. */
+.brand-eyebrow, .brand-cursor { display: none; }
+:root[data-theme="terminal"] .brand-eyebrow, :root[data-theme="terminal"] .brand-cursor { display: inline-block; }
+:root[data-theme="terminal"] .brand-cursor { color: var(--accent); margin-left: 2px; }
 @media (prefers-reduced-motion: no-preference) {
+  :root[data-theme="terminal"] .brand-cursor { animation: rp-cursor-blink 1s step-end infinite; }
+  @keyframes rp-cursor-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
   :root[data-theme="terminal"] body::after {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
     background: linear-gradient(180deg, transparent 0%, rgba(80,255,140,0.05) 50%, transparent 100%);
     background-size: 100% 220px;
-    animation: rp-scan-sweep 9s linear infinite;
+    animation: rp-scan-sweep 9s linear infinite, rp-crt-flicker 6s linear infinite;
   }
-  @keyframes rp-scan-sweep { from { background-position: 0 -220px; } to { background-position: 0 100vh; } }
+  @keyframes rp-scan-sweep { from { background-position: 0 -100vh; } to { background-position: 0 100vh; } }
+  @keyframes rp-crt-flicker { 0%, 96%, 100% { opacity: 1; } 97% { opacity: .85; } 98% { opacity: 1; } 99% { opacity: .9; } }
 }
 .pixel-cat { width: 22px; height: 22px; vertical-align: -6px; }
 .pixel-cat rect { fill: currentColor; }
@@ -188,7 +209,11 @@
 :root[data-theme="cyberpunk"] .card,
 :root[data-theme="cyberpunk"] .room,
 :root[data-theme="cyberpunk"] dialog {
-  box-shadow: 0 0 0 1px var(--border), var(--shadow-card);
+  /* 1:1 aus der Vorlage (cardBase): eigener, gedämpfterer Glow (1 Magenta-
+     Layer, Blur 14px) statt des großen 3-Layer-Chrome-Glows, plus Cyan- statt
+     Magenta-Rahmen. */
+  border-color: rgba(0,240,255,.35);
+  box-shadow: 0 0 0 1px rgba(0,240,255,.18), 0 0 14px -4px rgba(255,47,208,.35);
 }
 :root[data-theme="cyberpunk"] ::selection { background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="cyberpunk"] h1, :root[data-theme="cyberpunk"] h2 { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); }
@@ -213,31 +238,17 @@
     0%, 100% { box-shadow: 0 0 0 1px var(--border), var(--shadow-card); }
     50% { box-shadow: 0 0 0 1px var(--border), 0 0 0 1px rgba(0,240,255,.35), 0 0 34px -2px rgba(255,47,208,.65), 0 0 56px -10px rgba(0,240,255,.5); }
   }
-  /* Glitch bewusst nur auf dem Seiten-H1 (Hero), nicht auf h2/Chip-Titeln
-     etc. — "spend your boldness in one place" statt verstreuter Effekte.
-     Läuft als ruhiger Loop mit, damit man ihn auch ohne Hover entdeckt;
-     Hover löst zusätzlich sofort einen frischen Glitch aus. */
+  /* 1:1 aus der Vorlage (h1Style: animation:glitchFlicker 4s steps(2,end)
+     infinite) — EINE durchlaufende Animation ohne Hover-Sonderfall. */
   :root[data-theme="cyberpunk"] h1 {
-    animation: rp-glitch-ambient 8s ease-in-out infinite;
+    animation: glitchFlicker 4s steps(2, end) infinite;
   }
-  :root[data-theme="cyberpunk"] h1:hover {
-    animation: rp-glitch .38s steps(2, end) 1;
-  }
-  @keyframes rp-glitch {
-    0%, 100% { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(0, 0); }
-    20% { text-shadow: -2px 0 rgba(255,47,208,.85), 2px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(-2px, 1px); }
-    40% { text-shadow: 2px 0 rgba(255,47,208,.85), -2px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(2px, -1px); }
-    60% { text-shadow: -1px 0 rgba(255,47,208,.85), 1px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(1px, 0); }
-    80% { text-shadow: 1px 0 rgba(0,240,255,.85), -1px 0 rgba(255,47,208,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(-1px, 0); }
-  }
-  /* Dieselbe Verzerrung, aber auf ein kurzes Fenster in einem 8s-Loop
-     komprimiert — den Rest der Zeit ruht der Titel. */
-  @keyframes rp-glitch-ambient {
-    0%, 92%, 100% { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(0, 0); }
-    93% { text-shadow: -2px 0 rgba(255,47,208,.85), 2px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(-2px, 1px); }
-    94.5% { text-shadow: 2px 0 rgba(255,47,208,.85), -2px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(2px, -1px); }
-    96% { text-shadow: -1px 0 rgba(255,47,208,.85), 1px 0 rgba(0,240,255,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(1px, 0); }
-    97.5% { text-shadow: 1px 0 rgba(0,240,255,.85), -1px 0 rgba(255,47,208,.85), 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(-1px, 0); }
+  @keyframes glitchFlicker {
+    0%, 78%, 100% { text-shadow: 0 0 12px rgba(0,240,255,.5); transform: translate(0,0); }
+    80% { text-shadow: -3px 0 rgba(255,47,208,.9), 3px 0 rgba(0,240,255,.9); transform: translate(-3px,1px); }
+    84% { text-shadow: 3px 0 rgba(255,47,208,.9), -3px 0 rgba(0,240,255,.9); transform: translate(3px,-1px); }
+    88% { text-shadow: -2px 0 rgba(255,47,208,.9), 2px 0 rgba(0,240,255,.9); transform: translate(2px,0); }
+    92% { text-shadow: 0 0 12px rgba(0,240,255,.5); transform: translate(0,0); }
   }
 }
 
@@ -261,11 +272,14 @@
   --good:  #4a6741;
   --warn:  #a3671f;
   --band:  #efe6d3;
-  --shadow-card: 0 1px 2px rgba(40,30,10,.05), 0 16px 36px -20px rgba(40,30,10,.2);
+  --shadow-card: none;
   --room-a: #8b2f3b; --room-b: #4a6741; --room-c: #2f5f8b; --room-d: #7a6a3a; --room-e: #5a4a6a;
   --font-display: "Shippori Mincho", var(--font-body);
   /* Ukiyo-e bleibt betont schlicht/kantig statt dem neuen rundlichen Standard. */
   --r-sm: 2px; --r-md: 1px; --r-lg: 2px; --r-pill: 2px;
+  /* 1:1 aus der Vorlage (cardBase/chromeShadow): Ukiyo-e ist bewusst
+     komplett schattenfrei — Cards UND Chrome (Controls-Pille/Popover). */
+  --chrome-shadow: none;
 }
 :root[data-theme="ukiyo"] .card,
 :root[data-theme="ukiyo"] .room,
@@ -305,10 +319,13 @@
   --band:  #e7e0c4;
   --shadow-card: 0 1px 2px rgba(40,80,40,.06), 0 22px 46px -22px rgba(70,120,60,.3);
   --room-a: #2f7d4f; --room-b: #c76b3b; --room-c: #3d7ea6; --room-d: #b8952e; --room-e: #7a5a8f;
-  --font-display: "Quicksand", var(--font-body);
+  --font-display: "Space Grotesk", var(--font-body);
   --font-body: "Nunito", system-ui, -apple-system, sans-serif;
   /* Organisch-asymmetrische Ecke statt gleichmäßigem Radius. */
-  --r-sm: 10px; --r-md: 12px; --r-pill: 999px; --r-lg: 30px 14px 30px 14px;
+  --r-sm: 14px; --r-md: 18px; --r-pill: 999px; --r-lg: 30px 14px 30px 14px;
+  /* 1:1 aus der Vorlage (chromeShadow): eigener, weicherer Grün-Glow statt
+     des zweilagigen Card-Schattens für Header-Controls/Popover. */
+  --chrome-shadow: 0 6px 16px -8px rgba(70,120,60,.4);
 }
 :root[data-theme="solarpunk"] body {
   background-image:
@@ -341,7 +358,12 @@
   --font-display: "Bangers", cursive;
   --font-body: "Poppins", system-ui, -apple-system, sans-serif;
   --border-w: 3px;
-  --r-sm: 10px; --r-md: 12px; --r-pill: 999px; --r-lg: 14px;
+  --r-sm: 6px; --r-md: 8px; --r-pill: 999px; --r-lg: 14px;
+  /* 1:1 aus der Vorlage (chromeShadow/chromeBorder): Header-Controls/Popover
+     bekommen einen kleineren Versatz-Schatten (3px statt 6px) und einen
+     dünneren Rahmen (2px statt 3px) als normale Cards — leichter wirkend. */
+  --chrome-shadow: 3px 3px 0 var(--text-primary);
+  --chrome-border-w: 2px;
 }
 /* Ben-Day-Dots-Raster ÜBER einem seiten-festen Comic-Cover (--comic-bg,
    siehe pickComicBackground() in common.js) — 1:1 aus der Vorlage
@@ -419,6 +441,13 @@ label { font-size: var(--fs-xs); color: var(--text-secondary); }
 }
 .stepper-btn:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
 .stepper-btn:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+
+/* 1:1 aus der Vorlage (stepperStyle/stepperBtnStyle/stepperValStyle): reiner
+   Anzeige-Stepper (kein Zahlenfeld) für den Mindestplätze-Filter — Pill-
+   Hintergrund umschließt zwei quadratische Buttons + Text. */
+.min-seats-stepper { display: inline-flex; align-items: center; gap: var(--sp-2); background: var(--band); border-radius: var(--r-pill); padding: 5px 8px; }
+.min-seats-btn { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-1); border: none; border-radius: 6px; width: 22px; height: 22px; font-weight: 700; cursor: pointer; padding: 0; }
+.min-seats-val { font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; }
 
 button, a.btn { display: inline-flex; align-items: center; gap: var(--sp-2); background: var(--surface-1); color: var(--text-primary); border: var(--border-w) solid var(--baseline); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-4); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; text-decoration: none; }
 button:hover, a.btn:hover { border-color: var(--accent); }
@@ -520,9 +549,14 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
 
 /* Login-Button wird zum Avatar-Kreis, sobald eingeloggt (siehe mountAuthUI). */
 button.has-avatar { padding: 3px; border-radius: 50%; background: transparent; border-color: transparent; }
+/* 1:1 aus der Vorlage (loginBtnStyle: box-shadow im Comic-Theme). */
+:root[data-theme="comic"] #authBtn:not(.has-avatar) { box-shadow: 2px 2px 0 var(--text-primary); }
+/* 1:1 aus der Vorlage (avatarWrapStyle): dezentes accentSoft-Badge mit
+   akzentfarbener Schrift + eigenem Rand statt vollflächigem Akzent-Kreis. */
 .auth-avatar {
   position: relative; display: inline-flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+  width: 32px; height: 32px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+  border: var(--border-w) solid var(--border);
   font-size: var(--fs-xs); font-weight: 800; letter-spacing: .02em;
 }
 .auth-online-dot {
@@ -543,22 +577,34 @@ button.has-avatar { padding: 3px; border-radius: 50%; background: transparent; b
   .card, .room, .chip, .kpi-bar .kpi, .con-card, .tablebox, .req, .assign-queue, .filter-chips {
     transition: transform .16s ease, box-shadow .16s ease;
   }
-  .card:hover, .room:hover, .kpi-bar .kpi:hover, .con-card:hover, .req:hover {
+  .card:hover, .kpi-bar .kpi:hover, .con-card:hover, .req:hover {
     transform: translateY(-2px);
   }
+  /* 1:1 aus der Vorlage (room.cardStyle: style-hover="transform:translateY(-3px)")
+     — Raum-Karten heben stärker ab als normale Cards. */
+  .room:hover { transform: translateY(-3px); }
   .chip:not(.dragging):hover { transform: translateY(-1px); }
 
-  .card, .room, .chip, .kpi-bar .kpi, .req {
-    animation: rp-fadein .28s ease-out both;
+  /* 1:1 aus der Vorlage (style-hover-Attribute, bislang komplett übersehen):
+     größere Buttons/Trigger heben leicht ab oder skalieren beim Hover,
+     kleine Icon-/Aktions-Buttons (.small/.icon-btn) bleiben bewusst ruhig. */
+  button:not(.small):not(.icon-btn), a.btn:not(.small) { transition: transform .15s ease; }
+  button:not(.small):not(.icon-btn):hover, a.btn:not(.small):hover { transform: translateY(-2px); }
+  .theme-switch button, .lang-switch-flat button, .theme-more-trigger, button.has-avatar {
+    transition: transform .15s ease;
   }
-  /* leichter Stagger in der Zuordnen-Warteschlange/Chipbars, damit neu
-     gerenderte Listen nicht alle exakt gleichzeitig "poppen" */
-  .chipbar .chip:nth-child(1) { animation-delay: 0ms; }
-  .chipbar .chip:nth-child(2) { animation-delay: 25ms; }
-  .chipbar .chip:nth-child(3) { animation-delay: 50ms; }
-  .chipbar .chip:nth-child(4) { animation-delay: 75ms; }
-  .chipbar .chip:nth-child(5) { animation-delay: 100ms; }
-  .chipbar .chip:nth-child(n+6) { animation-delay: 125ms; }
+  .theme-switch button:hover, .lang-switch-flat button:hover { transform: scale(1.06); }
+  .theme-more-trigger:hover { transform: scale(1.03); }
+  button.has-avatar:hover { transform: scale(1.05); }
+  .next-con-card { transition: transform .16s ease; }
+  .next-con-card:hover { transform: translateY(-3px); }
+
+  /* 1:1 aus der Vorlage (cardBase: animation:fadeUp .5s ease-out both) —
+     chipBase() hat KEINE animation-Property, Chips poppen im Design also
+     nicht beim Rendern ein (bewusst auf .card/.room/.kpi/.req beschränkt). */
+  .card, .room, .kpi-bar .kpi, .req {
+    animation: rp-fadein .5s ease-out both;
+  }
 
   /* Kurzes, sichtbares Feedback auf der Zielkarte nach Drop/Einzelauswahl-
      Zuweisung (assign() in plan.html setzt/entfernt diese Klasse). */
@@ -568,7 +614,7 @@ button.has-avatar { padding: 3px; border-radius: 50%; background: transparent; b
     100% { box-shadow: none; }
   }
 }
-@keyframes rp-fadein { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes rp-fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ============================================================
    Räume, Tische, Spiel-Chips — Spiel ist die primäre Information,
@@ -577,9 +623,18 @@ button.has-avatar { padding: 3px; border-radius: 50%; background: transparent; b
 /* Bento-Tray: Räume sind Kacheln unterschiedlichen Gewichts — ein Raum mit
    vielen Tischen (.wide, JS-seitig ab 4 Tischen vergeben) bekommt mehr
    Fläche statt gleich große Boxen wie ein Raum mit einem einzigen Tisch. */
-#board { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--sp-6); align-items: start; }
+/* 1:1 aus der Vorlage (roomGridStyle): feste 2 Spalten statt responsivem
+   Auto-Fill — Räume mit 4+ Tischen (.wide) spannen beide Spalten. */
+#board { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-6); align-items: start; }
 .room.wide { grid-column: span 2; }
-@media (max-width: 900px) { .room.wide { grid-column: span 1; } }
+@media (max-width: 900px) { #board { grid-template-columns: 1fr; } .room.wide { grid-column: span 1; } }
+/* Setup-"Räume verwalten" nutzt dieselbe #board-ID für seine flache
+   .room-row-Liste (kein Kartenraster) — bleibt unabhängig von der
+   Spaltenzahl immer einspaltig. */
+.room-row { grid-column: 1 / -1; }
+/* 1:1 aus der Vorlage (roomsColStyle): im Zuordnen-Modus scrollt das
+   Räume-Grid unabhängig von der Warteschlange in fixer Höhe. */
+.assign-layout #board { max-height: 82vh; overflow-y: auto; padding-right: var(--sp-1); }
 .room {
   position: relative;
   background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-lg);
@@ -634,13 +689,10 @@ button.has-avatar { padding: 3px; border-radius: 50%; background: transparent; b
   background: var(--surface-2);
 }
 .tablebox.dragover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
-.tablebox.seat-match { border-color: var(--good); box-shadow: 0 0 0 1.5px var(--good) inset; }
 .tablebox.req-mismatch { border-color: var(--warn); box-shadow: 0 0 0 1.5px var(--warn) inset; }
-.tablebox.tag-match { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent) inset; }
 /* Zieltisch-Scoring fürs aktuell gewählte Spiel im Auswahl-Modus — solide
    Outline (Plätze+Anforderungen passen), gestrichelt (nur Plätze), gedimmt
-   (passt gar nicht). Eigene Klassen statt Reuse von seat-match/tag-match,
-   weil die schon für die manuellen Tisch-Filter belegt sind. */
+   (passt gar nicht). */
 .tablebox.gm-full { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tablebox.gm-partial { outline: 2px dashed var(--warn); outline-offset: 2px; }
 .tablebox.gm-none { opacity: .45; }
@@ -658,6 +710,9 @@ button.has-avatar { padding: 3px; border-radius: 50%; background: transparent; b
   padding: var(--sp-2) var(--sp-3); font-size: var(--fs-sm); max-width: 100%;
 }
 .chip.ws { border-style: dashed; }
+/* 1:1 aus der Vorlage (chipBase): Cyberpunk/Kontrastreich geben Chips einen
+   eigenen, kleineren Radius als der generische --r-md-Wert. */
+:root[data-theme="cyberpunk"] .chip, :root[data-theme="contrast"] .chip { border-radius: 6px; }
 .chip .title { font-size: var(--fs-md); font-weight: 800; line-height: 1.25; }
 .chip .title a { color: inherit; text-decoration: none; }
 .chip .title a:hover, .chip .title a:focus-visible { text-decoration: underline; }
@@ -672,8 +727,8 @@ button.has-avatar { padding: 3px; border-radius: 50%; background: transparent; b
 
 /* Pulse-Highlight fürs "Zum Spiel →" aus Änderungswünschen — global reduced-
    motion-Regel (siehe unten) schaltet das ohnehin ab, keine eigene Gate nötig. */
-@keyframes highlightPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent); } 50% { box-shadow: 0 0 0 6px var(--accent); } }
-.pulse-highlight { animation: highlightPulse .6s ease-in-out 2; }
+@keyframes highlightPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent); } 50% { box-shadow: 0 0 0 4px var(--accent); } }
+.pulse-highlight { animation: highlightPulse .9s ease-in-out 3; }
 
 .pinned-banner {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
@@ -759,7 +814,14 @@ tr:hover .icon-btn.requestBtn, tr:focus-within .icon-btn.requestBtn,
 
 /* Info-Tooltip: geteiltes Hover/Klick-Popover statt Dialoge — Portal in
    <body>, gleiches Muster wie .theme-more-popover. */
-.icon-btn.info-tip-trigger { cursor: help; }
+/* 1:1 aus der Vorlage (infoIconStyle): eigener runder 16×16px-Badge statt
+   der generischen transparenten Icon-Btn-Optik. */
+.icon-btn.info-tip-trigger {
+  cursor: help; display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--band);
+  color: var(--text-secondary); font-size: .65rem; font-weight: 700; flex-shrink: 0;
+}
+.icon-btn.info-tip-trigger:hover { background: var(--band); border-color: transparent; }
 .info-tip-popover {
   position: fixed; z-index: 1000; width: 230px;
   background: var(--surface-2); border: var(--border-w) solid var(--border); border-radius: var(--r-md);
@@ -778,6 +840,10 @@ tr:hover .icon-btn.requestBtn, tr:focus-within .icon-btn.requestBtn,
    Add-Dropdown darunter (Raum-Eigenschaften, später auch Spiel-Anforderungen). */
 .tag-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--sp-2); min-height: 1.6em; }
 .tag-pill { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 600; padding: 3px 4px 3px var(--sp-3); border-radius: var(--r-pill); background: var(--accent); color: var(--accent-ink); }
+/* 1:1 aus der Vorlage (tagFilterChips): "aktiver Filter" ist visuell weicher
+   als eine "zugewiesene Eigenschaft" (Raum-Editor nutzt weiterhin .tag-pill
+   solide). */
+.tag-pill.filter-pill { background: var(--accent-soft); color: var(--accent); }
 .tag-remove { border: none; background: transparent; color: inherit; font-size: 1em; line-height: 1; padding: 0 4px; cursor: pointer; border-radius: 50%; }
 .tag-remove:hover { background: rgba(0, 0, 0, .18); }
 .tag-add-select, .filter-tag-select { font-size: var(--fs-xs); padding: 4px var(--sp-2); border-radius: var(--r-sm); border: var(--border-w) solid var(--baseline); background: var(--surface-1); }
@@ -837,7 +903,11 @@ dialog .msg.err { color: var(--warn); }
 }
 .req .rmeta { color: var(--text-muted); font-size: var(--fs-xs); }
 .req .rmsg { margin: 3px 0; white-space: pre-wrap; }
+/* 1:1 aus der Vorlage (requestContactStyle): eigene Kontakt-Zeile mit
+   "—"-Fallback statt inline in der Datumszeile. */
+.req .rcontact { color: var(--text-muted); font-size: var(--fs-xs); margin-top: 2px; }
 .req .ractions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: var(--sp-1); }
+.req .rdate { color: var(--text-muted); font-size: var(--fs-xs); margin-left: auto; }
 .req.done { opacity: .6; }
 
 /* ============================================================
@@ -860,14 +930,21 @@ dialog .msg.err { color: var(--warn); }
 .cons-toolbar input[type="search"], .cons-toolbar input[type="text"] { flex: 1; min-width: 200px; }
 
 /* Hervorgehobene "nächste Con"-Karte über der Con-Liste. */
+/* 1:1 aus der Vorlage (nextConCardStyle): vier gestapelte Zeilen statt
+   horizontaler Name-links/Button-rechts-Anordnung, Rahmen/Schatten wie eine
+   normale Card (nicht akzentfarben umrandet) — nur Kontrastreich erzwingt
+   laut Vorlage explizit einen 2px-Schwarz-Rand + weißen statt akzentfarbenen
+   Hintergrund (accent-soft ist dort zu blass für echten Kontrast). */
 .next-con-card {
-  display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
-  background: var(--accent-soft); border: var(--border-w) solid var(--accent); border-radius: var(--r-lg);
-  padding: var(--sp-4); margin-bottom: var(--sp-4);
+  display: block; text-decoration: none; color: inherit;
+  background: var(--accent-soft); border: var(--border-w) solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card); padding: var(--sp-4); margin-bottom: var(--sp-4);
 }
+:root[data-theme="contrast"] .next-con-card { background: var(--surface-1); border: 2px solid var(--text-primary); }
 .next-con-card .eyebrow { font-size: var(--fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); }
 .next-con-card .t { font-size: var(--fs-lg); font-weight: 800; font-family: var(--font-display); margin-top: 2px; }
-.next-con-card .countdown { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 700; padding: 2px var(--sp-2); border-radius: var(--r-pill); background: var(--surface-1); margin-left: var(--sp-2); }
+.next-con-card .m { font-size: var(--fs-sm); color: var(--text-secondary); margin-top: var(--sp-1); }
+.next-con-card .open { font-size: var(--fs-sm); font-weight: 700; color: var(--accent); margin-top: var(--sp-3); }
 .next-con-card .crew-badge { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 700; color: var(--good); margin-left: var(--sp-2); }
 .next-con-card .crew-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); flex: none; }
 
@@ -878,7 +955,7 @@ dialog .msg.err { color: var(--warn); }
    sich EIN Pill-Gehäuse mit Dividern zwischen den Gruppen statt je einem
    eigenen Innen-Hintergrund — 1:1 aus der Design-Vorlage (controlsGroupStyle),
    siehe Phase-10-Plan Abschnitt A. */
-.controls-group { position: relative; display: flex; align-items: center; gap: 6px; background: var(--surface-1); padding: 4px; border-radius: var(--r-pill); box-shadow: var(--shadow-card); border: var(--border-w) solid var(--border); }
+.controls-group { position: relative; display: flex; align-items: center; gap: 6px; background: var(--surface-1); padding: 4px; border-radius: var(--r-pill); box-shadow: var(--chrome-shadow); border: var(--chrome-border-w) solid var(--border); }
 .controls-divider { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
 .lang-switch-flat { display: flex; gap: 2px; }
 .lang-switch-flat button { padding: var(--sp-1) var(--sp-2); font-size: var(--fs-xs); font-weight: 700; border: none; background: transparent; color: var(--text-secondary); border-radius: var(--r-pill); cursor: pointer; }
@@ -904,8 +981,8 @@ dialog .msg.err { color: var(--warn); }
    das Popover lebt als Portal direkt in <body>, siehe dortiger Kommentar. */
 .theme-more-popover {
   position: fixed; z-index: 9000; width: 210px;
-  background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-md);
-  box-shadow: var(--shadow-card), 0 8px 24px -8px rgba(0,0,0,.25); padding: 4px; display: flex; flex-direction: column; gap: 2px;
+  background: var(--surface-1); border: var(--chrome-border-w) solid var(--border); border-radius: var(--r-md);
+  box-shadow: var(--chrome-shadow); padding: 4px; display: flex; flex-direction: column; gap: 2px;
 }
 .theme-more-row {
   display: flex; align-items: center; gap: var(--sp-2); width: 100%; justify-content: flex-start;
