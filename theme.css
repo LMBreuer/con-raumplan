@@ -343,9 +343,19 @@
   --border-w: 3px;
   --r-sm: 10px; --r-md: 12px; --r-pill: 999px; --r-lg: 14px;
 }
+/* Ben-Day-Dots-Raster ÜBER einem seiten-festen Comic-Cover (--comic-bg,
+   siehe pickComicBackground() in common.js) — 1:1 aus der Vorlage
+   (radial-gradient + luminosity-blend), vorher fehlte das Cover komplett. */
 :root[data-theme="comic"] body {
-  background-image: radial-gradient(circle, rgba(24,20,24,.08) 1.4px, transparent 1.4px);
-  background-size: 14px 14px;
+  background-image:
+    radial-gradient(circle, rgba(24,20,24,.14) 1.7px, transparent 1.7px),
+    linear-gradient(color-mix(in srgb, var(--page) 94%, transparent), color-mix(in srgb, var(--page) 94%, transparent)),
+    var(--comic-bg, none);
+  background-size: 16px 16px, cover, cover;
+  background-position: 0 0, center, center;
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-attachment: fixed, fixed, fixed;
+  background-blend-mode: normal, normal, luminosity;
 }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -451,12 +461,27 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
 
 /* Segmented-Control (Slot-Tabs, Ansicht-Tabs, Crew-Tabs) */
 .slot-tabs { display: flex; flex-wrap: wrap; gap: 2px; background: var(--band); padding: 3px; border-radius: var(--r-md); }
-.slot-tabs button {
+.slot-tabs button, .slot-tabs a {
   background: transparent; border: none; border-radius: calc(var(--r-md) - 3px);
   padding: var(--sp-2) var(--sp-3); font-size: var(--fs-xs); font-weight: 700; color: var(--text-secondary);
+  text-decoration: none; cursor: pointer; display: inline-flex; align-items: center;
 }
-.slot-tabs button[aria-pressed="true"] { background: var(--surface-1); color: var(--text-primary); box-shadow: var(--shadow-card); }
+.slot-tabs button[aria-pressed="true"], .slot-tabs a[aria-pressed="true"] { background: var(--surface-1); color: var(--text-primary); box-shadow: var(--shadow-card); }
 .slot-tabs.crew { outline: 1.5px dashed var(--accent); outline-offset: 3px; }
+
+/* Kopfzeile: eine Leiste mit Cons/Raumplan/🔒Crew mittig + Controls rechts —
+   1:1 aus der Design-Vorlage (headerBarStyle/headerInnerStyle), siehe
+   Phase-10-Plan Abschnitt A. */
+.app-header {
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in srgb, var(--page) 90%, transparent); backdrop-filter: blur(10px);
+  border-bottom: var(--border-w) solid var(--border);
+  margin: calc(var(--sp-6) * -1) calc(var(--sp-4) * -1) var(--sp-5); padding: var(--sp-3) var(--sp-4);
+}
+.header-inner { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--sp-4); }
+.brand { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-md); color: var(--text-primary); text-decoration: none; justify-self: start; }
+.page-tabs { justify-self: center; }
+.header-right { display: flex; gap: var(--sp-3); align-items: center; flex-shrink: 0; justify-self: end; }
 .nav-groups { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: center; margin: var(--sp-3) 0; }
 .nav-groups .label { font-size: var(--fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-right: var(--sp-1); }
 
@@ -678,6 +703,43 @@ tr:hover .icon-btn.requestBtn, tr:focus-within .icon-btn.requestBtn,
   background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-lg);
   padding: var(--sp-3); box-shadow: var(--shadow-card);
 }
+.queue-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-1); }
+.queue-title-row { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.queue-title-row h2 { margin: 0; }
+
+/* Zuordnen-Toolbar: eine Karte, 4 Gruppen durch vertikale Divider getrennt —
+   1:1 aus der Vorlage (toolbarCrewCardStyle), auch fürs Druck-Steuerung
+   wiederverwendet (siehe .toolbar-card in der Druckseite). */
+.toolbar-card { display: flex; align-items: flex-start; gap: var(--sp-4); flex-wrap: wrap; }
+.toolbar-group { display: flex; flex-direction: column; gap: var(--sp-2); }
+.toolbar-label { font-size: var(--fs-xs); font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+.toolbar-pill-row { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
+.toolbar-divider { width: 1px; align-self: stretch; background: var(--border); flex-shrink: 0; }
+.details-toggle {
+  font-size: var(--fs-sm); font-weight: 700; color: var(--text-secondary); background: var(--band);
+  border: none; border-radius: var(--r-pill); padding: var(--sp-1) var(--sp-3); cursor: pointer;
+}
+.details-toggle.is-active { color: var(--accent); background: var(--accent-soft); }
+
+/* Crew-Hauptnav: Underline-Tabs statt Pills — 1:1 aus der Vorlage
+   (crewViews/crewNavWrapStyle); Setup-Unternav (setupSubTabs) bleibt Pill-
+   Style, siehe .slot-tabs weiter oben. */
+.crew-nav { display: flex; gap: var(--sp-5); border-bottom: var(--border-w) solid var(--border); margin-bottom: var(--sp-4); flex-wrap: wrap; }
+.crew-nav button {
+  background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary);
+  padding: var(--sp-2) 2px; font-size: var(--fs-sm); font-weight: 700; cursor: pointer;
+}
+.crew-nav button[aria-pressed="true"] { border-bottom-color: var(--accent); color: var(--text-primary); }
+
+/* Info-Tooltip: geteiltes Hover/Klick-Popover statt Dialoge — Portal in
+   <body>, gleiches Muster wie .theme-more-popover. */
+.icon-btn.info-tip-trigger { cursor: help; }
+.info-tip-popover {
+  position: fixed; z-index: 1000; width: 230px;
+  background: var(--surface-2); border: var(--border-w) solid var(--border); border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-3); font-size: var(--fs-sm); line-height: 1.4; color: var(--text-secondary);
+  box-shadow: var(--shadow-card), 0 8px 24px -8px rgba(0,0,0,.35);
+}
 .filter-chips {
   display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: var(--sp-3);
   background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-md);
@@ -755,8 +817,10 @@ dialog .msg.err { color: var(--warn); }
 /* ============================================================
    Con-Picker (index.html)
    ============================================================ */
-.hero { text-align: left; margin-bottom: var(--sp-5); }
-.hero .logo-row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+/* Landing-Hero: zentriert, 1:1 aus der Design-Vorlage (heroWrapStyle). */
+.hero-wrap { max-width: 1180px; margin: 0 auto var(--sp-5); text-align: center; padding: var(--sp-2) 0 var(--sp-1); }
+.hero-wrap h1 { font-size: 2.2rem; }
+.hero-wrap .sub { color: var(--text-secondary); font-size: var(--fs-base); margin: var(--sp-2) auto 0; max-width: 560px; }
 .con-list { display: grid; gap: var(--sp-3); }
 .con-card {
   display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
@@ -784,20 +848,31 @@ dialog .msg.err { color: var(--warn); }
 /* ============================================================
    Theme-Switcher
    ============================================================ */
+/* Kopfzeilen-Controls-Cluster: Sprache + Core-Themes + "Weitere Themes" teilen
+   sich EIN Pill-Gehäuse mit Dividern zwischen den Gruppen statt je einem
+   eigenen Innen-Hintergrund — 1:1 aus der Design-Vorlage (controlsGroupStyle),
+   siehe Phase-10-Plan Abschnitt A. */
+.controls-group { position: relative; display: flex; align-items: center; gap: 6px; background: var(--surface-1); padding: 4px; border-radius: var(--r-pill); box-shadow: var(--shadow-card); border: var(--border-w) solid var(--border); }
+.controls-divider { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
+.lang-switch-flat { display: flex; gap: 2px; }
+.lang-switch-flat button { padding: var(--sp-1) var(--sp-2); font-size: var(--fs-xs); font-weight: 700; border: none; background: transparent; color: var(--text-secondary); border-radius: var(--r-pill); cursor: pointer; }
+.lang-switch-flat button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+
 .theme-switch-group { display: flex; align-items: center; gap: 6px; position: relative; }
-.theme-switch { display: flex; gap: 2px; background: var(--band); padding: 3px; border-radius: var(--r-md); }
+.theme-switch { display: flex; gap: 2px; }
 .theme-switch button {
-  padding: var(--sp-1) var(--sp-2); font-size: 1rem; border: none; background: transparent; border-radius: calc(var(--r-md) - 3px);
+  padding: var(--sp-1) var(--sp-2); font-size: 1rem; border: none; background: transparent; border-radius: var(--r-pill);
 }
-.theme-switch button[aria-pressed="true"] { background: var(--surface-1); box-shadow: var(--shadow-card); }
+.theme-switch button[aria-pressed="true"] { background: var(--accent-soft); }
 
 /* "Weitere Themes"-Popover: Trigger zeigt das aktive Special-Theme (oder ✨),
    Popover listet die restlichen Themes mit ✓ beim aktiven. */
 .theme-more-wrap { position: relative; }
 .theme-more-trigger {
   display: inline-flex; align-items: center; gap: 4px; padding: var(--sp-1) var(--sp-2);
-  font-size: 1rem; border: var(--border-w) solid var(--baseline); background: var(--band); border-radius: var(--r-pill);
+  font-size: 1rem; border: none; background: transparent; color: var(--text-secondary); border-radius: var(--r-pill);
 }
+.theme-more-trigger.is-active { background: var(--accent-soft); color: var(--accent); }
 .theme-more-chevron { font-size: .7em; opacity: .7; }
 /* position:fixed + top/left werden per JS gesetzt (renderThemeSwitch) —
    das Popover lebt als Portal direkt in <body>, siehe dortiger Kommentar. */
@@ -833,7 +908,53 @@ summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 700; padding: v
   #board { grid-template-columns: 1fr; }
   .controls { padding: var(--sp-2); }
   body { padding: var(--sp-4) var(--sp-2) var(--sp-6); }
+  /* Header-Grid (1fr auto 1fr) überläuft auf sehr schmalen Viewports —
+     stapelt sich stattdessen: Marke+Seiten-Tabs oben, Controls darunter. */
+  .header-inner { grid-template-columns: 1fr; justify-items: start; gap: var(--sp-2); }
+  .header-inner .brand, .header-inner .page-tabs { justify-self: start; }
+  .header-right { justify-self: start; flex-wrap: wrap; }
 }
+
+/* ============================================================
+   Druckseite (S.mode==="print") — eigene Vollseite mit A4-Simulation
+   (.doc-page) und fest kodierten Hex-Werten statt Theme-Variablen, damit
+   der Ausdruck unabhängig vom aktiven Theme immer weiß/schwarz/lesbar
+   bleibt. 1:1 aus der Vorlage (printTableStyle/printRoomHeadStyle/etc.).
+   ============================================================ */
+.print-page-wrap { max-width: 1100px; margin: 0 auto; }
+.link-btn { background: none; border: none; padding: 0; color: var(--accent); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+/* Attributions-Bildunterschrift für Ukiyo/Comic-Hintergrundbilder — 1:1 aus
+   der Vorlage (ukiyoCaptionStyle), fehlte bisher komplett. */
+.art-caption { position: fixed; bottom: 14px; right: 16px; font-size: var(--fs-xs); color: var(--text-muted); opacity: .55; z-index: 1; }
+.art-caption a { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
+.doc-page {
+  background: #fff; color: #111; border-radius: 4px; box-shadow: 0 2px 12px rgba(0,0,0,.18);
+  padding: 0.7in; margin: 0 auto; max-width: 850px;
+}
+.doc-page[data-orientation="landscape"] { max-width: 1100px; }
+.doc-page-header { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-4); font-size: .72rem; color: #555; border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-bottom: var(--sp-4); }
+.doc-page-footer { display: flex; justify-content: space-between; gap: var(--sp-4); font-size: .65rem; color: #777; margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid #eee; }
+.print-table { width: 100%; border-collapse: collapse; color: #111; }
+.print-table th { text-align: left; font-size: .72rem; color: #555; padding: 6px 8px; border-bottom: 2px solid #999; }
+.print-table td { text-align: left; font-size: .78rem; color: #111; padding: 6px 8px; border-bottom: 1px solid #ddd; vertical-align: top; }
+.print-matrix-td { min-width: 130px; }
+.print-row-head { font-weight: 700; white-space: nowrap; }
+.print-swatch { display: inline-block; width: 3px; height: 13px; border-radius: 1px; margin-right: 7px; vertical-align: middle; }
+.print-cell-entry { margin-bottom: 5px; }
+.print-cell-title { font-size: .74rem; font-weight: 700; color: #111; line-height: 1.25; }
+.print-cell-meta { font-size: .62rem; color: #777; line-height: 1.2; }
+.print-empty-dash { color: #999; }
+.print-slot-head { font-size: 1.1rem; font-weight: 800; color: #111; margin: 22px 0 12px; }
+.print-rooms-columns { column-count: 2; column-gap: 28px; }
+.print-room-block { margin-bottom: 16px; break-inside: avoid; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
+.print-room-head { font-size: .92rem; font-weight: 700; color: #111; margin: 0 0 2px; display: flex; align-items: center; }
+.print-room-badges { font-size: .66rem; color: #777; margin: 0 0 8px; }
+.print-table-row { margin-bottom: 6px; break-inside: avoid; }
+.print-table-headline { font-size: .74rem; font-weight: 700; color: #333; }
+.print-game-line { font-size: .8rem; font-weight: 700; color: #111; margin-top: 1px; }
+.print-game-meta { font-size: .68rem; color: #777; }
+.print-free { font-size: .76rem; color: #999; font-style: italic; }
 
 /* ============================================================
    Druckansicht — bewusst themeunabhängig: überschreibt die Tokens
@@ -842,6 +963,8 @@ summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 700; padding: v
    Komponenten weiterhin var(--text-primary) etc. referenzieren.
    ============================================================ */
 @media print {
+  .doc-page { box-shadow: none; padding: 0; max-width: none; margin: 0; }
+  .print-page-wrap { max-width: none; }
   /* !important auf jeder Property nötig: Themes setzen dieselben Custom
      Properties über :root[data-theme="x"] (Spezifität 0,2,0,0), das schlägt
      diese Regel hier (0,1,0,0) sonst trotz @media print im Cascade. Seite/

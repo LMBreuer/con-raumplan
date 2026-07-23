@@ -15,24 +15,29 @@
 <body>
 <a class="skip-link" href="#main">Zum Inhalt springen</a>
 <div class="wrap">
-  <header aria-label="Kopfzeile" data-i18n-aria-label="headerLabel">
-    <div class="hero card" style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);flex-wrap:wrap">
-      <div>
-        <h1>Con-Raumplan</h1>
-        <p class="sub" data-i18n="heroSub">Raum- und Tischplan für Cons — live synchronisiert mit Playabl. Sieh, wo noch
-        Platz ist, oder öffne den vollen Plan.</p>
-      </div>
-      <div style="display:flex;gap:var(--sp-3);align-items:center;flex-wrap:wrap">
-        <div id="themeSwitch"></div>
-        <div id="langSwitch"></div>
+  <header class="app-header" aria-label="Kopfzeile" data-i18n-aria-label="headerLabel">
+    <div class="header-inner">
+      <span class="brand">Con-Raumplan</span>
+      <nav class="page-tabs slot-tabs" id="pageTabs" role="group" aria-label="Seite wählen"></nav>
+      <div class="header-right">
+        <div class="controls-group">
+          <div id="langSwitch"></div>
+          <div class="controls-divider"></div>
+          <div id="themeSwitch"></div>
+        </div>
         <button id="authBtn" type="button">Login / Registrieren</button>
       </div>
     </div>
-    <div id="inviteBanner" hidden></div>
-    <p id="status" data-i18n="loadingCons">Lade Cons …</p>
   </header>
 
   <main id="main">
+    <div class="hero-wrap">
+      <h1 data-i18n="heroTitle">Wer spielt wann wo?</h1>
+      <p class="sub" data-i18n="heroSub">Raum- und Tischplan für Cons — live synchronisiert mit Playabl. Sieh, wo noch
+      Platz ist, oder öffne den vollen Plan.</p>
+    </div>
+    <div id="inviteBanner" hidden></div>
+    <p id="status" data-i18n="loadingCons">Lade Cons …</p>
     <div id="nextConCard"></div>
 
     <section class="card">
@@ -46,47 +51,56 @@
       <div class="con-list" id="conList"></div>
     </section>
 
-    <section class="card">
-      <h2 data-i18n="createConTitle">Neue Con für die Raumplanung anlegen</h2>
-      <p class="hint" data-i18n="createConHint">Du wirst automatisch erstes Crew-Mitglied dieser Con.</p>
-      <div class="slot-tabs" role="group" aria-label="Con-Typ wählen" id="conTypeTabs" style="margin-bottom:var(--sp-3)">
-        <button type="button" data-contype="playabl" aria-pressed="true" data-i18n="conTypePlayabl">Mit Playabl-Event</button>
-        <button type="button" data-contype="manual" aria-pressed="false" data-i18n="conTypeManual">Rein manuell (kein Playabl)</button>
-      </div>
-      <div class="controls" style="margin:0 0 var(--sp-3)" id="playablFields">
-        <div class="field">
-          <label for="communitySelect" data-i18n="community">Community</label>
-          <select id="communitySelect"><option value="">– lädt –</option></select>
-        </div>
-        <div class="field">
-          <label for="eventSelect" data-i18n="event">Event</label>
-          <select id="eventSelect"><option value="">– Community wählen –</option></select>
-        </div>
-        <div class="field">
-          <label for="eventIdInput" data-i18n="eventIdDirect">… oder Event-ID direkt</label>
-          <input type="text" id="eventIdInput" inputmode="numeric" placeholder="z.B. 104" size="10">
-        </div>
-      </div>
-      <p class="hint" id="manualHint" hidden data-i18n="manualHint">Ohne Playabl-Event gibt es keine automatisch geladenen Spiele — Spiele/Programmpunkte werden im Raumplan manuell angelegt.</p>
-      <div class="field" style="margin-bottom:var(--sp-3);max-width:400px">
-        <label for="conName" data-i18n="conNameLabel">Name der Con</label>
-        <input type="text" id="conName" placeholder="z.B. 3W6 Con 2026" maxlength="80">
-      </div>
-      <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-sm);margin-bottom:var(--sp-3);cursor:pointer">
-        <input type="checkbox" id="conListed" checked> <span data-i18n="conListedLabel">In „Bestehende Cons" öffentlich auflisten</span>
-      </label>
-      <button id="createConBtn" type="button" class="primary" data-i18n="createConBtn">Con anlegen</button>
-      <p class="msg" id="createMsg" role="status"></p>
-    </section>
+    <button type="button" id="openCreateConBtn" hidden style="display:block;margin:var(--sp-4) auto 0" data-i18n="createConTriggerBtn">+ Neue Con anlegen</button>
   </main>
   <div class="credits" id="credits"></div>
 </div>
 
+<dialog id="createConDlg" aria-labelledby="createConDlgH">
+  <h2 id="createConDlgH" data-i18n="createConTitle">Neue Con für die Raumplanung anlegen</h2>
+  <p class="hint" data-i18n="createConHint">Du wirst automatisch erstes Crew-Mitglied dieser Con.</p>
+  <div class="slot-tabs" role="group" aria-label="Con-Typ wählen" id="conTypeTabs" style="margin-bottom:var(--sp-3)">
+    <button type="button" data-contype="playabl" aria-pressed="true" data-i18n="conTypePlayabl">Mit Playabl-Event</button>
+    <button type="button" data-contype="manual" aria-pressed="false" data-i18n="conTypeManual">Rein manuell (kein Playabl)</button>
+  </div>
+  <div class="controls" style="margin:0 0 var(--sp-3)" id="playablFields">
+    <div class="field">
+      <label for="communitySelect" data-i18n="community">Community</label>
+      <select id="communitySelect"><option value="">– lädt –</option></select>
+    </div>
+    <div class="field">
+      <label for="eventSelect" data-i18n="event">Event</label>
+      <select id="eventSelect"><option value="">– Community wählen –</option></select>
+    </div>
+    <div class="field">
+      <label for="eventIdInput" data-i18n="eventIdDirect">… oder Event-ID direkt</label>
+      <input type="text" id="eventIdInput" inputmode="numeric" placeholder="z.B. 104" size="10">
+    </div>
+  </div>
+  <p class="hint" id="manualHint" hidden data-i18n="manualHint">Ohne Playabl-Event gibt es keine automatisch geladenen Spiele — Spiele/Programmpunkte werden im Raumplan manuell angelegt.</p>
+  <div class="field" style="margin-bottom:var(--sp-3);max-width:400px">
+    <label for="conName" data-i18n="conNameLabel">Name der Con</label>
+    <input type="text" id="conName" placeholder="z.B. 3W6 Con 2026" maxlength="80">
+  </div>
+  <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-sm);margin-bottom:var(--sp-3);cursor:pointer">
+    <input type="checkbox" id="conListed" checked> <span data-i18n="conListedLabel">In „Bestehende Cons" öffentlich auflisten</span>
+  </label>
+  <p class="msg" id="createMsg" role="status"></p>
+  <div class="dactions">
+    <button type="button" onclick="this.closest('dialog').close()" data-i18n="cancel">Abbrechen</button>
+    <button id="createConBtn" type="button" class="primary" data-i18n="createConBtn">Con anlegen</button>
+  </div>
+</dialog>
+
 <script src="common.js"></script>
 <script>
 renderThemeSwitch(document.getElementById("themeSwitch"));
+pickUkiyoBackground(); pickComicBackground();
 renderLangSwitch(document.getElementById("langSwitch"));
 translateStaticDom();
+function syncCreateConVisibility() {
+  document.getElementById("openCreateConBtn").hidden = !Auth.session();
+}
 const authUI = mountAuthUI({
   buttonId: "authBtn",
   onChange: async () => {
@@ -94,9 +108,20 @@ const authUI = mountAuthUI({
     await refreshSuperadmin();
     await reloadCons();
     renderNextConCard();
+    renderIndexPageTabs();
+    syncCreateConVisibility();
   },
 });
 renderPendingInvites(document.getElementById("inviteBanner"));
+syncCreateConVisibility();
+// applyLang() ruft alle window.__authUIRefreshers auf (siehe mountAuthUI in
+// common.js) — hier mitgenutzt, damit Con-Liste/Next-Con-Karte/Seiten-Tabs
+// nach einem Sprachwechsel nicht in der alten Sprache "hängen bleiben"
+// (diese drei sind dynamisch gerendert, translateStaticDom() erreicht sie
+// nicht, weil sie kein data-i18n im Markup haben).
+window.__authUIRefreshers = window.__authUIRefreshers || [];
+window.__authUIRefreshers.push(() => { renderCons(); renderNextConCard(); renderIndexPageTabs(); });
+document.getElementById("openCreateConBtn").addEventListener("click", () => document.getElementById("createConDlg").showModal());
 
 async function refreshSuperadmin() {
   const token = await Auth.accessToken();
@@ -149,11 +174,23 @@ async function renderNextConCard() {
   }
   el.innerHTML = `<div class="next-con-card">
     <div>
-      <div class="eyebrow">${esc(tr("nextConEyebrow"))}<span class="countdown">${esc(formatCountdown(date))}</span>${crewBadge}</div>
+      <div class="eyebrow">${esc(tr("nextConBadgeText", { countdown: formatCountdown(date) }))}${crewBadge}</div>
       <div class="t">${esc(con.name)}</div>
     </div>
     <a class="btn primary" href="plan.html?con=${esc(con.slug || con.id)}">${esc(tr("goToOverview"))}</a>
   </div>`;
+}
+
+// Header-Seiten-Leiste: "Cons" ist die aktuelle Seite, "Raumplan" verlinkt zur
+// nächsten Con (falls bekannt) — 🔒 Crew zeigt die Vorlage bewusst NICHT auf
+// der Landing-Seite (showCrewTab gilt dort nie), siehe Phase-10-Plan A.
+function renderIndexPageTabs() {
+  const next = computeNextCon();
+  document.getElementById("pageTabs").innerHTML = `
+    <a href="#" aria-pressed="true">${esc(tr("pageTabCons"))}</a>
+    ${next ? `<a href="plan.html?con=${esc(next.con.slug || next.con.id)}" aria-pressed="false">${esc(tr("pageTabPlan"))}</a>`
+           : `<span aria-disabled="true" style="opacity:.4;padding:var(--sp-2) var(--sp-3);font-size:var(--fs-xs);font-weight:700">${esc(tr("pageTabPlan"))}</span>`}
+  `;
 }
 
 document.getElementById("credits").innerHTML = `
@@ -273,6 +310,7 @@ document.getElementById("createConBtn").addEventListener("click", async () => {
     const [, events] = await Promise.all([reloadCons(), loadPlayablEventsList()]);
     fillEventsList(events);
     renderNextConCard();
+    renderIndexPageTabs();
     authUI.refresh();
     document.getElementById("status").textContent =
       tr("asOf", { date: new Intl.DateTimeFormat(LANG === "en" ? "en-GB" : "de-AT", { dateStyle: "full", timeStyle: "short" }).format(new Date()) });
