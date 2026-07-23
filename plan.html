@@ -358,7 +358,7 @@ const S = {
   filterReqTags: [],
   assignMode: Prefs.get("assign-mode", "dnd"), selectedGame: null,
   detailLevel: Prefs.get("detail-level", "full"), pinnedRequest: null,
-  crewShowDetails: true,
+  crewShowDetails: true, expandedRoomIds: new Set(),
   printMode: "raster", printAxis: "rooms", printSlot: null, printDetail: "full",
   printOrientation: "auto", printColor: "bw", printReturnMode: "view", printReturnView: "raster",
 };
@@ -819,22 +819,49 @@ function bucketsHtml() {
 }
 
 /* ---------------- Crew: Räume verwalten ---------------- */
+// 1:1 aus der Vorlage (crewListHeadStyle/titleRowStyle): H2+Info-Icon links,
+// primärer "+"-Button rechts, in EINER Kopfzeile statt zwei getrennten wie
+// vor Phase 11 — gemeinsam für Räume/Spiele verwalten, damit beide Unter-
+// ansichten optisch gleich aufgebaut sind (Crew verwalten hatte das schon).
+function setupHeadHtml(titleText, infoAriaLabel, infoText, btnId, btnLabel) {
+  return `<div class="controls no-print setup-head">
+    <div class="setup-head-title"><h2>${esc(titleText)}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(infoAriaLabel)}" data-info-text="${esc(infoText)}">ⓘ</span></div>
+    <button type="button" id="${btnId}" class="primary">${esc(btnLabel)}</button>
+  </div>`;
+}
 function raeumeVerwaltenHtml() {
+  // 1:1 aus der Vorlage (manageRooms): Räume sind standardmäßig eine flache,
+  // scanbare Zeile (Punkt/Name/Tischzahl/Eigenschaften) statt immer
+  // ausgeklappter Tisch-Karten — Klick auf die Zeile klappt die (unverändert
+  // gebliebene) Tisch-Verwaltung darunter auf. Volle Funktionalität bleibt
+  // erhalten, nur die Standardansicht wird kompakt wie im Design.
   const roomsHtml = S.rooms.map(room => {
     const tables = S.tables.filter(t => t.room_id === room.id);
+    const expanded = S.expandedRoomIds.has(room.id);
     const tablesHtml = tables.map(t => `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span>${t.notes ? `<span class="seats">· ${esc(t.notes)}</span>` : ""}
       <span class="table-actions"><button type="button" class="small editTableBtn" data-id="${t.id}" aria-label="${esc(tr("editTableAriaLabel", { name: t.name }))}">✎</button><button type="button" class="small danger delTableBtn" data-id="${t.id}" aria-label="${esc(tr("deleteTableAriaLabel", { name: t.name }))}">🗑</button></span></div></div>`).join("");
-    return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
-      <div class="room-head"><h3>${esc(room.name)}</h3><span class="floor">${esc(room.floor || "")}</span>
-        <span class="room-actions"><button type="button" class="small addTableBtn" data-room="${room.id}">${esc(tr("addTableBtn"))}</button><button type="button" class="small editRoomBtn" data-id="${room.id}" aria-label="${esc(tr("editRoomAriaLabel", { name: room.name }))}">✎</button><button type="button" class="small danger delRoomBtn" data-id="${room.id}" aria-label="${esc(tr("deleteRoomAriaLabel", { name: room.name }))}">🗑</button></span>
+    return `<div class="room-row" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
+      <div class="room-row-summary">
+        <button type="button" class="room-row-toggle" data-room-toggle="${room.id}" aria-expanded="${String(expanded)}" aria-label="${esc(tr("expandRoomAriaLabel", { name: room.name }))}">
+          <span class="dot"></span>
+          <span class="room-row-main"><span class="room-row-name">${esc(room.name)}${room.floor ? ` · ${esc(room.floor)}` : ""}</span>
+            <span class="room-row-meta"><span class="badge">${esc(tr("tableCountLabel", { n: tables.length }))}</span>${roomBadgesHtml(room)}</span>
+          </span>
+        </button>
+        <span class="room-actions">
+          <button type="button" class="small editRoomBtn" data-id="${room.id}" aria-label="${esc(tr("editRoomAriaLabel", { name: room.name }))}">${esc(tr("editBtnLabel"))}</button>
+          <button type="button" class="small danger delRoomBtn" data-id="${room.id}" aria-label="${esc(tr("deleteRoomAriaLabel", { name: room.name }))}">${esc(tr("deleteBtnLabel"))}</button>
+        </span>
       </div>
-      <div class="room-badges">${roomBadgesHtml(room)}</div>
-      ${room.notes ? `<p class="hint">${esc(room.notes)}</p>` : ""}
-      ${tablesHtml || `<p class="hint">${esc(tr("noTablesYet"))}</p>`}
+      <div class="room-row-detail"${expanded ? "" : " hidden"}>
+        ${room.notes ? `<p class="hint">${esc(room.notes)}</p>` : ""}
+        ${tablesHtml || `<p class="hint">${esc(tr("noTablesYet"))}</p>`}
+        <button type="button" class="small addTableBtn" data-room="${room.id}">${esc(tr("addTableBtn"))}</button>
+      </div>
     </div>`;
   }).join("") || emptyState(tr("noRoomsYet"));
   return `${bucketsHtml()}
-    <div class="controls no-print"><button type="button" id="addRoomBtn" class="primary">${esc(tr("addRoomBtn"))}</button><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("roomsInfoAriaLabel"))}" data-info-text="${esc(tr("roomsInfoText"))}">ⓘ</span></div>
+    ${setupHeadHtml(tr("roomsInfoTitle"), tr("roomsInfoAriaLabel"), tr("roomsInfoText"), "addRoomBtn", tr("addRoomBtn"))}
     <div id="board" style="margin-top:var(--sp-4)">${roomsHtml}</div>`;
 }
 
@@ -844,8 +871,11 @@ function spieleVerwaltenHtml() {
     const a = S.assignments.find(x => x.game_id === dg.id);
     const slot = a && S.slots.find(s => s.key === a.slot_key);
     const reqLabels = gameReqTagIds(dg.id).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => f.label);
+    // 1:1 aus der Vorlage (manageGames.statusLabel/statusStyle): Zuordnungs-
+    // status als farbige Pille direkt neben dem Titel.
+    const statusBadge = a ? `<span class="badge good">${esc(tr("gameAssignedBadge"))}</span>` : `<span class="badge warn">${esc(tr("gameOpenBadge"))}</span>`;
     return `<div class="req">
-      <div><strong>${esc(dg.title)}</strong>${dg.provider ? " · " + esc(dg.provider) : ""} · ${esc(tr("personsShort", { n: dg.seats }))}${dg.workshop ? ` <span class="badge">${esc(tr("workshop"))}</span>` : ""}${reqLabels.length ? ` <span class="badge">${esc(tr("needsTags", { tags: reqLabels.join(", ") }))}</span>` : ""}</div>
+      <div><strong>${esc(dg.title)}</strong> ${statusBadge}${dg.provider ? " · " + esc(dg.provider) : ""} · ${esc(tr("personsShort", { n: dg.seats }))}${dg.workshop ? ` <span class="badge">${esc(tr("workshop"))}</span>` : ""}${reqLabels.length ? ` <span class="badge">${esc(tr("needsTags", { tags: reqLabels.join(", ") }))}</span>` : ""}</div>
       <div class="hint">${slot ? esc(slot.label) : esc(tr("noSlot"))}${dg.description ? " · " + esc(dg.description) : ""}</div>
       <div class="ractions">
         <button type="button" class="small editGameBtn" data-id="${dg.id}" aria-label="${esc(tr("editItemNamed", { title: dg.title }))}">${esc(tr("editBtnLabel"))}</button>
@@ -869,7 +899,7 @@ function spieleVerwaltenHtml() {
     </div>`;
     }).join("")}
   </div>` : "";
-  return `<div class="controls no-print"><button type="button" id="addGameBtn" class="primary">${esc(tr("addGameBtn"))}</button><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("gamesInfoAriaLabel"))}" data-info-text="${esc(tr("gamesInfoText"))}">ⓘ</span></div>
+  return `${setupHeadHtml(tr("gamesInfoTitle"), tr("gamesInfoAriaLabel"), tr("gamesInfoText"), "addGameBtn", tr("addGameBtn"))}
     <div class="card" style="margin-top:var(--sp-3)">
       <h2>${esc(tr("manualGamesTitle"))}</h2>
       <p class="hint">${esc(tr("manualGamesHint"))}</p>
@@ -880,6 +910,18 @@ function spieleVerwaltenHtml() {
 
 /* ---------------- Crew: Änderungswünsche ---------------- */
 const REQ_STATUS_KEY = { offen: "statusOpen", erledigt: "statusDone", abgelehnt: "statusRejected" };
+const REQ_STATUS_BADGE = { offen: "warn", erledigt: "good", abgelehnt: "muted" };
+// 1:1 aus der Vorlage (contextFor/requestContextStyle): eine eigene
+// "📍 Raum · Tisch · Slot"-Zeile pro Wunsch, damit die Crew ohne Sprung zur
+// Zuordnen-Ansicht sofort sieht, wo das betroffene Spiel aktuell steht.
+function requestContextHtml(matchedGame) {
+  if (!matchedGame) return "";
+  const a = asgFor(matchedGame);
+  const table = a && S.tables.find(t => t.id === a.table_id);
+  const room = table && roomOfTable(table.id);
+  const text = room && table ? `📍 ${room.name} · ${table.name} · ${matchedGame.slotLabel}` : tr("noTableAssignedContext");
+  return `<div class="req-context">${esc(text)}</div>`;
+}
 function wuenscheHtml() {
   const list = S.showDoneRequests ? S.requests : S.requests.filter(r => r.status === "offen");
   const rowsHtml = list.map(r => {
@@ -887,9 +929,10 @@ function wuenscheHtml() {
     const jumpBtn = matchedGame ? `<button type="button" class="small jumpToGameBtn" data-game="${esc(matchedGame.key)}" data-slot="${esc(matchedGame.slotKey)}" data-msg="${esc(r.message)}">${esc(tr("jumpToGameBtn"))}</button>` : "";
     return `
     <div class="req ${r.status !== "offen" ? "done" : ""}">
-      <div class="rmeta">${esc(new Date(r.created_at).toLocaleString(LANG === "en" ? "en-GB" : "de-AT", { timeZone: TZ }))}${r.contact ? " · " + esc(tr("fromContact", { contact: r.contact })) : ""} · <strong>${esc(tr(REQ_STATUS_KEY[r.status] || r.status))}</strong></div>
-      <div><strong>${esc(r.game_ref || tr("general"))}</strong> ${jumpBtn}</div>
+      <div class="rmeta">${esc(new Date(r.created_at).toLocaleString(LANG === "en" ? "en-GB" : "de-AT", { timeZone: TZ }))}${r.contact ? " · " + esc(tr("fromContact", { contact: r.contact })) : ""}</div>
+      <div><strong>${esc(r.game_ref || tr("general"))}</strong> <span class="badge ${REQ_STATUS_BADGE[r.status] || "muted"}">${esc(tr(REQ_STATUS_KEY[r.status] || r.status))}</span> ${jumpBtn}</div>
       <div class="rmsg">${esc(r.message)}</div>
+      ${requestContextHtml(matchedGame)}
       <div class="ractions">
         <button type="button" class="small reqStatus" data-id="${r.id}" data-status="erledigt">${esc(tr("statusDoneBtn"))}</button>
         <button type="button" class="small reqStatus" data-id="${r.id}" data-status="abgelehnt">${esc(tr("statusRejectedBtn"))}</button>
@@ -907,16 +950,17 @@ function wuenscheHtml() {
 
 /* ---------------- Crew: Crew verwalten ---------------- */
 function crewVerwaltenHtml() {
+  // 1:1 aus der Vorlage (quickOpenRowStyle vor crewMembers-sc-for): die
+  // Einladen-Zeile steht VOR der Mitgliederliste, nicht danach.
   return `<div class="card">
     <h2>${esc(tr("crewTitle"))} <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("crewInfoAriaLabel"))}" data-info-text="${esc(tr("crewInfoText"))}">ⓘ</span></h2>
     <p class="hint">${esc(S.role === "admin" ? tr("adminCanManage") : tr("onlyAdminsCanManage"))}</p>
-    <div id="crewList"><p class="hint">${esc(tr("loading"))}</p></div>
-    ${S.role === "admin" ? `<h3>${esc(tr("inviteTitle"))}</h3>
-    <form id="inviteForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+    ${S.role === "admin" ? `<form id="inviteForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:var(--sp-3)">
       <div class="frow" style="margin:0;flex:1;min-width:200px"><label for="inviteEmail">${esc(tr("inviteEmailLabel"))}</label><input type="email" id="inviteEmail" required></div>
       <div class="frow" style="margin:0"><label for="inviteRole">${esc(tr("roleLabel"))}</label><select id="inviteRole"><option value="editor">${esc(tr("roleEditor"))}</option><option value="admin">${esc(tr("roleAdmin"))}</option></select></div>
       <button type="submit" class="primary">${esc(tr("inviteBtn"))}</button>
     </form>` : ""}
+    <div id="crewList"><p class="hint">${esc(tr("loading"))}</p></div>
     <p class="msg" id="crewMsg" role="status"></p>
   </div>`;
 }
@@ -926,11 +970,16 @@ async function refreshCrewList() {
   const token = await Auth.accessToken();
   try {
     const members = await supaRpc("list_con_members", { target_con: S.con.id }, token);
+    // 1:1 aus der Vorlage (crewMembers/roleSelectStyle): Rollenwechsel per
+    // <select>, nicht per Umschalt-Button.
     listEl.innerHTML = members.map(m => `
       <div class="req">
         <span>${esc(m.email)}</span> ${roleBadgeHtml(m.role, m.status)}
-        ${S.role === "admin" ? `<span style="float:right;display:flex;gap:4px">
-          <button type="button" class="small toggleRoleBtn" data-uid="${m.user_id}" data-role="${m.role}">${m.role === "admin" ? esc(tr("toEditor")) : esc(tr("toAdmin"))}</button>
+        ${S.role === "admin" ? `<span style="float:right;display:flex;gap:4px;align-items:center">
+          <select class="small roleSelect" data-uid="${m.user_id}" aria-label="${esc(tr("roleLabel"))} — ${esc(m.email)}">
+            <option value="editor"${m.role === "editor" ? " selected" : ""}>${esc(tr("roleEditor"))}</option>
+            <option value="admin"${m.role === "admin" ? " selected" : ""}>${esc(tr("roleAdmin"))}</option>
+          </select>
           <button type="button" class="small danger removeCrewBtn" data-uid="${m.user_id}">${esc(tr("removeBtn"))}</button>
         </span>` : ""}
       </div>`).join("") || `<p class="hint">${esc(tr("noMembersFound"))}</p>`;
@@ -1188,6 +1237,15 @@ document.addEventListener("change", e => {
     if (!S.filterReqTags.includes(e.target.value)) S.filterReqTags = [...S.filterReqTags, e.target.value];
     renderActive();
   }
+  else if (e.target.matches(".roleSelect")) {
+    (async () => {
+      try {
+        const token = await Auth.accessToken();
+        await supaFetch(`con_members?con_id=eq.${S.con.id}&user_id=eq.${e.target.dataset.uid}`, { method: "PATCH", headers: supaHeaders(token, true), body: JSON.stringify({ role: e.target.value }) });
+        refreshCrewList();
+      } catch (err) { document.getElementById("crewMsg").className = "msg err"; document.getElementById("crewMsg").textContent = err.message; }
+    })();
+  }
 });
 // Eigener "input"-Listener (reagiert bei jedem Tastendruck, nicht erst bei
 // Blur/Enter wie "change") — braucht renderActivePreservingFocus(), da
@@ -1274,6 +1332,11 @@ document.addEventListener("click", async e => {
     renderActive();
   }
   else if (t.id === "crewDetailsToggle") { S.crewShowDetails = !S.crewShowDetails; renderActive(); }
+  else if (t.matches(".room-row-toggle")) {
+    const id = t.dataset.roomToggle;
+    if (S.expandedRoomIds.has(id)) S.expandedRoomIds.delete(id); else S.expandedRoomIds.add(id);
+    renderActive();
+  }
   else if (t.id === "addRoomBtn") openRoomDlg(null);
   else if (t.matches(".editRoomBtn")) openRoomDlg(S.rooms.find(r => r.id === t.dataset.id));
   else if (t.matches(".delRoomBtn")) {
@@ -1304,14 +1367,6 @@ document.addEventListener("click", async e => {
   else if (t.matches(".editBucketBtn")) openBucketDlg(S.slotBuckets.find(b => b.id === t.dataset.id));
   else if (t.matches(".tag-remove")) { tagPickerSelection.delete(t.dataset.tagId); renderTagPicker(t.closest("[id]").id); }
   else if (t.matches(".reqStatus")) { await S.store.updateRequest(t.dataset.id, { status: t.dataset.status }); S.requests.find(r => r.id === t.dataset.id).status = t.dataset.status; renderActive(); }
-  else if (t.matches(".toggleRoleBtn")) {
-    const newRole = t.dataset.role === "admin" ? "editor" : "admin";
-    try {
-      const token = await Auth.accessToken();
-      await supaFetch(`con_members?con_id=eq.${S.con.id}&user_id=eq.${t.dataset.uid}`, { method: "PATCH", headers: supaHeaders(token, true), body: JSON.stringify({ role: newRole }) });
-      refreshCrewList();
-    } catch (err) { document.getElementById("crewMsg").className = "msg err"; document.getElementById("crewMsg").textContent = err.message; }
-  }
   else if (t.matches(".removeCrewBtn")) {
     if (!confirm(tr("confirmRemoveCrew"))) return;
     try {
