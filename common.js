@@ -69,13 +69,73 @@ function updateCatEasterEgg() {
   slot.innerHTML = document.documentElement.getAttribute("data-theme") === "terminal" ? PIXEL_CAT_SVG : "";
 }
 
-// Gemeinfreie Hokusai-Scans (Wikimedia Commons, >150 Jahre alt), selbst
-// gehostet statt gehotlinkt — eines zufällig pro Seitenaufruf als sehr
-// dezenter Hintergrund fürs Ukiyo-e-Theme (Deckkraft steckt in theme.css).
-const UKIYO_BACKGROUNDS = ["images/ukiyo/great-wave.jpg", "images/ukiyo/red-fuji.jpg", "images/ukiyo/thunderstorm.jpg"];
+// Gemeinfreie Ukiyo-e-Holzschnitte (Wikimedia/Wikipedia Commons, >150 Jahre
+// alt), selbst gehostet statt gehotlinkt — eines zufällig PRO THEME-WECHSEL
+// (nicht pro Aufruf/Klick) als dezenter Hintergrund (Deckkraft in theme.css),
+// plus Name+Quelle für die Attributions-Bildunterschrift (#artCaption).
+const UKIYO_BACKGROUNDS = [
+  { file: "images/ukiyo/great-wave.jpg", name: "Unter der Welle vor Kanagawa", sourceUrl: "https://commons.wikimedia.org/wiki/File:Tsunami_by_hokusai_19th_century.jpg" },
+  { file: "images/ukiyo/red-fuji.jpg", name: "Roter Fuji (Fine Wind, Clear Morning)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Red_Fuji_southern_wind_clear_morning.jpg" },
+  { file: "images/ukiyo/hiroshige-hakone.jpg", name: "Hakone (Hiroshige, Tōkaidō)", sourceUrl: "https://en.wikipedia.org/wiki/File:Hiroshige11_hakone.jpg" },
+  { file: "images/ukiyo/hiroshige-kanbara.jpg", name: "Kanbara (Hiroshige, Tōkaidō)", sourceUrl: "https://en.wikipedia.org/wiki/File:Hiroshige16_kanbara.jpg" },
+  { file: "images/ukiyo/hiroshige-kameido-plum-garden.jpg", name: "Pflaumengarten in Kameido (Hiroshige)", sourceUrl: "https://en.wikipedia.org/wiki/File:De_pruimenboomgaard_te_Kameido-Rijksmuseum_RP-P-1956-743.jpeg" },
+  { file: "images/ukiyo/mandarin-duck-woodcut.jpg", name: "Mandarinenten (Holzschnitt)", sourceUrl: "https://en.wikipedia.org/wiki/File:Mandarin_duck_woodcut3.jpg" },
+  { file: "images/ukiyo/hokusai-woodblock-15.jpg", name: "Holzschnitt (Hokusai)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Ukiyo-e_woodblock_print_by_Katsushika_Hokusai,_digitally_enhanced_by_rawpixel-com_15.jpg" },
+  { file: "images/ukiyo/kuniyoshi-takiyasha.jpg", name: "Takiyasha und das Skelettgespenst (Kuniyoshi)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Takiyasha_the_Witch_and_the_Skeleton_Spectre,_by_Utagawa_Kuniyoshi.jpg" },
+  { file: "images/ukiyo/kuniyoshi-woodblock-1.jpg", name: "Holzschnitt (Kuniyoshi)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Woodblock_print_by_Utagawa_Kuniyoshi,_digitally_enhanced_by_rawpixel-com_1.jpg" },
+  { file: "images/ukiyo/hiroshige-full-moon.jpg", name: "Vollmond über Berglandschaft (Hiroshige)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Hiroshige_Full_moon_over_a_mountain_landscape.jpg" },
+  { file: "images/ukiyo/hiroshige-landscape-5.jpg", name: "Landschaft (Hiroshige)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Hiroshige,_Landscape_5.jpg" },
+];
+// Gemeinfreie Golden-Age-Comic-Cover (Wikimedia Commons), selbst gehostet.
+// Anders als Ukiyo NICHT zufällig, sondern seiten-fest (Landing/Raumplan/
+// Crew bekommen je ein eigenes, stabiles Bild) — nur auf der Druckseite
+// fällt es auf einen bei Theme-Wechsel gewürfelten Index zurück. 1:1 aus
+// der Vorlage (COMIC_PAGE_IDX/comicPick).
+const COMIC_BACKGROUNDS = [
+  { file: "images/comic/black-owl-prize-comics.jpg", name: "Black Owl (Prize Comics)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Black_Owl_in_Prize_Comics_no2.jpg" },
+  { file: "images/comic/thor-weird-comics.jpg", name: "Thor (Weird Comics)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Thor_Weird_Comics.jpg" },
+  { file: "images/comic/thunder-agents-1.jpg", name: "T.H.U.N.D.E.R. Agents #1", sourceUrl: "https://commons.wikimedia.org/wiki/File:Thunder_agents_issue_1.jpg" },
+  { file: "images/comic/smash-comics-panel.jpg", name: "Smash Comics Vol.1 #12 (Panel)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Abdul_the_Arab_-_Smash_Comics_Vol_1_12_(panel).png" },
+  { file: "images/comic/blue-beetle-1.jpg", name: "Blue Beetle #1 Cover", sourceUrl: "https://commons.wikimedia.org/wiki/File:Blue_Beetle_Number_1_Cover.jpg" },
+  { file: "images/comic/mystery-men-comics-16.jpg", name: "Mystery Men Comics #16", sourceUrl: "https://commons.wikimedia.org/wiki/File:Mystery_Men_Comics_16.jpg" },
+  { file: "images/comic/smash-comics-14.jpg", name: "Smash Comics #14 (Cover Art)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Smash_Comics_no._14_(cover_art).jpg" },
+];
+let currentUkiyoPick = null, currentComicPick = null, comicPrintPick = 0;
 function pickUkiyoBackground() {
-  const pick = UKIYO_BACKGROUNDS[Math.floor(Math.random() * UKIYO_BACKGROUNDS.length)];
-  document.documentElement.style.setProperty("--ukiyo-bg", `url("${pick}")`);
+  currentUkiyoPick = UKIYO_BACKGROUNDS[Math.floor(Math.random() * UKIYO_BACKGROUNDS.length)];
+  document.documentElement.style.setProperty("--ukiyo-bg", `url("${currentUkiyoPick.file}")`);
+  renderArtCaption();
+}
+// 1:1 aus der Vorlage (COMIC_PAGE_IDX = { landing:0, plan:1, crew:2 }):
+// index.html (kein S.mode) = Landing = 0, plan.html im Ansicht-Modus = 1,
+// im Crew-Modus = 2; auf der Druckseite fällt es auf den bei Theme-Wechsel
+// gewürfelten comicPrintPick zurück.
+function comicPageIndex() {
+  if (typeof S === "undefined" || !S.mode) return 0;
+  if (S.mode === "print") return comicPrintPick;
+  return S.mode === "crew" ? 2 : 1;
+}
+function pickComicBackground() {
+  currentComicPick = COMIC_BACKGROUNDS[comicPageIndex() % COMIC_BACKGROUNDS.length];
+  document.documentElement.style.setProperty("--comic-bg", `url("${currentComicPick.file}")`);
+  renderArtCaption();
+}
+// Attributions-Bildunterschrift unten rechts (Name + Link zur Quelle) für
+// Ukiyo/Comic — 1:1 aus der Vorlage (ukiyoCaptionStyle/-Text/-Url), fehlte
+// bisher komplett.
+function renderArtCaption() {
+  let el = document.getElementById("artCaption");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "artCaption";
+    el.className = "art-caption no-print";
+    document.body.appendChild(el);
+  }
+  const theme = document.documentElement.getAttribute("data-theme") || "dark";
+  const pick = theme === "ukiyo" ? currentUkiyoPick : theme === "comic" ? currentComicPick : null;
+  if (!pick) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = `<a href="${esc(pick.sourceUrl)}" target="_blank" rel="noopener">${esc((theme === "ukiyo" ? "波 " : "") + pick.name)}</a>`;
 }
 function applyTheme(key) {
   document.documentElement.setAttribute("data-theme", key);
@@ -83,6 +143,8 @@ function applyTheme(key) {
   if (key === "terminal") terminalEasterEgg();
   updateCatEasterEgg();
   if (key === "ukiyo") pickUkiyoBackground();
+  else if (key === "comic") { comicPrintPick = Math.floor(Math.random() * COMIC_BACKGROUNDS.length); pickComicBackground(); }
+  else renderArtCaption();
 }
 
 // Core-3 (Dunkel/Hell/Kontrastreich) bleiben flache Buttons, der Rest wandert
@@ -126,7 +188,6 @@ function closeThemeMorePopover() {
 function renderThemeSwitch(container) {
   const current = document.documentElement.getAttribute("data-theme") || "dark";
   if (current === "terminal") terminalEasterEgg();
-  if (current === "ukiyo") pickUkiyoBackground();
   updateCatEasterEgg();
   const core = THEMES.filter(t => CORE_THEME_KEYS.includes(t.key));
   const specials = THEMES.filter(t => !CORE_THEME_KEYS.includes(t.key));
@@ -139,7 +200,7 @@ function renderThemeSwitch(container) {
       ${core.map(th => `<button type="button" data-theme-key="${th.key}" aria-pressed="${String(th.key === current)}" title="${esc(tr(th.nameKey))}" aria-label="${esc(tr(th.nameKey))}">${th.label}</button>`).join("")}
     </div>
     <div class="theme-more-wrap">
-      <button type="button" class="theme-more-trigger" aria-haspopup="true" aria-expanded="false" title="${esc(tr("moreThemes"))}" aria-label="${esc(tr("moreThemes"))}">
+      <button type="button" class="theme-more-trigger${activeSpecial ? " is-active" : ""}" aria-haspopup="true" aria-expanded="false" title="${esc(tr("moreThemes"))}" aria-label="${esc(tr("moreThemes"))}">
         <span>${activeSpecial ? activeSpecial.label : "✨"}</span><span class="theme-more-chevron">⌄</span>
       </button>
     </div>`;
@@ -213,9 +274,10 @@ const STRINGS = {
     accept: "Annehmen", decline: "Ablehnen",
     acceptFailed: "Annehmen fehlgeschlagen: {err}", declineFailed: "Ablehnen fehlgeschlagen: {err}",
     // index.html
-    headerLabel: "Kopfzeile", heroSub: "Raum- und Tischplan für Cons — live synchronisiert mit Playabl. Sieh, wo noch Platz ist, oder öffne den vollen Plan.",
+    headerLabel: "Kopfzeile", heroTitle: "Wer spielt wann wo?", heroSub: "Raum- und Tischplan für Cons — live synchronisiert mit Playabl. Sieh, wo noch Platz ist, oder öffne den vollen Plan.",
     loadingCons: "Lade Cons …", openConDirectly: "Con direkt öffnen", openConHint: "Link oder ID einer bestehenden Con einfügen.",
     nextConEyebrow: "Nächste Con", nextConToday: "heute", nextConTomorrow: "morgen", nextConInDays: "in {n} Tagen",
+    nextConBadgeText: "● läuft bald · {countdown}",
     nextConCrewBadge: "Crew-Zugriff", goToOverview: "Zur Übersicht →",
     directInputPlaceholder: "…oder Link/ID direkt öffnen", open: "Öffnen",
     existingCons: "Bestehende Cons", existingConsHint: "Zeigt Cons mit verknüpftem Playabl-Event oder bewusst gelistete manuelle Cons. Bearbeiten kann nur, wer Mitglied der jeweiligen Crew ist.",
@@ -225,7 +287,7 @@ const STRINGS = {
     community: "Community", event: "Event", eventIdDirect: "… oder Event-ID direkt",
     manualHint: "Ohne Playabl-Event gibt es keine automatisch geladenen Spiele — Spiele/Programmpunkte werden im Raumplan manuell angelegt.",
     conNameLabel: "Name der Con", conListedLabel: "In „Bestehende Cons“ öffentlich auflisten",
-    createConBtn: "Con anlegen", unlisted: "ungelistet", createdOn: "angelegt {date}", playablEvent: "Playabl-Event",
+    createConBtn: "Con anlegen", createConTriggerBtn: "+ Neue Con anlegen", unlisted: "ungelistet", createdOn: "angelegt {date}", playablEvent: "Playabl-Event",
     delete: "Löschen", openArrow: "Öffnen →", noConFound: "Noch keine Con gefunden.",
     confirmDeleteCon: "„{name}“ inkl. aller Räume/Tische/Zuordnungen/Änderungswünsche UNWIDERRUFLICH löschen?",
     deleteFailed: "Löschen fehlgeschlagen: {err}", pleaseLoginFirst: "Bitte zuerst einloggen oder registrieren.",
@@ -234,6 +296,7 @@ const STRINGS = {
     imprint: "Impressum",
     // plan.html — Kopfzeile/Dialoge (Teil 1)
     backToCons: "← alle Cons", loading: "Lädt …", loadingData: "Lade Daten …",
+    pageTabCons: "Cons", pageTabPlan: "Raumplan", pageTabCrew: "Crew",
     globalSearchPlaceholder: "Spiel, Raum oder Tisch suchen …",
     viewLabel: "Ansicht", detailsLabel: "Details", printCurrentView: "Aktuelle Ansicht drucken",
     printBtn: "🖨️ Drucken", crewLabel: "Crew",
@@ -241,6 +304,10 @@ const STRINGS = {
     printDetailLabel: "Detailgrad", printOrientationLabel: "Ausrichtung", printColorLabel: "Farbe",
     printOrientationAuto: "Automatisch", printOrientationPortrait: "Hochformat", printOrientationLandscape: "Querformat",
     printColorColor: "Farbig", printColorBw: "Schwarzweiß",
+    printBackLink: "← zurück zum Plan", printAllSlots: "Alle Slots",
+    printColHost: "SL", printColTag: "Anforderung",
+    printMetaSl: "SL: {host}", printMetaFull: "SL: {host}{tag} · {seats}p",
+    printCreatedOn: "Erstellt am {time}", printLiveVersion: "Live-Version: {url}",
     footPlayabl: "Spiele werden bei jedem Öffnen live von der Playabl-API geladen; Plätze = Spielplätze + 1 anbietende Person.",
     footRequest: "Über „Änderung vorschlagen“ am Spiel kann jede*r der Crew einen Wunsch schicken — bitte kurz begründen.",
     proposeChange: "Änderung vorschlagen", concerns: "Betrifft", reqMsgLabel: "Was soll anders sein – und warum? *",
@@ -277,6 +344,11 @@ const STRINGS = {
     viewRaster: "Raster", viewTable: "Tabelle", viewRooms: "Räume",
     crewViewAssign: "Zuordnen", crewViewSetup: "Setup", crewViewRooms: "Räume verwalten", crewViewGames: "Spiele verwalten",
     crewViewRequests: "Änderungswünsche", crewViewCrew: "Crew verwalten", setupSubTabsAriaLabel: "Setup-Bereich wählen",
+    crewNavAriaLabel: "Crew-Bereich wählen",
+    toolbarSlotLabel: "Slot", toolbarAssignModeLabel: "Zuordnen per", toolbarFilterLabel: "Filter",
+    toolbarDetailsLabel: "Details", toolbarDetailsBtn: "Details", toolbarDetailsHint: "Zeigt/versteckt Plätze und Anforderungen bei zugeordneten Spielen",
+    queueInfoAriaLabel: "Was ist die Warteschlange? (Erklärung öffnen)",
+    queueInfoText: "{hint} Filter-Chips wirken auch auf die Räume rechts — sie zeigen dann nur passende Räume.",
     // plan.html — Raster/Räume/Zuordnen
     noGames: "Keine Spiele", flipAxisBtn: "⇄ Achsen tauschen (aktuell: {axis})", axisSlotsRows: "Slots als Zeilen", axisRoomsRows: "Räume als Zeilen",
     chooseSlotAriaLabel: "Slot wählen", editSlotTitle: "Aktuellen Termin ({label}) umbenennen/löschen", editSlotAriaLabel: "Aktuellen Termin umbenennen oder löschen",
@@ -366,9 +438,10 @@ const STRINGS = {
     accept: "Accept", decline: "Decline",
     acceptFailed: "Accept failed: {err}", declineFailed: "Decline failed: {err}",
     // index.html
-    headerLabel: "Header", heroSub: "Room and table plan for cons — synced live with Playabl. See where there's still space, or open the full plan.",
+    headerLabel: "Header", heroTitle: "Who's playing what, when, where?", heroSub: "Room and table plan for cons — synced live with Playabl. See where there's still space, or open the full plan.",
     loadingCons: "Loading cons …", openConDirectly: "Open a con directly", openConHint: "Paste a link or ID of an existing con.",
     nextConEyebrow: "Next con", nextConToday: "today", nextConTomorrow: "tomorrow", nextConInDays: "in {n} days",
+    nextConBadgeText: "● coming up · {countdown}",
     nextConCrewBadge: "Crew access", goToOverview: "To overview →",
     directInputPlaceholder: "…or open a link/ID directly", open: "Open",
     existingCons: "Existing cons", existingConsHint: "Shows cons with a linked Playabl event, or manual cons that chose to be listed. Only crew members of a con can edit it.",
@@ -378,7 +451,7 @@ const STRINGS = {
     community: "Community", event: "Event", eventIdDirect: "… or event ID directly",
     manualHint: "Without a Playabl event, no games load automatically — games/programme items are added manually in the room plan.",
     conNameLabel: "Con name", conListedLabel: "List publicly under “Existing cons”",
-    createConBtn: "Create con", unlisted: "unlisted", createdOn: "created {date}", playablEvent: "Playabl event",
+    createConBtn: "Create con", createConTriggerBtn: "+ New con", unlisted: "unlisted", createdOn: "created {date}", playablEvent: "Playabl event",
     delete: "Delete", openArrow: "Open →", noConFound: "No con found yet.",
     confirmDeleteCon: "Permanently delete “{name}” including all rooms/tables/assignments/change requests?",
     deleteFailed: "Delete failed: {err}", pleaseLoginFirst: "Please log in or register first.",
@@ -387,6 +460,7 @@ const STRINGS = {
     imprint: "Legal notice",
     // plan.html — header/dialogs (part 1)
     backToCons: "← all cons", loading: "Loading …", loadingData: "Loading data …",
+    pageTabCons: "Cons", pageTabPlan: "Plan", pageTabCrew: "Crew",
     globalSearchPlaceholder: "Search game, room or table …",
     viewLabel: "View", detailsLabel: "Detail", printCurrentView: "Print current view",
     printBtn: "🖨️ Print", crewLabel: "Crew",
@@ -394,6 +468,10 @@ const STRINGS = {
     printDetailLabel: "Detail level", printOrientationLabel: "Orientation", printColorLabel: "Color",
     printOrientationAuto: "Automatic", printOrientationPortrait: "Portrait", printOrientationLandscape: "Landscape",
     printColorColor: "Color", printColorBw: "Black & white",
+    printBackLink: "← back to plan", printAllSlots: "All slots",
+    printColHost: "Host", printColTag: "Requirement",
+    printMetaSl: "Host: {host}", printMetaFull: "Host: {host}{tag} · {seats}p",
+    printCreatedOn: "Created on {time}", printLiveVersion: "Live version: {url}",
     footPlayabl: "Games are loaded live from the Playabl API on every visit; seats = game seats + 1 GM.",
     footRequest: "Anyone on the crew can send a change request via “Propose change” on a game — please explain briefly.",
     proposeChange: "Propose change", concerns: "Regarding", reqMsgLabel: "What should be different – and why? *",
@@ -430,6 +508,11 @@ const STRINGS = {
     viewRaster: "Grid", viewTable: "Table", viewRooms: "Rooms",
     crewViewAssign: "Assign", crewViewSetup: "Setup", crewViewRooms: "Manage rooms", crewViewGames: "Manage games",
     crewViewRequests: "Change requests", crewViewCrew: "Manage crew", setupSubTabsAriaLabel: "Choose setup section",
+    crewNavAriaLabel: "Choose crew section",
+    toolbarSlotLabel: "Slot", toolbarAssignModeLabel: "Assign by", toolbarFilterLabel: "Filter",
+    toolbarDetailsLabel: "Details", toolbarDetailsBtn: "Details", toolbarDetailsHint: "Shows/hides seats and requirements on assigned games",
+    queueInfoAriaLabel: "What is the queue? (open explanation)",
+    queueInfoText: "{hint} Filter chips also apply to the rooms on the right — they then show only matching rooms.",
     // plan.html — grid/rooms/assign
     noGames: "No games", flipAxisBtn: "⇄ Swap axes (currently: {axis})", axisSlotsRows: "slots as rows", axisRoomsRows: "rooms as rows",
     chooseSlotAriaLabel: "Choose slot", editSlotTitle: "Rename/delete current slot ({label})", editSlotAriaLabel: "Rename or delete current slot",
@@ -527,7 +610,7 @@ function applyLang(key) {
 }
 const LANGS = [{ key: "de", label: "DE" }, { key: "en", label: "EN" }];
 function renderLangSwitch(container) {
-  container.className = "theme-switch";
+  container.className = "lang-switch-flat";
   container.setAttribute("role", "group");
   container.setAttribute("aria-label", tr("langSwitchLabel"));
   container.innerHTML = LANGS.map(l =>

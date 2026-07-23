@@ -14,43 +14,46 @@
 <body>
 <a class="skip-link no-print" href="#main">Zum Inhalt springen</a>
 <div class="wrap">
-  <header>
-    <p class="sub no-print"><a href="index.html" data-i18n="backToCons">← alle Cons</a></p>
-    <div class="card" style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);flex-wrap:wrap">
-      <div>
-        <h1 id="pageTitle">Con-Raumplan</h1>
-        <p class="sub" id="pageSub" data-i18n="loading">Lädt …</p>
-      </div>
-      <div class="no-print" style="display:flex;gap:var(--sp-3);align-items:center;flex-wrap:wrap">
-        <div id="themeSwitch"></div>
-        <div id="langSwitch"></div>
+  <header class="app-header no-print">
+    <div class="header-inner">
+      <a class="brand" href="index.html">Con-Raumplan</a>
+      <nav class="page-tabs slot-tabs" id="pageTabs" role="group" aria-label="Seite wählen"></nav>
+      <div class="header-right">
+        <div class="controls-group">
+          <div id="langSwitch"></div>
+          <div class="controls-divider"></div>
+          <div id="themeSwitch"></div>
+        </div>
         <button id="authBtn" type="button">Login / Registrieren</button>
       </div>
-    </div>
-    <div id="inviteBanner" class="no-print" hidden></div>
-    <p class="banner no-print" id="viewBanner" hidden></p>
-    <p id="status" data-i18n="loadingData">Lade Daten …</p>
-    <div class="kpi-bar no-print" id="kpiBar"></div>
-    <div class="legend no-print" id="legend"></div>
-    <div class="global-search no-print">
-      <input type="search" id="globalSearch" placeholder="Spiel, Raum oder Tisch suchen …" data-i18n-placeholder="globalSearchPlaceholder" aria-label="Suche über alle Ansichten" data-i18n-aria-label="globalSearchPlaceholder">
-    </div>
-    <div class="nav-groups no-print">
-      <span class="label" data-i18n="viewLabel">Ansicht</span>
-      <div class="slot-tabs" id="viewTabs" role="group" aria-label="Ansicht wählen"></div>
-      <span class="label" data-i18n="detailsLabel">Details</span>
-      <div id="detailSwitch" class="slot-tabs" role="group" aria-label="Detailgrad wählen"></div>
-      <button id="printBtn" type="button" title="Aktuelle Ansicht drucken" data-i18n-title="printCurrentView" data-i18n="printBtn">🖨️ Drucken</button>
-    </div>
-    <div class="nav-groups no-print" id="crewNav" hidden>
-      <span class="label" data-i18n="crewLabel">Crew</span>
-      <div class="slot-tabs crew" id="crewTabs" role="group" aria-label="Crew-Bereich wählen"></div>
     </div>
   </header>
 
   <main id="main">
+    <div class="card" id="pageTitleCard" style="margin-bottom:var(--sp-4)">
+      <h1 id="pageTitle">Con-Raumplan</h1>
+      <p class="sub" id="pageSub" data-i18n="loading">Lädt …</p>
+    </div>
+    <div id="chromeExtras">
+      <div id="inviteBanner" class="no-print" hidden></div>
+      <p class="banner no-print" id="viewBanner" hidden></p>
+      <p id="status" data-i18n="loadingData">Lade Daten …</p>
+      <div class="kpi-bar no-print" id="kpiBar"></div>
+      <div class="legend no-print" id="legend"></div>
+      <div class="global-search no-print">
+        <input type="search" id="globalSearch" placeholder="Spiel, Raum oder Tisch suchen …" data-i18n-placeholder="globalSearchPlaceholder" aria-label="Suche über alle Ansichten" data-i18n-aria-label="globalSearchPlaceholder">
+      </div>
+      <div class="nav-groups no-print" id="viewNavGroup">
+        <span class="label" data-i18n="viewLabel">Ansicht</span>
+        <div class="slot-tabs" id="viewTabs" role="group" aria-label="Ansicht wählen"></div>
+        <span class="label" data-i18n="detailsLabel">Details</span>
+        <div id="detailSwitch" class="slot-tabs" role="group" aria-label="Detailgrad wählen"></div>
+        <button id="printBtn" type="button" title="Aktuelle Ansicht drucken" data-i18n-title="printCurrentView" data-i18n="printBtn">🖨️ Drucken</button>
+      </div>
+    </div>
     <section id="viewContent" aria-label="Öffentliche Ansicht"></section>
     <section id="crewContent" aria-label="Crew-Bereich" hidden></section>
+    <section id="printContent" aria-label="Druckansicht" hidden></section>
 
     <ul class="foot">
       <li data-i18n="footPlayabl">Spiele werden bei jedem Öffnen live von der Playabl-API geladen; Plätze = Spielplätze + 1 anbietende Person.</li>
@@ -146,18 +149,6 @@
   </form>
 </dialog>
 
-<!-- Info: was macht Auto-Zuordnung -->
-<dialog id="autoInfoDlg" aria-labelledby="autoInfoDlgH">
-  <h2 id="autoInfoDlgH" data-i18n="autoAssignInfoTitle">Was macht Auto-Zuordnung?</h2>
-  <p class="hint" data-i18n="autoAssignInfoText">Reguläre Runden bekommen möglichst denselben Tisch wie in einem anderen Slot,
-  sonst den kleinsten noch passenden freien Tisch. Hat ein Spiel Anforderungen (Chip-Picker oder
-  Playabl-Klammer-Syntax), werden Räume bevorzugt, die alle davon erfüllen. Workshops/Panels/
-  Vorträge (erkannt an Titel oder System) ohne eigene Anforderungen werden stattdessen bevorzugt
-  in Räume mit „Bewegung ok“ oder „laut ok“ gesetzt. Blockiert nichts — schon zugeordnete Spiele
-  bleiben unangetastet, danach kann jederzeit von Hand nachjustiert werden.</p>
-  <div class="dactions"><button type="button" onclick="this.closest('dialog').close()" class="primary" data-i18n="understood">Verstanden</button></div>
-</dialog>
-
 <!-- Auto-Zuordnung: Vorschau vor der Übernahme -->
 <dialog id="autoPreviewDlg" aria-labelledby="autoPreviewDlgH">
   <h2 id="autoPreviewDlgH" data-i18n="autoAssignPreviewTitle">Vorschlag: Auto-Zuordnung</h2>
@@ -168,74 +159,6 @@
   </div>
 </dialog>
 
-<!-- Info: was macht "Räume verwalten" -->
-<dialog id="roomsInfoDlg" aria-labelledby="roomsInfoDlgH">
-  <h2 id="roomsInfoDlgH" data-i18n="roomsInfoTitle">Räume verwalten</h2>
-  <p class="hint" data-i18n="roomsInfoText">Hier legst du Räume und ihre Tische an und vergibst Eigenschaften (z.B. „Bewegung ok“,
-  „laut ok“), nach denen später automatisch oder manuell zugeordnet wird. Die Zeitabschnitte oben
-  bestimmen, wie Playabl-Spiele automatisch in Tages-Slots (z.B. Vormittag/Nachmittag) einsortiert
-  werden — das wirkt erst auf neue Tage.</p>
-  <div class="dactions"><button type="button" onclick="this.closest('dialog').close()" class="primary" data-i18n="understood">Verstanden</button></div>
-</dialog>
-
-<!-- Info: was macht "Spiele verwalten" -->
-<dialog id="gamesInfoDlg" aria-labelledby="gamesInfoDlgH">
-  <h2 id="gamesInfoDlgH" data-i18n="gamesInfoTitle">Spiele verwalten</h2>
-  <p class="hint" data-i18n="gamesInfoText">Playabl-Spiele werden hier nur zur Übersicht angezeigt — bearbeiten geht direkt auf Playabl.
-  Manuelle Spiele (ohne Playabl-Anbindung) legst du komplett hier an, inklusive Anforderungen an
-  Tisch/Raum fürs Matching bei der Zuordnung.</p>
-  <div class="dactions"><button type="button" onclick="this.closest('dialog').close()" class="primary" data-i18n="understood">Verstanden</button></div>
-</dialog>
-
-<!-- Info: was sind Änderungswünsche -->
-<dialog id="requestsInfoDlg" aria-labelledby="requestsInfoDlgH">
-  <h2 id="requestsInfoDlgH" data-i18n="requestsInfoTitle">Änderungswünsche</h2>
-  <p class="hint" data-i18n="requestsInfoText">Kommen aus der öffentlichen Ansicht — jede·r kann hier einen Wunsch zu einem Spiel oder allgemein
-  einreichen. Als Crew markierst du sie als erledigt oder abgelehnt, optional mit einer internen
-  Notiz. „Zum Spiel →“ springt direkt zur Zuordnen-Ansicht und markiert das betroffene Spiel.</p>
-  <div class="dactions"><button type="button" onclick="this.closest('dialog').close()" class="primary" data-i18n="understood">Verstanden</button></div>
-</dialog>
-
-<!-- Info: was kann die Crew -->
-<dialog id="crewInfoDlg" aria-labelledby="crewInfoDlgH">
-  <h2 id="crewInfoDlgH" data-i18n="crewInfoTitle">Crew</h2>
-  <p class="hint" data-i18n="crewInfoText">Crew-Mitglieder haben Zugriff auf alle Zuordnungs- und Verwaltungsfunktionen. Admins können
-  zusätzlich Rollen ändern sowie Mitglieder einladen oder entfernen.</p>
-  <div class="dactions"><button type="button" onclick="this.closest('dialog').close()" class="primary" data-i18n="understood">Verstanden</button></div>
-</dialog>
-
-<!-- Druckeinstellungen -->
-<dialog id="printDlg" aria-labelledby="printDlgH">
-  <h2 id="printDlgH" data-i18n="printSettingsTitle">Druckeinstellungen</h2>
-  <div class="frow">
-    <label data-i18n="printModeLabel">Modus</label>
-    <div class="slot-tabs" id="printModeTabs" role="group" aria-label="Modus wählen"></div>
-  </div>
-  <div class="frow" id="printAxisRow">
-    <label data-i18n="printAxisLabel">Achse</label>
-    <div class="slot-tabs" id="printAxisTabs" role="group" aria-label="Achse wählen"></div>
-  </div>
-  <div class="frow" id="printSlotRow">
-    <label for="printSlotSelect" data-i18n="printSlotLabel">Slot</label>
-    <select id="printSlotSelect"></select>
-  </div>
-  <div class="frow">
-    <label data-i18n="printDetailLabel">Detailgrad</label>
-    <div class="slot-tabs" id="printDetailTabs" role="group" aria-label="Detailgrad wählen"></div>
-  </div>
-  <div class="frow">
-    <label data-i18n="printOrientationLabel">Ausrichtung</label>
-    <div class="slot-tabs" id="printOrientationTabs" role="group" aria-label="Ausrichtung wählen"></div>
-  </div>
-  <div class="frow">
-    <label data-i18n="printColorLabel">Farbe</label>
-    <div class="slot-tabs" id="printColorTabs" role="group" aria-label="Farbe wählen"></div>
-  </div>
-  <div class="dactions">
-    <button type="button" onclick="this.closest('dialog').close()" data-i18n="cancel">Abbrechen</button>
-    <button type="button" id="printApplyBtn" class="primary" data-i18n="printBtn">🖨️ Drucken</button>
-  </div>
-</dialog>
 
 <!-- Spiel anlegen/bearbeiten (manuell, ohne Playabl) -->
 <dialog id="gameDlg" aria-labelledby="gameDlgH">
@@ -431,12 +354,13 @@ const S = {
   role: null, superadmin: false, search: "",
   mode: "view", view: "raster", crewView: "zuordnen", setupTab: "raeume",
   rasterAxis: "rooms", tableSort: { key: "when", dir: 1 },
-  showDoneRequests: false, minSeats: 0, minTableSeats: 0,
-  filterReqTags: [], tableFilterReqTags: [],
+  showDoneRequests: false, minSeats: 0,
+  filterReqTags: [],
   assignMode: Prefs.get("assign-mode", "dnd"), selectedGame: null,
   detailLevel: Prefs.get("detail-level", "full"), pinnedRequest: null,
+  crewShowDetails: true,
   printMode: "raster", printAxis: "rooms", printSlot: null, printDetail: "full",
-  printOrientation: "auto", printColor: "bw",
+  printOrientation: "auto", printColor: "bw", printReturnMode: "view", printReturnView: "raster",
 };
 
 const VIEWS = [{ key: "raster", nameKey: "viewRaster" }, { key: "tabelle", nameKey: "viewTable" }, { key: "raeume", nameKey: "viewRooms" }];
@@ -567,14 +491,17 @@ function matchesSearchG(g) {
 // Kapazitätswarnung selbst läuft auf JEDEM Detailgrad, nie nur bei
 // medium/full (das war ein Bug: eine sicherheitsrelevante Warnung darf
 // "weniger Detail" nicht komplett verschwinden lassen).
-function chipHtml(g, { crew = false } = {}) {
+function chipHtml(g, { crew = false, forceMinimal = false } = {}) {
   const a = asgFor(g);
   const table = a && S.tables.find(t => t.id === a.table_id);
   const room = table && roomOfTable(table.id);
   const overSeats = table && g.seats > table.seats ? g.seats - table.seats : 0;
   const reqTags = (g.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean);
   const reqUnmet = room && reqTags.length ? reqTags.filter(f => !roomTagIds(room).includes(f.id)) : [];
-  const level = S.detailLevel;
+  // "Details"-Toggle im Zuordnen-Toolbar zwingt zugeordnete Board-Chips auf
+  // "minimal", unabhängig vom globalen Detailgrad-Switch — 1:1 aus der
+  // Vorlage (crewShowDetails wirkt nur auf die Board-Ansicht, nicht global).
+  const level = forceMinimal ? "minimal" : S.detailLevel;
   const titleHtml = g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title);
   const titleShort = g.title.length > 22 ? g.title.slice(0, 21) + "…" : g.title;
 
@@ -664,17 +591,25 @@ function renderLegend() {
     <span class="item"><span class="swatch"></span> ${esc(tr("legendColorRoom"))}</span>
     <span class="item"><span class="swatch dashed"></span> ${esc(tr("legendDashedWorkshop"))}</span>
     <span class="item"><span class="badge warn">+X</span> ${esc(tr("legendOverCapacity"))}</span>
-    <span class="icon-btn" tabindex="0" role="note" aria-label="${esc(tr("legendInfoText"))}" title="${esc(tr("legendInfoText"))}">ⓘ</span>`;
+    <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("legendInfoText"))}" data-info-text="${esc(tr("legendInfoText"))}">ⓘ</span>`;
+}
+// Header-Seiten-Leiste: "Cons" ist ein echter Link zurück zu index.html,
+// "Raumplan"/"🔒 Crew" sind die zwei internen Top-Level-Zustände von
+// S.mode ("view"/"crew") — 1:1 aus der Vorlage (page:"landing"/"plan"/"crew"),
+// nur auf unsere Zwei-Datei-Architektur übersetzt (siehe Phase-10-Plan A).
+function renderPageTabs() {
+  const showCrew = !!S.role;
+  document.getElementById("pageTabs").innerHTML = `
+    <a href="index.html" aria-pressed="false">${esc(tr("pageTabCons"))}</a>
+    <button type="button" data-page="view" aria-pressed="${String(S.mode === "view")}">${esc(tr("pageTabPlan"))}</button>
+    ${showCrew ? `<button type="button" data-page="crew" aria-pressed="${String(S.mode === "crew")}">🔒 ${esc(tr("pageTabCrew"))}</button>` : ""}
+  `;
 }
 function renderNav() {
+  renderPageTabs();
+  document.getElementById("viewNavGroup").hidden = S.mode !== "view";
   document.getElementById("viewTabs").innerHTML = VIEWS.map(v =>
     `<button type="button" data-view="${v.key}" aria-pressed="${String(S.mode === "view" && S.view === v.key)}">${esc(tr(v.nameKey))}</button>`).join("");
-  const crewNav = document.getElementById("crewNav");
-  crewNav.hidden = !S.role;
-  if (S.role) {
-    document.getElementById("crewTabs").innerHTML = CREW_VIEWS.map(v =>
-      `<button type="button" data-crewview="${v.key}" aria-pressed="${String(S.mode === "crew" && S.crewView === v.key)}">${esc(tr(v.nameKey))}</button>`).join("");
-  }
 }
 
 /* ---------------- Ansicht: Tabelle ---------------- */
@@ -770,31 +705,33 @@ function zuordnenHtml() {
   const unassigned = slotGames.filter(g => { const a = asgFor(g); return !a || !a.table_id; })
     .filter(g => !S.filterReqTags.length || S.filterReqTags.every(id => (g.requiredTagIds || []).includes(id)))
     .filter(g => g.seats >= S.minSeats);
-  const filterChipsHtml = `<div class="filter-chips">
-    <label class="min-seats-filter">${tr("minSeatsFilterLabel", { stepper: numberStepperHtml("minSeatsInput", { value: S.minSeats, max: 200 }) })}</label>
-    <label class="min-seats-filter">${tr("reqFilterLabel", { picker: filterTagPickerHtml("games", S.filterReqTags) })}</label>
-  </div>`;
-  const tableFilterHtml = `<div class="filter-chips">
-    <label class="min-seats-filter">${tr("minTableSeatsFilterLabel", { stepper: numberStepperHtml("minTableSeatsInput", { value: S.minTableSeats, max: 200 }) })}</label>
-    <label class="min-seats-filter">${tr("reqSatisfiedFilterLabel", { picker: filterTagPickerHtml("tables", S.tableFilterReqTags) })}</label>
-  </div>`;
   const queueHintText = S.assignMode === "click" ? tr("queueHintClick") : tr("queueHintDnd");
-  const queueHtml = `<div class="assign-queue"><h2>${esc(tr("unassignedTitle"))}</h2><p class="hint">${esc(queueHintText)}</p>${filterChipsHtml}<div class="chipbar" id="unassignedBar">${unassigned.map(g => chipHtml(g, { crew: true })).join("") || `<p class="hint">${esc(tr("allAssigned"))}</p>`}</div></div>`;
+  // Ein Filter-Set (Plätze + Anforderungen) wirkt auf die Warteschlange UND
+  // hebt passende Räume rechts hervor — 1:1 aus der Vorlage (kein getrenntes
+  // zweites Filter-Set für Tische, wie noch in Phase 9).
+  const queueHtml = `<div class="assign-queue">
+    <div class="queue-head">
+      <div class="queue-title-row"><h2>${esc(tr("unassignedTitle"))}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("queueInfoAriaLabel"))}" data-info-text="${esc(tr("queueInfoText", { hint: queueHintText }))}">i</span></div>
+      <button type="button" id="autoBtn" class="primary" title="${esc(tr("autoAssignBtnTitle"))}">${esc(tr("autoAssignBtn"))}</button>
+    </div>
+    <p class="hint">${esc(queueHintText)}</p>
+    <div class="chipbar" id="unassignedBar">${unassigned.map(g => chipHtml(g, { crew: true })).join("") || `<p class="hint">${esc(tr("allAssigned"))}</p>`}</div>
+  </div>`;
   // Anforderungs-Hinweis auf Tischen: nur fürs aktuell in Einzelauswahl
   // ausgewählte Spiel sinnvoll berechenbar (bei Drag&Drop gibt es kein
   // "gerade gehaltenes Spiel" ohne den Drag selbst zu unterbrechen) —
   // blockiert nichts, ist rein informativ, wie die Kapazitätswarnung.
   const selectedGameObj = S.selectedGame && gameByKey(S.selectedGame);
+  const forceMinimal = !S.crewShowDetails;
   const boardHtml = S.rooms.map(room => {
     const tables = S.tables.filter(t => t.room_id === room.id);
     const missingForRoom = selectedGameObj
       ? (selectedGameObj.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).filter(f => !roomTagIds(room).includes(f.id))
       : [];
-    const tagMatch = S.tableFilterReqTags.length && roomSatisfiesTags(room, S.tableFilterReqTags) ? " tag-match" : "";
+    const tagMatch = S.filterReqTags.length && roomSatisfiesTags(room, S.filterReqTags) ? " tag-match" : "";
     const tablesHtml = tables.map(t => {
       const games = slotGames.filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
       const double = games.length > 1 ? `<span class="badge warn">${esc(tr("doubleBooked"))}</span>` : "";
-      const seatMatch = S.minTableSeats > 0 && t.seats >= S.minTableSeats ? " seat-match" : "";
       const reqMismatch = missingForRoom.length ? " req-mismatch" : "";
       const reqHint = missingForRoom.length ? `<span class="badge warn" title="${esc(tr("doesNotMeet", { tags: missingForRoom.map(f => f.label).join(", ") }))}">${esc(tr("missingTags", { tags: missingForRoom.map(f => f.label).join(", ") }))}</span>` : "";
       // Zieltisch-Scoring: nur im Auswahl-Modus mit einem gewählten Spiel
@@ -805,26 +742,47 @@ function zuordnenHtml() {
         const seatsFit = t.seats >= selectedGameObj.seats;
         gameMatch = seatsFit && !missingForRoom.length ? " gm-full" : seatsFit ? " gm-partial" : " gm-none";
       }
-      return `<div class="tablebox${seatMatch}${tagMatch}${reqMismatch}${gameMatch}" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span>${double}${reqHint}</div>${games.map(g => chipHtml(g, { crew: true })).join("") || `<div class="free">${esc(tr("freeLabel"))}</div>`}</div>`;
+      return `<div class="tablebox${tagMatch}${reqMismatch}${gameMatch}" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span>${double}${reqHint}</div>${games.map(g => chipHtml(g, { crew: true, forceMinimal })).join("") || `<div class="free">${esc(tr("freeLabel"))}</div>`}</div>`;
     }).join("");
     return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><h3>${esc(room.name)}</h3></div>${tablesHtml || `<p class="hint">${esc(tr("noTablesCreateInRooms"))}</p>`}</div>`;
   }).join("") || emptyState(tr("noRoomsGoToManage"));
-  const assignModeHtml = `<div class="filter-chips" role="group" aria-label="${esc(tr("assignModeAriaLabel"))}">
-    <button type="button" class="filter-chip" data-assignmode="dnd" aria-pressed="${String(S.assignMode === "dnd")}">${esc(tr("dragDropLabel"))}</button>
-    <button type="button" class="filter-chip" data-assignmode="click" aria-pressed="${String(S.assignMode === "click")}">${esc(tr("singleSelectLabel"))}</button>
-  </div>`;
   const pinnedBannerHtml = (() => {
     if (!S.pinnedRequest) return "";
     const g = gameByKey(S.pinnedRequest.gameKey);
     return `<div class="pinned-banner no-print"><div><strong>${esc(g ? g.title : "")}</strong> — ${esc(S.pinnedRequest.message)}</div><button type="button" id="pinnedBannerCloseBtn" class="icon-btn" aria-label="${esc(tr("closeBanner"))}">✕</button></div>`;
   })();
-  return `${pinnedBannerHtml}${unscheduledBacklogHtml()}${slotTabsHtml(true)}
-    <div class="controls no-print" style="align-items:center;flex-wrap:wrap;gap:var(--sp-3)">
-      ${assignModeHtml}
-      <button type="button" id="autoBtn" class="primary" title="${esc(tr("autoAssignBtnTitle"))}">${esc(tr("autoAssignBtn"))}</button>
-      <button type="button" id="autoInfoBtn" class="icon-btn" aria-label="${esc(tr("autoAssignInfoAriaLabel"))}" title="${esc(tr("autoAssignInfoTitle"))}">ⓘ</button>
+  // Toolbar-Karte mit 4 durch Divider getrennten Gruppen (Slot/Zuordnen per/
+  // Filter/Details) — 1:1 aus der Vorlage (toolbarCrewCardStyle), ersetzt die
+  // vorherigen mehreren getrennten Steuerzeilen aus Phase 9.
+  const toolbarHtml = `<div class="card toolbar-card no-print">
+    <div class="toolbar-group">
+      <span class="toolbar-label">${esc(tr("toolbarSlotLabel"))}</span>
+      ${slotTabsHtml(true)}
     </div>
-    <div class="assign-layout" style="margin-top:var(--sp-3)">${queueHtml}<div>${tableFilterHtml}<div id="board">${boardHtml}</div></div></div>`;
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-group">
+      <span class="toolbar-label">${esc(tr("toolbarAssignModeLabel"))}</span>
+      <div class="toolbar-pill-row" role="group" aria-label="${esc(tr("assignModeAriaLabel"))}">
+        <button type="button" class="filter-chip" data-assignmode="dnd" aria-pressed="${String(S.assignMode === "dnd")}">${esc(tr("dragDropLabel"))}</button>
+        <button type="button" class="filter-chip" data-assignmode="click" aria-pressed="${String(S.assignMode === "click")}">${esc(tr("singleSelectLabel"))}</button>
+      </div>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-group">
+      <span class="toolbar-label">${esc(tr("toolbarFilterLabel"))}</span>
+      <div class="toolbar-pill-row">
+        ${numberStepperHtml("minSeatsInput", { value: S.minSeats, max: 200 })}
+        ${filterTagPickerHtml("games", S.filterReqTags)}
+      </div>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-group">
+      <span class="toolbar-label">${esc(tr("toolbarDetailsLabel"))}</span>
+      <button type="button" id="crewDetailsToggle" class="details-toggle${S.crewShowDetails ? " is-active" : ""}" title="${esc(tr("toolbarDetailsHint"))}">ⓘ ${esc(tr("toolbarDetailsBtn"))}</button>
+    </div>
+  </div>`;
+  return `${pinnedBannerHtml}${unscheduledBacklogHtml()}${toolbarHtml}
+    <div class="assign-layout">${queueHtml}<div id="board">${boardHtml}</div></div>`;
 }
 
 // Spiele aus "Spiele verwalten" ohne Slot — bewusst noch in Zuordnen
@@ -876,7 +834,7 @@ function raeumeVerwaltenHtml() {
     </div>`;
   }).join("") || emptyState(tr("noRoomsYet"));
   return `${bucketsHtml()}
-    <div class="controls no-print"><button type="button" id="addRoomBtn" class="primary">${esc(tr("addRoomBtn"))}</button><button type="button" id="roomsInfoBtn" class="icon-btn" aria-label="${esc(tr("roomsInfoAriaLabel"))}" title="${esc(tr("roomsInfoTitle"))}">ⓘ</button></div>
+    <div class="controls no-print"><button type="button" id="addRoomBtn" class="primary">${esc(tr("addRoomBtn"))}</button><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("roomsInfoAriaLabel"))}" data-info-text="${esc(tr("roomsInfoText"))}">ⓘ</span></div>
     <div id="board" style="margin-top:var(--sp-4)">${roomsHtml}</div>`;
 }
 
@@ -911,7 +869,7 @@ function spieleVerwaltenHtml() {
     </div>`;
     }).join("")}
   </div>` : "";
-  return `<div class="controls no-print"><button type="button" id="addGameBtn" class="primary">${esc(tr("addGameBtn"))}</button><button type="button" id="gamesInfoBtn" class="icon-btn" aria-label="${esc(tr("gamesInfoAriaLabel"))}" title="${esc(tr("gamesInfoTitle"))}">ⓘ</button></div>
+  return `<div class="controls no-print"><button type="button" id="addGameBtn" class="primary">${esc(tr("addGameBtn"))}</button><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("gamesInfoAriaLabel"))}" data-info-text="${esc(tr("gamesInfoText"))}">ⓘ</span></div>
     <div class="card" style="margin-top:var(--sp-3)">
       <h2>${esc(tr("manualGamesTitle"))}</h2>
       <p class="hint">${esc(tr("manualGamesHint"))}</p>
@@ -942,7 +900,7 @@ function wuenscheHtml() {
   }).join("") || `<p class="hint">${esc(tr("noOpenRequests"))}</p>`;
   return `<div class="controls no-print" style="justify-content:space-between">
       <label style="display:flex;gap:6px;align-items:center;font-size:var(--fs-sm);cursor:pointer"><input type="checkbox" id="showDoneChk" ${S.showDoneRequests ? "checked" : ""}> ${esc(tr("showDoneCheckbox"))}</label>
-      <button type="button" id="requestsInfoBtn" class="icon-btn" aria-label="${esc(tr("requestsInfoAriaLabel"))}" title="${esc(tr("requestsInfoTitle"))}">ⓘ</button>
+      <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("requestsInfoAriaLabel"))}" data-info-text="${esc(tr("requestsInfoText"))}">ⓘ</span>
     </div>
     <div class="card" style="margin-top:var(--sp-3)">${rowsHtml}</div>`;
 }
@@ -950,7 +908,7 @@ function wuenscheHtml() {
 /* ---------------- Crew: Crew verwalten ---------------- */
 function crewVerwaltenHtml() {
   return `<div class="card">
-    <h2>${esc(tr("crewTitle"))} <button type="button" id="crewInfoBtn" class="icon-btn" aria-label="${esc(tr("crewInfoAriaLabel"))}" title="${esc(tr("crewInfoTitle"))}">ⓘ</button></h2>
+    <h2>${esc(tr("crewTitle"))} <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("crewInfoAriaLabel"))}" data-info-text="${esc(tr("crewInfoText"))}">ⓘ</span></h2>
     <p class="hint">${esc(S.role === "admin" ? tr("adminCanManage") : tr("onlyAdminsCanManage"))}</p>
     <div id="crewList"><p class="hint">${esc(tr("loading"))}</p></div>
     ${S.role === "admin" ? `<h3>${esc(tr("inviteTitle"))}</h3>
@@ -980,6 +938,13 @@ async function refreshCrewList() {
 }
 
 /* ---------------- Crew: Setup (fasst Räume/Spiele/Crew verwalten zusammen) --- */
+// Crew-Hauptnav: Underline-Tabs (border-bottom), nicht Pill-Style — 1:1 aus
+// der Vorlage (crewViews/crewNavWrapStyle), im Unterschied zur Setup-
+// Unternav (setupSubTabs), die bewusst Pill-Style bleibt.
+function crewNavHtml() {
+  return `<div class="crew-nav" role="group" aria-label="${esc(tr("crewNavAriaLabel"))}">${CREW_VIEWS.map(v =>
+    `<button type="button" data-crewview="${v.key}" aria-pressed="${String(S.crewView === v.key)}">${esc(tr(v.nameKey))}</button>`).join("")}</div>`;
+}
 function setupHtml() {
   const subTabsHtml = `<div class="slot-tabs" role="group" aria-label="${esc(tr("setupSubTabsAriaLabel"))}">${SETUP_VIEWS.map(v =>
     `<button type="button" data-setuptab="${v.key}" aria-pressed="${String(S.setupTab === v.key)}">${esc(tr(v.nameKey))}</button>`).join("")}</div>`;
@@ -989,13 +954,36 @@ function setupHtml() {
 
 /* ---------------- Render-Dispatcher ---------------- */
 function renderActive() {
-  renderKpiBar(); renderLegend(); renderNav();
+  // Comic-Hintergrund ist seiten-/modusabhängig (Raumplan/Crew/Druck
+  // bekommen je einen eigenen Index) — deterministisch, deshalb harmlos bei
+  // jedem renderActive() neu zu berechnen (anders als Ukiyos Zufalls-Pick,
+  // der nur beim Theme-Wechsel neu würfelt).
+  if (document.documentElement.getAttribute("data-theme") === "comic") pickComicBackground();
   const viewC = document.getElementById("viewContent"), crewC = document.getElementById("crewContent");
+  const printC = document.getElementById("printContent");
+  // Druckseite ist eine vierte, gleichrangige Seite (kein Dialog) — der
+  // gesamte App-Header verschwindet dort komplett (showChrome=!isPrint aus
+  // der Vorlage), alle anderen Kopfzeilen-Bausteine (KPI/Legende/Suche/Nav)
+  // sind ebenfalls irrelevant, solange man auf der Druckseite ist.
+  document.querySelector(".app-header").hidden = S.mode === "print";
+  document.getElementById("pageTitleCard").hidden = S.mode === "print";
+  document.getElementById("chromeExtras").hidden = S.mode === "print";
+  if (S.mode === "print") {
+    viewC.hidden = true; crewC.hidden = true; printC.hidden = false;
+    printC.innerHTML = printPageHtml();
+    return;
+  }
+  printC.hidden = true;
+  renderKpiBar(); renderLegend(); renderNav();
   if (S.mode === "crew" && S.role) {
     viewC.hidden = true; crewC.hidden = false;
-    if (S.crewView === "zuordnen") { crewC.innerHTML = zuordnenHtml(); if (S.assignMode === "dnd") wireDnd(); }
-    else if (S.crewView === "setup") { crewC.innerHTML = setupHtml(); if (S.setupTab === "crew") refreshCrewList(); }
-    else if (S.crewView === "wuensche") crewC.innerHTML = wuenscheHtml();
+    let body;
+    if (S.crewView === "zuordnen") { body = zuordnenHtml(); }
+    else if (S.crewView === "setup") { body = setupHtml(); }
+    else if (S.crewView === "wuensche") { body = wuenscheHtml(); }
+    crewC.innerHTML = crewNavHtml() + body;
+    if (S.crewView === "zuordnen" && S.assignMode === "dnd") wireDnd();
+    if (S.crewView === "setup" && S.setupTab === "crew") refreshCrewList();
   } else {
     viewC.hidden = false; crewC.hidden = true;
     if (S.view === "tabelle") viewC.innerHTML = tabelleHtml();
@@ -1136,24 +1124,77 @@ function wireDnd() {
   }
 }
 
+/* ---------------- Info-Tooltip: geteiltes Hover/Klick-Popover ---------------- */
+// EIN globales Popover-Element (Portal in <body>, gleiches Muster wie
+// #themeMorePopover aus Phase 9) statt fünf getrennter <dialog>s — zeigt sich
+// bei Hover ODER Klick auf jedes Element mit [data-info-text], positioniert
+// per getBoundingClientRect() direkt unter dem jeweiligen Icon. 1:1 aus der
+// Vorlage (infoTip-State/showInfoTip/hideInfoTip/toggleInfoTip).
+function ensureInfoTipPopoverEl() {
+  let el = document.getElementById("infoTipPopover");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "infoTipPopover";
+    el.className = "info-tip-popover";
+    el.hidden = true;
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function showInfoTip(trigger, text) {
+  const el = ensureInfoTipPopoverEl();
+  const r = trigger.getBoundingClientRect();
+  el.style.top = `${r.bottom + 6}px`;
+  el.style.left = `${Math.min(r.left, window.innerWidth - 246)}px`;
+  el.textContent = text;
+  el.hidden = false;
+  el.dataset.forTrigger = text;
+}
+function hideInfoTip() {
+  const el = document.getElementById("infoTipPopover");
+  if (el) { el.hidden = true; delete el.dataset.forTrigger; }
+}
+document.addEventListener("mouseover", e => {
+  const t = e.target.closest("[data-info-text]");
+  if (t && !t.contains(e.relatedTarget)) showInfoTip(t, t.dataset.infoText);
+});
+document.addEventListener("mouseout", e => {
+  const t = e.target.closest("[data-info-text]");
+  if (t && !t.contains(e.relatedTarget)) hideInfoTip();
+});
+document.addEventListener("focusin", e => {
+  const t = e.target.closest("[data-info-text]");
+  if (t) showInfoTip(t, t.dataset.infoText);
+});
+document.addEventListener("focusout", e => {
+  const t = e.target.closest("[data-info-text]");
+  if (t) hideInfoTip();
+});
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-info-text]");
+  const popover = document.getElementById("infoTipPopover");
+  if (!t) { if (!e.target.closest("#infoTipPopover")) hideInfoTip(); return; }
+  e.stopPropagation();
+  if (popover && !popover.hidden && popover.dataset.forTrigger === t.dataset.infoText) hideInfoTip();
+  else showInfoTip(t, t.dataset.infoText);
+});
+
 /* ---------------- Event-Delegation ---------------- */
 document.addEventListener("change", e => {
   if (e.target.matches(".assignSel")) assign(e.target.dataset.game, e.target.dataset.slot, e.target.value || null);
   else if (e.target.id === "showDoneChk") { S.showDoneRequests = e.target.checked; renderActive(); }
   else if (e.target.matches(".tag-add-select") && e.target.value) { tagPickerSelection.add(e.target.value); renderTagPicker(e.target.closest("[id]").id); }
   else if (e.target.matches(".filter-tag-select") && e.target.value) {
-    const key = e.target.dataset.filterkey === "games" ? "filterReqTags" : "tableFilterReqTags";
-    if (!S[key].includes(e.target.value)) S[key] = [...S[key], e.target.value];
+    if (!S.filterReqTags.includes(e.target.value)) S.filterReqTags = [...S.filterReqTags, e.target.value];
     renderActive();
   }
 });
 // Eigener "input"-Listener (reagiert bei jedem Tastendruck, nicht erst bei
 // Blur/Enter wie "change") — braucht renderActivePreservingFocus(), da
-// #minSeatsInput/#minTableSeatsInput innerhalb des ersetzten Crew-Contents
-// liegen und sonst nach dem ersten Zeichen den Fokus verlieren würden.
+// #minSeatsInput innerhalb des ersetzten Crew-Contents liegt und sonst nach
+// dem ersten Zeichen den Fokus verlieren würde.
 document.addEventListener("input", e => {
   if (e.target.id === "minSeatsInput") { S.minSeats = parseInt(e.target.value, 10) || 0; renderActivePreservingFocus(); }
-  else if (e.target.id === "minTableSeatsInput") { S.minTableSeats = parseInt(e.target.value, 10) || 0; renderActivePreservingFocus(); }
 });
 document.addEventListener("click", async e => {
   // Einzelauswahl-Modus: Klick auf einen Tisch (oder die Warteschlange
@@ -1188,7 +1229,8 @@ document.addEventListener("click", async e => {
     renderActive();
     return;
   }
-  if (t.matches("[data-view]")) { S.mode = "view"; S.view = t.dataset.view; renderActive(); }
+  if (t.matches("[data-page]")) { S.mode = t.dataset.page; renderActive(); }
+  else if (t.matches("[data-view]")) { S.mode = "view"; S.view = t.dataset.view; renderActive(); }
   else if (t.matches("[data-crewview]")) { S.mode = "crew"; S.crewView = t.dataset.crewview; renderActive(); }
   else if (t.matches("[data-setuptab]")) { S.setupTab = t.dataset.setuptab; renderActive(); }
   else if (t.matches(".local-slot-tabs button[data-slot]")) { S.activeSlot = t.dataset.slot; renderActive(); }
@@ -1205,13 +1247,33 @@ document.addEventListener("click", async e => {
   else if (t.id === "addGameBtn") openGameDlg(null);
   else if (t.matches(".addToActiveSlotBtn")) assign(t.dataset.game, S.activeSlot, null);
   else if (t.matches(".requestBtn")) openRequestDlg(t.dataset.game);
-  else if (t.id === "printBtn") openPrintDlg();
+  else if (t.id === "printBtn") {
+    S.printMode = S.view === "raster" ? "raster" : S.view === "tabelle" ? "tabelle" : "raeume";
+    S.printSlot = S.activeSlot;
+    S.printReturnMode = S.mode; S.printReturnView = S.view;
+    S.mode = "print"; renderActive();
+  }
+  else if (t.id === "printBackLink") { S.mode = S.printReturnMode || "view"; S.view = S.printReturnView || S.view; renderActive(); }
+  else if (t.matches("[data-printmode]")) { S.printMode = t.dataset.printmode; renderActive(); }
+  else if (t.matches("[data-printaxis]")) { S.printAxis = t.dataset.printaxis; renderActive(); }
+  else if (t.matches("[data-printslot]")) { S.printSlot = t.dataset.printslot; renderActive(); }
+  else if (t.matches("[data-printdetail]")) { S.printDetail = t.dataset.printdetail; renderActive(); }
+  else if (t.matches("[data-printorientation]")) { S.printOrientation = t.dataset.printorientation; renderActive(); }
+  else if (t.matches("[data-printcolor]")) { S.printColor = t.dataset.printcolor; renderActive(); }
+  else if (t.id === "doPrintBtn") {
+    document.documentElement.classList.toggle("print-bw", S.printColor === "bw");
+    const orientation = S.printOrientation === "auto" ? (S.printMode === "raster" ? "landscape" : "portrait") : S.printOrientation;
+    let styleEl = document.getElementById("printOrientationStyle");
+    if (!styleEl) { styleEl = document.createElement("style"); styleEl.id = "printOrientationStyle"; document.head.appendChild(styleEl); }
+    styleEl.textContent = `@media print { @page { size: ${orientation}; } }`;
+    window.print();
+  }
   else if (t.id === "flipAxisBtn") { S.rasterAxis = S.rasterAxis === "slots" ? "rooms" : "slots"; renderActive(); }
   else if (t.matches(".filter-tag-remove")) {
-    const key = t.dataset.filterkey === "games" ? "filterReqTags" : "tableFilterReqTags";
-    S[key] = S[key].filter(id => id !== t.dataset.tagId);
+    S.filterReqTags = S.filterReqTags.filter(id => id !== t.dataset.tagId);
     renderActive();
   }
+  else if (t.id === "crewDetailsToggle") { S.crewShowDetails = !S.crewShowDetails; renderActive(); }
   else if (t.id === "addRoomBtn") openRoomDlg(null);
   else if (t.matches(".editRoomBtn")) openRoomDlg(S.rooms.find(r => r.id === t.dataset.id));
   else if (t.matches(".delRoomBtn")) {
@@ -1234,11 +1296,6 @@ document.addEventListener("click", async e => {
   }
   else if (t.id === "autoBtn") openAutoAssignPreview();
   else if (t.id === "autoPreviewApplyBtn") applyPendingAutoAssignJobs();
-  else if (t.id === "autoInfoBtn") document.getElementById("autoInfoDlg").showModal();
-  else if (t.id === "roomsInfoBtn") document.getElementById("roomsInfoDlg").showModal();
-  else if (t.id === "gamesInfoBtn") document.getElementById("gamesInfoDlg").showModal();
-  else if (t.id === "requestsInfoBtn") document.getElementById("requestsInfoDlg").showModal();
-  else if (t.id === "crewInfoBtn") document.getElementById("crewInfoDlg").showModal();
   else if (t.id === "pinnedBannerCloseBtn") { S.pinnedRequest = null; renderActive(); }
   else if (t.matches(".jumpToGameBtn")) jumpToGameInZuordnen(t.dataset.game, t.dataset.slot, t.dataset.msg);
   else if (t.id === "addSlotBtn") openSlotDlg(null);
@@ -1307,8 +1364,16 @@ document.getElementById("requestForm").addEventListener("submit", async e => {
   } catch (err) { out.className = "msg err"; out.textContent = tr("sendFailed", { err: err.message }); }
 });
 
-/* ---------------- Druckeinstellungen ---------------- */
+/* ---------------- Druckansicht: eigene Vollseite (S.mode === "print") ---------------- */
+// 1:1 aus der Vorlage: Druck ist eine vierte gleichrangige Seite (kein
+// Dialog), Header komplett weg (showChrome=!isPrint), Steuerung oben in
+// derselben .toolbar-card-Optik wie Zuordnen, darunter eine am Bildschirm
+// sichtbare A4-Vorschau (.doc-page) mit echten Daten und fest kodierten,
+// theme-unabhängigen Farben (druckt lesbar unabhängig vom aktiven Theme).
+const PRINT_ROOM_COLORS = ["#2563eb", "#16a34a", "#b45309", "#be123c", "#7c3aed", "#0e7490"];
+const printAccent = ri => S.printColor === "bw" ? null : PRINT_ROOM_COLORS[ri % PRINT_ROOM_COLORS.length];
 const PRINT_MODES = [{ key: "raster", nameKey: "viewRaster" }, { key: "tabelle", nameKey: "viewTable" }, { key: "raeume", nameKey: "viewRooms" }];
+const PRINT_AXES = [{ key: "rooms", nameKey: "axisRoomsRows" }, { key: "slots", nameKey: "axisSlotsRows" }];
 const PRINT_ORIENTATIONS = [
   { key: "auto", nameKey: "printOrientationAuto" },
   { key: "portrait", nameKey: "printOrientationPortrait" },
@@ -1316,65 +1381,106 @@ const PRINT_ORIENTATIONS = [
 ];
 const PRINT_COLORS = [{ key: "color", nameKey: "printColorColor" }, { key: "bw", nameKey: "printColorBw" }];
 
-function printTabsGroupHtml(items, dataAttr, current) {
+function printPillsHtml(items, dataAttr, current) {
   return items.map(it =>
-    `<button type="button" data-${dataAttr}="${it.key}" aria-pressed="${String(it.key === current)}">${esc(tr(it.nameKey))}</button>`).join("");
+    `<button type="button" class="filter-chip" data-${dataAttr}="${it.key}" aria-pressed="${String(it.key === current)}">${esc(tr(it.nameKey))}</button>`).join("");
 }
-function renderPrintDlgControls() {
-  document.getElementById("printModeTabs").innerHTML = printTabsGroupHtml(PRINT_MODES, "printmode", S.printMode);
-  document.getElementById("printAxisTabs").innerHTML = printTabsGroupHtml(
-    [{ key: "rooms", nameKey: "axisRoomsRows" }, { key: "slots", nameKey: "axisSlotsRows" }], "printaxis", S.printAxis);
-  document.getElementById("printAxisRow").hidden = S.printMode !== "raster";
-  document.getElementById("printSlotSelect").innerHTML = S.slots.map(s =>
-    `<option value="${esc(s.key)}"${s.key === S.printSlot ? " selected" : ""}>${esc(s.label)}</option>`).join("");
-  document.getElementById("printSlotRow").hidden = S.printMode !== "raeume";
-  document.getElementById("printDetailTabs").innerHTML = printTabsGroupHtml(DETAIL_LEVELS.map(d => ({ key: d.key, nameKey: d.labelKey })), "printdetail", S.printDetail);
-  document.getElementById("printOrientationTabs").innerHTML = printTabsGroupHtml(PRINT_ORIENTATIONS, "printorientation", S.printOrientation);
-  document.getElementById("printColorTabs").innerHTML = printTabsGroupHtml(PRINT_COLORS, "printcolor", S.printColor);
+function roomBadgeLabels(room) {
+  return roomTagIds(room).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => f.label);
 }
-function openPrintDlg() {
-  if (!S.printSlot) S.printSlot = S.activeSlot || S.slots[0]?.key || null;
-  renderPrintDlgControls();
-  document.getElementById("printDlg").showModal();
+function printGameMeta(g) {
+  const reqLabels = (g.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => f.label);
+  if (S.printDetail === "minimal") return "";
+  if (S.printDetail === "medium") return tr("printMetaSl", { host: g.provider || "–" });
+  return tr("printMetaFull", { host: g.provider || "–", tag: reqLabels.length ? " · " + reqLabels.join(", ") : "", seats: g.seats });
 }
-document.getElementById("printDlg").addEventListener("click", e => {
-  const btn = e.target.closest("button[data-printmode], button[data-printaxis], button[data-printdetail], button[data-printorientation], button[data-printcolor]");
-  if (!btn) return;
-  if (btn.dataset.printmode) S.printMode = btn.dataset.printmode;
-  else if (btn.dataset.printaxis) S.printAxis = btn.dataset.printaxis;
-  else if (btn.dataset.printdetail) S.printDetail = btn.dataset.printdetail;
-  else if (btn.dataset.printorientation) S.printOrientation = btn.dataset.printorientation;
-  else if (btn.dataset.printcolor) S.printColor = btn.dataset.printcolor;
-  renderPrintDlgControls();
-});
-document.getElementById("printSlotSelect").addEventListener("change", e => { S.printSlot = e.target.value; });
-
-function applyPrintOrientationStyle(orientation) {
-  let el = document.getElementById("printOrientationStyle");
-  if (!el) { el = document.createElement("style"); el.id = "printOrientationStyle"; document.head.appendChild(el); }
-  el.textContent = orientation === "auto" ? "" : `@media print { @page { size: ${orientation}; } }`;
+function printTabelleHtml() {
+  const rows = S.games.filter(g => { const a = asgFor(g); return a && a.table_id; }).map(g => {
+    const a = asgFor(g); const table = S.tables.find(t => t.id === a.table_id); const room = table && roomOfTable(table.id);
+    const slotObj = S.slots.find(s => s.key === g.slotKey);
+    const reqLabels = (g.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => f.label);
+    return { title: g.title, host: g.provider || "–", slotLabel: slotObj?.label || g.slotKey || "–", room: room?.name || "–", table: table?.name || "–", seats: g.seats, tag: reqLabels.join(", ") || "–" };
+  }).sort((a, b) => a.slotLabel.localeCompare(b.slotLabel) || a.room.localeCompare(b.room));
+  return `<table class="print-table"><thead><tr>
+    <th>${esc(tr("gameCol"))}</th><th>${esc(tr("printColHost"))}</th><th>${esc(tr("slotCol"))}</th><th>${esc(tr("roomCol"))}</th><th>${esc(tr("tableCol"))}</th><th>${esc(tr("seatsCol"))}</th><th>${esc(tr("printColTag"))}</th>
+  </tr></thead><tbody>${rows.map(r => `<tr>
+    <td><b>${esc(r.title)}</b></td><td>${esc(r.host)}</td><td>${esc(r.slotLabel)}</td><td>${esc(r.room)}</td><td>${esc(r.table)}</td><td>${r.seats}</td><td>${esc(r.tag)}</td>
+  </tr>`).join("")}</tbody></table>`;
 }
-document.getElementById("printApplyBtn").addEventListener("click", () => {
-  document.getElementById("printDlg").close();
-  // Druck-Steuerung wirkt auf dieselben echten View-Render-Funktionen wie die
-  // normale Ansicht (kein separates Druck-Template) — Zustand vorher merken,
-  // Einstellungen kurz anwenden, drucken, danach zurücksetzen.
-  const snapshot = { mode: S.mode, view: S.view, rasterAxis: S.rasterAxis, activeSlot: S.activeSlot, detailLevel: S.detailLevel };
-  S.mode = "view"; S.view = S.printMode; S.detailLevel = S.printDetail;
-  if (S.printMode === "raster") S.rasterAxis = S.printAxis;
-  else if (S.printMode === "raeume") S.activeSlot = S.printSlot;
-  renderActive();
-  applyPrintOrientationStyle(S.printOrientation);
-  document.documentElement.classList.toggle("print-bw", S.printColor === "bw");
-  const restore = () => {
-    S.mode = snapshot.mode; S.view = snapshot.view; S.rasterAxis = snapshot.rasterAxis;
-    S.activeSlot = snapshot.activeSlot; S.detailLevel = snapshot.detailLevel;
-    renderActive();
-    window.removeEventListener("afterprint", restore);
-  };
-  window.addEventListener("afterprint", restore);
-  setTimeout(() => window.print(), 30);
-});
+function printRaeumeHtml() {
+  const slotKeys = S.printSlot === "alle" ? S.slots.map(s => s.key) : [S.printSlot];
+  return slotKeys.map((slotKey, si) => {
+    const slotObj = S.slots.find(s => s.key === slotKey);
+    const roomsHtml = S.rooms.map((room, ri) => {
+      const accent = printAccent(ri);
+      const tables = S.tables.filter(t => t.room_id === room.id);
+      const tablesHtml = tables.map(t => {
+        const g = S.games.find(x => { const a = asgFor(x); return a && a.table_id === t.id && x.slotKey === slotKey; });
+        const headLine = `${t.name} · ${tr("seatsCountLabel", { n: t.seats })}`;
+        return `<div class="print-table-row"><div class="print-table-headline">${esc(headLine)}</div>${g
+          ? `<div class="print-game-line">${esc(g.title)}</div><div class="print-game-meta">${esc(printGameMeta(g))}</div>`
+          : `<div class="print-free">${esc(tr("freeLabel"))}</div>`}</div>`;
+      }).join("");
+      const badges = roomBadgeLabels(room).join(" · ");
+      return `<div class="print-room-block"><h3 class="print-room-head">${accent ? `<span class="print-swatch" style="background:${accent}"></span>` : ""}${esc(room.name)}</h3>${badges ? `<p class="print-room-badges">${esc(badges)}</p>` : ""}${tablesHtml}</div>`;
+    }).join("");
+    return `<div${si > 0 ? ' style="break-before:page"' : ""}><h2 class="print-slot-head">${esc(slotObj?.label || slotKey)}</h2><div class="print-rooms-columns">${roomsHtml}</div></div>`;
+  }).join("");
+}
+function printRasterHtml() {
+  const rowsSrc = S.printAxis === "rooms" ? S.rooms : S.slots;
+  const colsSrc = S.printAxis === "rooms" ? S.slots : S.rooms;
+  const colHeadHtml = colsSrc.map(c => `<th>${esc(S.printAxis === "rooms" ? c.label : c.name)}</th>`).join("");
+  const bodyHtml = rowsSrc.map((rowItem, ri) => {
+    const isRoomRow = S.printAxis === "rooms";
+    const rowLabel = isRoomRow ? rowItem.name : rowItem.label;
+    const accent = isRoomRow ? printAccent(ri) : null;
+    const cellsHtml = colsSrc.map(colItem => {
+      const room = isRoomRow ? rowItem : colItem;
+      const slot = isRoomRow ? colItem : rowItem;
+      const list = S.games.filter(g => g.slotKey === slot.key).filter(g => { const a = asgFor(g); const t = a && S.tables.find(x => x.id === a.table_id); return t && t.room_id === room.id; });
+      if (!list.length) return `<td class="print-matrix-td"><span class="print-empty-dash">–</span></td>`;
+      const entries = list.map(g => {
+        const a = asgFor(g); const table = S.tables.find(t => t.id === a.table_id);
+        return `<div class="print-cell-entry"><div class="print-cell-title">${esc(g.title)} — ${esc(table?.name || "–")}</div><div class="print-cell-meta">${esc(printGameMeta(g))}</div></div>`;
+      }).join("");
+      return `<td class="print-matrix-td">${entries}</td>`;
+    }).join("");
+    return `<tr><th class="print-row-head">${accent ? `<span class="print-swatch" style="background:${accent}"></span>` : ""}${esc(rowLabel)}</th>${cellsHtml}</tr>`;
+  }).join("");
+  return `<table class="print-table"><thead><tr><th></th>${colHeadHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
+}
+function printPageHtml() {
+  if (!S.printSlot) S.printSlot = S.activeSlot || S.slots[0]?.key || "alle";
+  const modeLabel = S.printMode === "raster" ? tr("viewRaster") : S.printMode === "tabelle" ? tr("viewTable") : tr("viewRooms");
+  const orientation = S.printOrientation === "auto" ? (S.printMode === "raster" ? "landscape" : "portrait") : S.printOrientation;
+  const contentHtml = S.printMode === "tabelle" ? printTabelleHtml() : S.printMode === "raeume" ? printRaeumeHtml() : printRasterHtml();
+  const printSlotOptions = [{ key: "alle", nameKey: "printAllSlots" }, ...S.slots.map(s => ({ key: s.key, nameKey: null, label: s.label }))];
+  const printSlotPillsHtml = printSlotOptions.map(o =>
+    `<button type="button" class="filter-chip" data-printslot="${esc(o.key)}" aria-pressed="${String(o.key === S.printSlot)}">${o.nameKey ? esc(tr(o.nameKey)) : esc(o.label)}</button>`).join("");
+  const toolbarHtml = `<div class="card toolbar-card no-print">
+    <div class="toolbar-group"><span class="toolbar-label">${esc(tr("printModeLabel"))}</span><div class="toolbar-pill-row">${printPillsHtml(PRINT_MODES, "printmode", S.printMode)}</div></div>
+    <div class="toolbar-divider"></div>
+    ${S.printMode === "raster" ? `<div class="toolbar-group"><span class="toolbar-label">${esc(tr("printAxisLabel"))}</span><div class="toolbar-pill-row">${printPillsHtml(PRINT_AXES, "printaxis", S.printAxis)}</div></div><div class="toolbar-divider"></div>` : ""}
+    ${S.printMode === "raeume" ? `<div class="toolbar-group"><span class="toolbar-label">${esc(tr("printSlotLabel"))}</span><div class="toolbar-pill-row">${printSlotPillsHtml}</div></div><div class="toolbar-divider"></div>` : ""}
+    ${S.printMode !== "tabelle" ? `<div class="toolbar-group"><span class="toolbar-label">${esc(tr("printDetailLabel"))}</span><div class="toolbar-pill-row">${printPillsHtml(DETAIL_LEVELS.map(d => ({ key: d.key, nameKey: d.labelKey })), "printdetail", S.printDetail)}</div></div><div class="toolbar-divider"></div>` : ""}
+    <div class="toolbar-group"><span class="toolbar-label">${esc(tr("printOrientationLabel"))}</span><div class="toolbar-pill-row">${printPillsHtml(PRINT_ORIENTATIONS, "printorientation", S.printOrientation)}</div></div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-group"><span class="toolbar-label">${esc(tr("printColorLabel"))}</span><div class="toolbar-pill-row">${printPillsHtml(PRINT_COLORS, "printcolor", S.printColor)}</div></div>
+    <button type="button" id="doPrintBtn" class="primary" style="align-self:flex-end">${esc(tr("printBtn"))}</button>
+  </div>`;
+  const liveUrl = location.origin + location.pathname + "?con=" + encodeURIComponent(S.con?.slug || S.con?.id || "");
+  const docPageHtml = `<div class="doc-page" data-orientation="${orientation}">
+    <div class="doc-page-header"><span>${esc(S.con?.name || "Con-Raumplan")} · ${esc(document.getElementById("pageSub")?.textContent || "")}</span><span>${esc(modeLabel)}</span></div>
+    <div class="doc-page-body">${contentHtml}</div>
+    <div class="doc-page-footer"><span>${esc(tr("printCreatedOn", { time: new Date().toLocaleString(LANG === "en" ? "en-GB" : "de-AT", { dateStyle: "medium", timeStyle: "short" }) }))}</span><span>${esc(tr("printLiveVersion", { url: liveUrl }))}</span></div>
+  </div>`;
+  return `<div class="print-page-wrap">
+    <p class="no-print" style="margin:0 0 var(--sp-3)"><button type="button" id="printBackLink" class="link-btn">${esc(tr("printBackLink"))}</button></p>
+    ${toolbarHtml}
+    ${docPageHtml}
+  </div>`;
+}
 
 // ---------------- Eigenschafts-Chip-Picker (wiederverwendbar: Raum-
 // Eigenschaften hier, Spiel-Anforderungen in Phase 6c) ----------------
@@ -1384,8 +1490,8 @@ document.getElementById("printApplyBtn").addEventListener("click", () => {
 // wie ein reines Ja/Nein-Toggle-Grid statt eines echten Pickers). Rein
 // clientseitig bis zum Speichern der Dialog-Form.
 // Live-Filter-Variante desselben Pills+Dropdown-Looks: kein Dialog/Speichern,
-// wirkt direkt auf S.filterReqTags/S.tableFilterReqTags und rendert bei jeder
-// Änderung sofort neu (siehe Klick-/Change-Delegation weiter unten).
+// wirkt direkt auf S.filterReqTags und rendert bei jeder Änderung sofort neu
+// (siehe Klick-/Change-Delegation weiter unten).
 function filterTagPickerHtml(filterKey, selectedIds) {
   const selected = selectedIds.map(id => S.featureTags.find(f => f.id === id)).filter(Boolean);
   const remaining = S.featureTags.filter(f => !selectedIds.includes(f.id));
@@ -1586,6 +1692,7 @@ document.getElementById("detailSwitch").addEventListener("click", e => {
 
 /* ---------------- Start ---------------- */
 renderThemeSwitch(document.getElementById("themeSwitch"));
+pickUkiyoBackground(); pickComicBackground();
 renderLangSwitch(document.getElementById("langSwitch"));
 translateStaticDom();
 renderDetailSwitch();
