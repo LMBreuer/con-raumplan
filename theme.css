@@ -388,6 +388,190 @@
   box-shadow: 0 8px 18px -12px rgba(40,100,65,.7);
 }
 
+/* ---------- Glassmorphism (Aurora, Frostglas, ruhige Lichttiefe) ---------- */
+:root[data-theme="glass"] {
+  color-scheme: dark;
+  --page:      #0a1020;
+  --surface-1: rgba(255,255,255,.115);
+  --surface-2: rgba(255,255,255,.075);
+  --text-primary:   #f7f9ff;
+  --text-secondary: #ced7ec;
+  --text-muted:     #93a1bf;
+  --grid:      rgba(255,255,255,.10);
+  --baseline:  rgba(255,255,255,.24);
+  --border:    rgba(255,255,255,.18);
+  --accent:      #8ee7ff;
+  --accent-ink:  #0a1422;
+  --accent-soft: rgba(142,231,255,.17);
+  --good:  #86efbd;
+  --warn:  #ff9fb9;
+  --band:  rgba(255,255,255,.10);
+  --shadow-card: 0 24px 60px -28px rgba(0,0,0,.68), inset 0 1px 0 rgba(255,255,255,.18);
+  --room-a: #82dcff; --room-b: #ffc782; --room-c: #7ce0c3; --room-d: #c6a3ff; --room-e: #ff9fb9;
+  --font-display: "Manrope", var(--font-body);
+  --r-sm: 14px; --r-md: 18px; --r-pill: 999px; --r-lg: 28px;
+  --chrome-shadow: 0 18px 42px -24px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.18);
+  --card-border: 1px solid rgba(255,255,255,.20);
+}
+:root[data-theme="glass"] body {
+  background-color: var(--page);
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(64,174,255,.42), transparent 31%),
+    radial-gradient(circle at 88% 12%, rgba(173,105,255,.35), transparent 32%),
+    radial-gradient(circle at 72% 88%, rgba(31,216,177,.23), transparent 38%),
+    linear-gradient(145deg, #091120 0%, #10162b 48%, #09101d 100%);
+  background-attachment: fixed;
+}
+:root[data-theme="glass"] .app-header {
+  background: rgba(10,16,32,.52);
+  border-bottom-color: rgba(255,255,255,.16);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+  backdrop-filter: blur(24px) saturate(145%);
+}
+:root[data-theme="glass"] .card,
+:root[data-theme="glass"] .room,
+:root[data-theme="glass"] .kpi-bar .kpi,
+:root[data-theme="glass"] .controls,
+:root[data-theme="glass"] .controls-group,
+:root[data-theme="glass"] .next-con-card,
+:root[data-theme="glass"] dialog,
+:root[data-theme="glass"] .theme-more-popover {
+  background-color: var(--surface-1);
+  background-image: linear-gradient(145deg, rgba(255,255,255,.13), rgba(255,255,255,.025) 48%, rgba(255,255,255,.06));
+  border-color: rgba(255,255,255,.20);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+  backdrop-filter: blur(22px) saturate(145%);
+}
+:root[data-theme="glass"] input,
+:root[data-theme="glass"] textarea,
+:root[data-theme="glass"] select {
+  background: rgba(6,12,25,.38);
+  border-color: rgba(255,255,255,.20);
+}
+:root[data-theme="glass"] .slot-tabs [aria-pressed="true"],
+:root[data-theme="glass"] .theme-more-row[aria-pressed="true"] {
+  background: rgba(255,255,255,.17);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 12px 26px -18px rgba(0,0,0,.8);
+}
+:root[data-theme="glass"] .plan-page .grid-cell {
+  background: rgba(255,255,255,.065);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+:root[data-theme="glass"] .plan-page .grid-cell .grid-chip,
+:root[data-theme="glass"] .plan-page #viewContent .tablebox {
+  background: rgba(8,15,31,.36);
+  border-color: rgba(255,255,255,.10);
+}
+:root[data-theme="glass"] button.primary,
+:root[data-theme="glass"] a.btn.primary {
+  background: linear-gradient(135deg, rgba(181,239,255,.98), rgba(142,231,255,.78));
+  box-shadow: 0 12px 28px -15px rgba(110,220,255,.75), inset 0 1px 0 rgba(255,255,255,.72);
+}
+
+/* ---------- Punk (DIY-Zine, Fotokopie, Siebdruck) ---------- */
+:root[data-theme="punk"] {
+  color-scheme: light;
+  --page:      #eee9d7;
+  --surface-1: #fffdf2;
+  --surface-2: #e8e1ca;
+  --text-primary:   #101010;
+  --text-secondary: #292929;
+  --text-muted:     #67635a;
+  --grid:      #b9b29e;
+  --baseline:  #111111;
+  --border:    #111111;
+  --accent:      #e50062;
+  --accent-ink:  #ffffff;
+  --accent-soft: #f4e72d;
+  --good:  #16844a;
+  --warn:  #e50062;
+  --band:  #f4e72d;
+  --shadow-card: 6px 6px 0 #111111;
+  --room-a: #e50062; --room-b: #16844a; --room-c: #1f62d0; --room-d: #f09b16; --room-e: #7b2cbf;
+  --font-display: Impact, "Arial Black", sans-serif;
+  --font-body: Arial, Helvetica, sans-serif;
+  --border-w: 2px;
+  --r-sm: 0; --r-md: 0; --r-pill: 0; --r-lg: 0;
+  --chrome-shadow: 4px 4px 0 #e50062;
+  --chrome-border-w: 2px;
+  --card-border: 2px solid #111111;
+}
+:root[data-theme="punk"] body {
+  background-color: var(--page);
+  background-image:
+    radial-gradient(circle, rgba(17,17,17,.15) 1px, transparent 1.2px),
+    repeating-linear-gradient(174deg, transparent 0 94px, rgba(17,17,17,.055) 94px 96px),
+    linear-gradient(105deg, transparent 0 64%, rgba(229,0,98,.055) 64% 70%, transparent 70%);
+  background-size: 9px 9px, auto, auto;
+  background-attachment: fixed;
+}
+:root[data-theme="punk"] .app-header {
+  background: rgba(238,233,215,.94);
+  border-bottom: 3px solid #111;
+  backdrop-filter: none;
+}
+:root[data-theme="punk"] .card,
+:root[data-theme="punk"] .room,
+:root[data-theme="punk"] .kpi-bar .kpi,
+:root[data-theme="punk"] .next-con-card,
+:root[data-theme="punk"] dialog {
+  border-color: #111;
+  box-shadow: var(--shadow-card);
+}
+:root[data-theme="punk"] h1,
+:root[data-theme="punk"] h2,
+:root[data-theme="punk"] .brand {
+  letter-spacing: .025em;
+  text-transform: uppercase;
+}
+:root[data-theme="punk"] h1 {
+  text-shadow: 3px 3px 0 rgba(229,0,98,.72);
+}
+:root[data-theme="punk"] .app-header .page-tabs [aria-pressed="true"] {
+  background: #111;
+  color: var(--accent-soft);
+  box-shadow: 3px 3px 0 var(--accent);
+  transform: rotate(-1deg);
+}
+:root[data-theme="punk"] .plan-page .public-view-tabs button[aria-pressed="true"],
+:root[data-theme="punk"] .crew-nav button[aria-pressed="true"] {
+  border-bottom-color: var(--accent);
+  color: #111;
+}
+:root[data-theme="punk"] .plan-page .matrix-label,
+:root[data-theme="punk"] .badge {
+  border: 1px solid #111;
+  border-radius: 0;
+  background: var(--band);
+}
+:root[data-theme="punk"] .plan-page .grid-cell {
+  border-radius: 0;
+  background: #e5deca;
+  box-shadow: inset 0 0 0 1px #aaa18d;
+}
+:root[data-theme="punk"] .plan-page .grid-cell .grid-chip {
+  border: 1px solid #111;
+  border-radius: 0;
+  background: #fffdf2;
+}
+:root[data-theme="punk"] .plan-page .room-swatch {
+  width: 5px;
+  border-radius: 0;
+}
+:root[data-theme="punk"] button.primary,
+:root[data-theme="punk"] a.btn.primary {
+  border-color: #111;
+  background: var(--accent);
+  box-shadow: 3px 3px 0 #111;
+}
+:root[data-theme="punk"] button.primary:active,
+:root[data-theme="punk"] a.btn.primary:active {
+  transform: translate(2px,2px);
+  box-shadow: 1px 1px 0 #111;
+}
+
 /* ---------- Comic (kräftige Outlines, harter Versatz-Schatten) ---------- */
 :root[data-theme="comic"] {
   color-scheme: light;
@@ -1316,12 +1500,24 @@ dialog {
 :root[data-theme="cyberpunk"] .app-header .page-tabs.slot-tabs button {
   border-radius: 8px;
 }
+:root[data-theme="glass"] .app-header .page-tabs.slot-tabs {
+  border-radius: 24px;
+}
+:root[data-theme="glass"] .app-header .page-tabs.slot-tabs a,
+:root[data-theme="glass"] .app-header .page-tabs.slot-tabs button {
+  border-radius: 18px;
+}
 :root[data-theme="solarpunk"] .app-header .page-tabs.slot-tabs {
   border-radius: 24px 10px 24px 10px;
 }
 :root[data-theme="solarpunk"] .app-header .page-tabs.slot-tabs a,
 :root[data-theme="solarpunk"] .app-header .page-tabs.slot-tabs button {
   border-radius: 16px 7px 16px 7px;
+}
+:root[data-theme="punk"] .app-header .page-tabs.slot-tabs,
+:root[data-theme="punk"] .app-header .page-tabs.slot-tabs a,
+:root[data-theme="punk"] .app-header .page-tabs.slot-tabs button {
+  border-radius: 0;
 }
 .controls-group {
   padding: 4px;
