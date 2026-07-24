@@ -223,27 +223,26 @@
 }
 :root[data-theme="cyberpunk"] ::selection { background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="cyberpunk"] h1, :root[data-theme="cyberpunk"] h2 { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); }
-/* Neon-Scan: langsam wandernder Gradient-Schimmer über Card/Room, damit die
-   Bento-Flächen im Cyberpunk-Theme selbst ohne Interaktion "leben". */
-:root[data-theme="cyberpunk"] .card, :root[data-theme="cyberpunk"] .room { position: relative; }
-:root[data-theme="cyberpunk"] .card::after, :root[data-theme="cyberpunk"] .room::after {
-  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: linear-gradient(120deg, transparent 35%, rgba(0,240,255,.30) 50%, transparent 65%);
-  background-size: 250% 250%; background-position: 0% 0%; mix-blend-mode: screen;
+/* Ruhiger Neon-Akzent statt wanderndem Lichtstreifen und Dauerpuls:
+   nur ausgewählte Navigation und wirklich hervorgehobene Elemente leuchten
+   statisch leicht. So bleibt Cyberpunk lebendig, ohne die Inhalte permanent
+   zu überblenden oder Aufmerksamkeit zu erzwingen. */
+:root[data-theme="cyberpunk"] .app-header .page-tabs [aria-pressed="true"],
+:root[data-theme="cyberpunk"] #viewTabs [aria-pressed="true"],
+:root[data-theme="cyberpunk"] .crew-nav [aria-pressed="true"] {
+  text-shadow: 0 0 8px rgba(0,240,255,.38);
+}
+:root[data-theme="cyberpunk"] .chip.ws,
+:root[data-theme="cyberpunk"] button.primary {
+  box-shadow: 0 0 0 1px rgba(0,240,255,.22), 0 0 14px -8px rgba(255,47,208,.55);
+}
+@media (hover: hover) {
+  :root[data-theme="cyberpunk"] button.primary:hover,
+  :root[data-theme="cyberpunk"] a.btn.primary:hover {
+    box-shadow: 0 0 0 1px rgba(0,240,255,.34), 0 0 18px -7px rgba(255,47,208,.68);
+  }
 }
 @media (prefers-reduced-motion: no-preference) {
-  :root[data-theme="cyberpunk"] .card::after, :root[data-theme="cyberpunk"] .room::after {
-    animation: rp-neon-scan 7s linear infinite;
-  }
-  @keyframes rp-neon-scan { 0% { background-position: 0% 0%; } 100% { background-position: 200% 200%; } }
-
-  :root[data-theme="cyberpunk"] .chip.ws, :root[data-theme="cyberpunk"] button.primary {
-    animation: rp-neon-pulse 3.2s ease-in-out infinite;
-  }
-  @keyframes rp-neon-pulse {
-    0%, 100% { box-shadow: 0 0 0 1px var(--border), var(--shadow-card); }
-    50% { box-shadow: 0 0 0 1px var(--border), 0 0 0 1px rgba(0,240,255,.35), 0 0 34px -2px rgba(255,47,208,.65), 0 0 56px -10px rgba(0,240,255,.5); }
-  }
   /* 1:1 aus der Vorlage (h1Style: animation:glitchFlicker 4s steps(2,end)
      infinite) — EINE durchlaufende Animation ohne Hover-Sonderfall. */
   :root[data-theme="cyberpunk"] h1 {
@@ -309,23 +308,23 @@
 /* ---------- Solarpunk (organisch, warmes Grün/Terracotta) ---------- */
 :root[data-theme="solarpunk"] {
   color-scheme: light;
-  --page:      #f6f1e2;
-  --surface-1: #fffaf0;
-  --surface-2: #eef2d9;
-  --text-primary:   #223327;
-  --text-secondary: #4c6b45;
-  --text-muted:     #85977a;
-  --grid:      #ddd9bd;
-  --baseline:  #c9c2a0;
-  --border:    rgba(40,70,40,0.16);
-  --accent:      #2f7d4f;
+  --page:      #f3f1df;
+  --surface-1: #fffdf3;
+  --surface-2: #e8f0d7;
+  --text-primary:   #1d3525;
+  --text-secondary: #456341;
+  --text-muted:     #758b6d;
+  --grid:      #d3d9b8;
+  --baseline:  #bfc79f;
+  --border:    rgba(37,83,43,0.18);
+  --accent:      #28794a;
   --accent-ink:  #ffffff;
-  --accent-soft: #d9ead2;
-  --good:  #2f7d4f;
-  --warn:  #c76b3b;
-  --band:  #e7e0c4;
-  --shadow-card: 0 1px 2px rgba(40,80,40,.06), 0 22px 46px -22px rgba(70,120,60,.3);
-  --room-a: #2f7d4f; --room-b: #c76b3b; --room-c: #3d7ea6; --room-d: #b8952e; --room-e: #7a5a8f;
+  --accent-soft: #cfe6c5;
+  --good:  #28794a;
+  --warn:  #c96538;
+  --band:  #e2e4c5;
+  --shadow-card: 0 2px 4px rgba(37,83,43,.06), 0 22px 46px -24px rgba(60,105,54,.36);
+  --room-a: #28794a; --room-b: #c96538; --room-c: #347c91; --room-d: #b58c25; --room-e: #75578a;
   --font-display: "Space Grotesk", var(--font-body);
   --font-body: "Nunito", system-ui, -apple-system, sans-serif;
   /* Organisch-asymmetrische Ecke statt gleichmäßigem Radius. */
@@ -337,10 +336,56 @@
 }
 :root[data-theme="solarpunk"] body {
   background-image:
-    repeating-linear-gradient(115deg, rgba(60,110,60,.05) 0, rgba(60,110,60,.05) 2px, transparent 2px, transparent 26px),
-    radial-gradient(circle at 8% -6%, rgba(140,200,130,.4), transparent 46%),
-    radial-gradient(circle at 100% 100%, rgba(199,107,59,.16), transparent 50%);
+    radial-gradient(circle at 96% -4%, rgba(244,190,72,.34) 0, rgba(244,190,72,.13) 12%, transparent 31%),
+    repeating-conic-gradient(from 205deg at 98% 0%, rgba(221,161,45,.045) 0deg 7deg, transparent 7deg 17deg),
+    radial-gradient(ellipse 34% 24% at 3% 18%, rgba(101,164,84,.20), transparent 72%),
+    radial-gradient(ellipse 28% 34% at 100% 88%, rgba(201,101,56,.12), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(40,100,65,.026) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(0deg, rgba(40,100,65,.022) 0 1px, transparent 1px 72px);
   background-attachment: fixed;
+}
+:root[data-theme="solarpunk"] ::selection { background: #f4c75d; color: var(--text-primary); }
+:root[data-theme="solarpunk"] .card,
+:root[data-theme="solarpunk"] .room,
+:root[data-theme="solarpunk"] .kpi-bar .kpi,
+:root[data-theme="solarpunk"] dialog {
+  border-color: rgba(37,83,43,.22);
+  background-image: linear-gradient(145deg, rgba(255,255,255,.38), transparent 42%);
+}
+:root[data-theme="solarpunk"] .app-header .page-tabs [aria-pressed="true"] {
+  background: linear-gradient(135deg, var(--surface-1), color-mix(in srgb, var(--accent-soft) 72%, var(--surface-1)));
+}
+:root[data-theme="solarpunk"] .plan-page .public-toolbar {
+  background-color: color-mix(in srgb, var(--surface-1) 88%, var(--accent-soft));
+}
+:root[data-theme="solarpunk"] .plan-page .toolbar-label {
+  color: color-mix(in srgb, var(--accent) 78%, var(--text-muted));
+}
+:root[data-theme="solarpunk"] .plan-page .grid-cell {
+  background: color-mix(in srgb, var(--surface-2) 88%, var(--surface-1));
+  box-shadow: inset 0 0 0 1px rgba(40,100,65,.055);
+}
+:root[data-theme="solarpunk"] .plan-page .room-swatch {
+  width: 4px;
+  border-radius: 80% 18% 80% 18%;
+}
+:root[data-theme="solarpunk"] .plan-page #pageTitleCard h1::after,
+:root[data-theme="solarpunk"] .landing-page .hero-wrap h1::after {
+  content: "";
+  display: inline-block;
+  width: .52em;
+  height: .52em;
+  margin-left: .38em;
+  border-radius: 82% 14% 82% 14%;
+  background: linear-gradient(145deg, #78ad55, var(--accent));
+  box-shadow: 7px -6px 0 -3px rgba(244,190,72,.78);
+  transform: rotate(-23deg);
+  vertical-align: .04em;
+}
+:root[data-theme="solarpunk"] button.primary,
+:root[data-theme="solarpunk"] a.btn.primary {
+  background: linear-gradient(135deg, var(--accent), #3c8d55);
+  box-shadow: 0 8px 18px -12px rgba(40,100,65,.7);
 }
 
 /* ---------- Comic (kräftige Outlines, harter Versatz-Schatten) ---------- */
