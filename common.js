@@ -36,6 +36,8 @@ const THEMES = [
   { key: "cyberpunk", label: "⚡", nameKey: "themeCyberpunk" },
   { key: "ukiyo", label: "🌸", nameKey: "themeUkiyo" },
   { key: "solarpunk", label: "🌱", nameKey: "themeSolarpunk" },
+  { key: "glass", label: "🫧", nameKey: "themeGlass" },
+  { key: "punk", label: "✖", nameKey: "themePunk" },
   { key: "comic", label: "💥", nameKey: "themeComic" },
 ];
 // Core-3 bleiben als flache Buttons im Header sichtbar, der Rest wandert in
@@ -285,7 +287,7 @@ const STRINGS = {
     // Theme-/Sprach-Switcher, Login
     themeDark: "Dunkel", themeLight: "Hell", themeContrast: "Kontrastreich", themeColorful: "Playabl",
     themeTerminal: "Terminal", themeCyberpunk: "Cyberpunk", themeUkiyo: "Ukiyo-e",
-    themeSolarpunk: "Solarpunk", themeComic: "Comic", moreThemes: "Weitere Themes",
+    themeSolarpunk: "Solarpunk", themeGlass: "Glassmorphism", themePunk: "Punk", themeComic: "Comic", moreThemes: "Weitere Themes",
     themeSwitchLabel: "Farbschema wählen", langSwitchLabel: "Sprache wählen",
     langDe: "Deutsch", langEn: "English",
     loginRegister: "Login / Registrieren", logout: "Logout", login: "Login", register: "Registrieren", loggingIn: "Einloggen",
@@ -492,7 +494,7 @@ const STRINGS = {
   en: {
     themeDark: "Dark", themeLight: "Light", themeContrast: "High contrast", themeColorful: "Playabl",
     themeTerminal: "Terminal", themeCyberpunk: "Cyberpunk", themeUkiyo: "Ukiyo-e",
-    themeSolarpunk: "Solarpunk", themeComic: "Comic", moreThemes: "More themes",
+    themeSolarpunk: "Solarpunk", themeGlass: "Glassmorphism", themePunk: "Punk", themeComic: "Comic", moreThemes: "More themes",
     themeSwitchLabel: "Choose color scheme", langSwitchLabel: "Choose language",
     langDe: "Deutsch", langEn: "English",
     loginRegister: "Log in / Register", logout: "Log out", login: "Log in", register: "Register", loggingIn: "Log in",
