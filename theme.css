@@ -1651,7 +1651,7 @@ dialog {
   text-align: left;
   padding: 8px 10px 0 0;
   vertical-align: top;
-  white-space: nowrap;
+  white-space: normal;
 }
 .plan-page .matrix-corner {
   width: 140px;
@@ -1675,10 +1675,22 @@ dialog {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  box-sizing: border-box;
+  max-width: 100%;
   padding: 5px 10px;
   border-radius: 7px;
   background: var(--band);
   color: var(--text-primary);
+}
+.plan-page .matrix-label-text {
+  min-width: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.plan-page .grid-table tbody th .matrix-label {
+  align-items: flex-start;
+  text-align: left;
 }
 .plan-page .room-swatch {
   display: inline-block;
@@ -1871,6 +1883,16 @@ dialog {
   color: var(--text-muted);
   font-size: .75rem;
   text-align: center;
+}
+.plan-page #viewContent .tablebox .room-public-free {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 85px;
+}
+.plan-page #viewContent .tablebox .room-public-free.detail-minimal {
+  min-height: 54.4px;
 }
 :root[data-theme="terminal"] .plan-page #viewContent .tablebox .free,
 :root[data-theme="ukiyo"] .plan-page #viewContent .tablebox .free { border-radius: 2px; }
