@@ -1158,8 +1158,9 @@ summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 700; padding: v
   font-weight: 700;
 }
 .print-page-wrap > .toolbar-card .filter-chip[aria-pressed="true"] {
-  background: var(--surface-1);
+  background: var(--accent-soft);
   color: var(--text-primary);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 .print-page-wrap > .toolbar-card #doPrintBtn {
   padding: 10px 20px;
@@ -1169,17 +1170,27 @@ summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 700; padding: v
   font-weight: 700;
   white-space: nowrap;
 }
-.link-btn { background: none; border: none; padding: 0; color: var(--accent); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; text-decoration: underline; }
+.link-btn { background: none; border: none; padding: 0; color: var(--accent); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; text-decoration: none; }
 
 /* Attributions-Bildunterschrift für Ukiyo/Comic-Hintergrundbilder — 1:1 aus
    der Vorlage (ukiyoCaptionStyle), fehlte bisher komplett. */
 .art-caption { position: fixed; bottom: 14px; right: 16px; font-size: var(--fs-xs); color: var(--text-muted); opacity: .55; z-index: 1; }
 .art-caption a { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
+.doc-page-stage {
+  min-width: 0;
+  padding: 48px 24px;
+  overflow-x: auto;
+  background: #f5f5f4;
+}
 .doc-page {
   background: #fff; color: #111; border-radius: 4px; box-shadow: 0 2px 12px rgba(0,0,0,.18);
-  width: 100%; padding: 0.6in; margin: 0 auto; max-width: 816px;
+  box-sizing: border-box; width: 100%; padding: 0.6in; margin: 0 auto; max-width: 794px;
 }
-.doc-page[data-orientation="landscape"] { max-width: 1056px; }
+.doc-page[data-orientation="landscape"] { max-width: 1123px; }
+.doc-page-frame { width: 100%; border: 0; border-collapse: collapse; }
+.doc-page-frame > thead,
+.doc-page-frame > tfoot { display: none; }
+.doc-page-frame > tbody > tr > td { padding: 0; border: 0; }
 .doc-page-header { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-4); font-size: .72rem; color: #555; border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-bottom: var(--sp-4); }
 .doc-page-footer { display: flex; justify-content: space-between; gap: var(--sp-4); font-size: .65rem; color: #777; margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid #eee; }
 .print-table { width: 100%; border-collapse: collapse; color: #111; }
@@ -1245,6 +1256,27 @@ dialog {
   font-family: Arial, sans-serif;
   font-size: .85rem;
   line-height: normal;
+}
+/* Die obere Seitennavigation ist ein eigenes zusammengesetztes Element:
+   Außenhülle und Innentabs müssen dieselbe Formensprache sprechen. Die
+   pauschalen 14px der Design-Fidelity-Schicht ließen besonders Terminal,
+   Cyberpunk und Solarpunk wie gemischte Themes aussehen. */
+:root[data-theme="terminal"] .app-header .page-tabs.slot-tabs,
+:root[data-theme="terminal"] .app-header .page-tabs.slot-tabs a,
+:root[data-theme="terminal"] .app-header .page-tabs.slot-tabs button {
+  border-radius: 2px;
+}
+:root[data-theme="cyberpunk"] .app-header .page-tabs.slot-tabs,
+:root[data-theme="cyberpunk"] .app-header .page-tabs.slot-tabs a,
+:root[data-theme="cyberpunk"] .app-header .page-tabs.slot-tabs button {
+  border-radius: 8px;
+}
+:root[data-theme="solarpunk"] .app-header .page-tabs.slot-tabs {
+  border-radius: 24px 10px 24px 10px;
+}
+:root[data-theme="solarpunk"] .app-header .page-tabs.slot-tabs a,
+:root[data-theme="solarpunk"] .app-header .page-tabs.slot-tabs button {
+  border-radius: 16px 7px 16px 7px;
 }
 .controls-group {
   padding: 4px;
@@ -1533,23 +1565,27 @@ dialog {
 .plan-page .public-toolbar #detailSwitch button {
   padding: 8px 14px;
   border: 0;
+  border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--text-secondary);
-  border-radius: 9px;
+  border-radius: 0;
   font-size: .78rem;
   font-weight: 700;
   font-family: Arial, sans-serif;
 }
 .plan-page .public-toolbar #detailSwitch button[aria-pressed="true"] {
   color: var(--text-primary);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 2px var(--accent);
+  background: transparent;
+  border-bottom-color: currentColor;
+  box-shadow: none;
+  font-weight: 800;
 }
 .plan-page #axisSwitch { display: flex; gap: 8px; }
 .plan-page #axisSwitch button {
   padding: 8px 14px;
   border: 0;
-  border-radius: 9px;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   background: transparent;
   color: var(--text-secondary);
   font-size: .78rem;
@@ -1611,12 +1647,19 @@ dialog {
   line-height: 1;
 }
 .plan-page #axisSwitch button[aria-pressed="true"] {
-  background: var(--accent-soft);
   color: var(--text-primary);
-  box-shadow: inset 0 0 0 2px var(--accent);
+  background: transparent;
+  border-bottom-color: currentColor;
+  box-shadow: none;
+  font-weight: 800;
 }
-:root[data-theme="ukiyo"] .plan-page #axisSwitch button,
-:root[data-theme="ukiyo"] .plan-page #detailSwitch button { border-radius: 1px; }
+:root[data-theme="contrast"] .plan-page #axisSwitch button[aria-pressed="true"],
+:root[data-theme="contrast"] .plan-page #detailSwitch button[aria-pressed="true"] {
+  border-bottom-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  color: var(--text-primary);
+}
 .plan-page #viewContent > .controls { margin-bottom: 10px; }
 .plan-page .grid-view {
   border: 0;
@@ -1691,7 +1734,7 @@ dialog {
   white-space: normal;
 }
 .plan-page .grid-table tbody th .matrix-label {
-  align-items: flex-start;
+  align-items: center;
   text-align: left;
 }
 .plan-page .room-swatch {
@@ -1933,19 +1976,51 @@ dialog {
 }
 .plan-page #crewContent .toolbar-card .crew-slot-group {
   min-width: 0;
+  flex: 0 1 min(760px, 55vw);
+  max-width: min(760px, 55vw);
+}
+.plan-page #crewContent .toolbar-card .crew-slot-scroller {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
 }
 .plan-page #crewContent .toolbar-card .local-slot-tabs {
+  flex: 1 1 auto;
   gap: 8px;
   padding: 0;
   border-radius: 0;
   background: transparent;
-  max-width: min(680px, 50vw);
+  max-width: none;
+  min-width: 0;
   overflow-x: auto;
   flex-wrap: nowrap;
   white-space: nowrap;
   scrollbar-width: none;
 }
 .plan-page #crewContent .toolbar-card .local-slot-tabs::-webkit-scrollbar { display: none; }
+.plan-page #crewContent .toolbar-card .slot-scroll-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 38px;
+  flex: 0 0 30px;
+  padding: 0;
+  border: 1px solid var(--baseline);
+  border-radius: var(--r-pill);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-card);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.plan-page #crewContent .toolbar-card .slot-scroll-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.plan-page #crewContent .toolbar-card .slot-scroll-btn[hidden] { display: none; }
 .plan-page #crewContent .toolbar-card .local-slot-tabs #editSlotBtn,
 .plan-page #crewContent .toolbar-card .local-slot-tabs #addSlotBtn {
   flex: 0 0 auto;
@@ -2038,6 +2113,8 @@ dialog {
   box-shadow: var(--shadow-card);
 }
 .plan-page #crewContent .queue-head {
+  align-items: stretch;
+  flex-direction: column;
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -2049,21 +2126,23 @@ dialog {
 }
 .plan-page #crewContent #autoBtn {
   flex-shrink: 0;
-  padding: 8px 14px;
+  padding: 6px 10px;
   border: 0;
   border-radius: var(--r-md);
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: .8rem;
+  font-size: .72rem;
   font-weight: 700;
 }
 .plan-page #crewContent .queue-actions {
   width: 100%;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  margin-left: 0;
 }
 .plan-page #crewContent #clearSlotBtn {
   flex-shrink: 0;
-  padding: 7px 10px;
+  padding: 6px 9px;
+  font-size: .72rem;
 }
 .plan-page #crewContent #clearSlotBtn:disabled {
   cursor: not-allowed;
@@ -2482,7 +2561,11 @@ dialog {
   .landing-page .cons-toolbar input[type="search"],
   .landing-page .cons-toolbar input[type="text"] { min-width: min(100%, 210px); }
   .landing-page .next-con-card { min-height: 0; }
-  .plan-page #crewContent .toolbar-card .local-slot-tabs { max-width: calc(100vw - 70px); }
+  .plan-page #crewContent .toolbar-card .crew-slot-group {
+    width: 100%;
+    max-width: 100%;
+  }
+  .plan-page #crewContent .toolbar-card .crew-slot-scroller { max-width: calc(100vw - 70px); }
   .plan-page #crewContent .assign-layout { flex-direction: column; }
   .plan-page #crewContent .assign-queue {
     position: static;
@@ -2517,7 +2600,33 @@ dialog {
    Komponenten weiterhin var(--text-primary) etc. referenzieren.
    ============================================================ */
 @media print {
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .doc-page-stage { padding: 0; overflow: visible; background: none; }
   .doc-page { box-shadow: none; padding: 0; max-width: none; margin: 0; }
+  .doc-page-frame > thead { display: table-header-group; }
+  .doc-page-frame > tfoot { display: table-footer-group; }
+  .doc-page-frame > thead > tr > td,
+  .doc-page-frame > tbody > tr > td,
+  .doc-page-frame > tfoot > tr > td { padding: 0 !important; border: 0 !important; }
+  .doc-page-header-space { height: 30px; }
+  .doc-page-footer-space { height: 26px; }
+  .doc-page-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+  }
+  .doc-page-footer {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    margin: 0;
+  }
   .print-page-wrap { max-width: none; }
   /* !important auf jeder Property nötig: Themes setzen dieselben Custom
      Properties über :root[data-theme="x"] (Spezifität 0,2,0,0), das schlägt
@@ -2550,6 +2659,17 @@ dialog {
   .chip { border: 1px solid #ccc; padding: var(--sp-2); background: none; break-inside: avoid; }
   table { border-collapse: collapse; width: 100%; }
   th, td { border: 1px solid #999; padding: 4px 8px; }
+  .print-table th {
+    border: 0;
+    border-bottom: 2px solid #999;
+    padding: 6px 8px;
+  }
+  .print-table td {
+    border: 0;
+    border-bottom: 1px solid #ddd;
+    padding: 6px 8px;
+  }
+  .print-table tr { break-inside: avoid; }
   .grid-cell { background: none !important; }
   .badge { border: 1px solid #999 !important; background: none !important; color: #000 !important; }
 }

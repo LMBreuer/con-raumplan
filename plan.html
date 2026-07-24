@@ -861,6 +861,31 @@ function slotTabsHtml(manage) {
   return `<div class="slot-tabs local-slot-tabs" role="group" aria-label="${esc(tr("chooseSlotAriaLabel"))}">${tabs}${manageHtml}</div>`;
 }
 
+let crewSlotScrollLeft = 0;
+function updateCrewSlotScrollControls() {
+  const shell = document.querySelector("#crewContent .crew-slot-scroller");
+  const scroller = shell?.querySelector(".local-slot-tabs");
+  if (!shell || !scroller) return;
+  crewSlotScrollLeft = scroller.scrollLeft;
+  const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+  const canLeft = scroller.scrollLeft > 2;
+  const canRight = scroller.scrollLeft < maxScroll - 2;
+  const prev = shell.querySelector('[data-slot-scroll="-1"]');
+  const next = shell.querySelector('[data-slot-scroll="1"]');
+  if (prev) prev.hidden = !canLeft;
+  if (next) next.hidden = !canRight;
+  shell.classList.toggle("can-scroll-left", canLeft);
+  shell.classList.toggle("can-scroll-right", canRight);
+}
+function wireCrewSlotScroller() {
+  const scroller = document.querySelector("#crewContent .crew-slot-scroller .local-slot-tabs");
+  if (!scroller) return;
+  scroller.scrollLeft = Math.min(crewSlotScrollLeft, Math.max(0, scroller.scrollWidth - scroller.clientWidth));
+  scroller.addEventListener("scroll", updateCrewSlotScrollControls, { passive: true });
+  requestAnimationFrame(updateCrewSlotScrollControls);
+}
+window.addEventListener("resize", updateCrewSlotScrollControls);
+
 /* ---------------- Ansicht: Räume (öffentlich, lesend) ---------------- */
 function raeumeReadHtml() {
   if (!S.slots.length) return emptyState(tr("noSlotsYet"));
@@ -955,7 +980,11 @@ function zuordnenHtml() {
   const toolbarHtml = `<div class="card toolbar-card no-print">
     <div class="toolbar-group crew-slot-group">
       <span class="toolbar-label">${esc(tr("toolbarSlotLabel"))}</span>
-      ${slotTabsHtml(true)}
+      <div class="crew-slot-scroller">
+        <button type="button" class="slot-scroll-btn" data-slot-scroll="-1" aria-label="${esc(tr("scrollSlotsLeftAriaLabel"))}" hidden>‹</button>
+        ${slotTabsHtml(true)}
+        <button type="button" class="slot-scroll-btn" data-slot-scroll="1" aria-label="${esc(tr("scrollSlotsRightAriaLabel"))}">›</button>
+      </div>
     </div>
     <div class="toolbar-divider"></div>
     <div class="toolbar-group">
@@ -1285,7 +1314,10 @@ function renderActive({ animate = true } = {}) {
     else if (S.crewView === "setup") { body = setupHtml(); }
     else if (S.crewView === "wuensche") { body = wuenscheHtml(); }
     crewC.innerHTML = crewNavHtml() + body;
-    if (S.crewView === "zuordnen" && S.assignMode === "dnd") wireDnd();
+    if (S.crewView === "zuordnen") {
+      wireCrewSlotScroller();
+      if (S.assignMode === "dnd") wireDnd();
+    }
     if (S.crewView === "setup" && S.setupTab === "crew") refreshCrewList();
   } else {
     viewC.hidden = false; crewC.hidden = true;
@@ -1753,6 +1785,10 @@ document.addEventListener("click", async e => {
   else if (t.matches("[data-view]")) { S.mode = "view"; S.view = t.dataset.view; renderActive(); }
   else if (t.matches("[data-crewview]")) { S.mode = "crew"; S.crewView = t.dataset.crewview; renderActive(); }
   else if (t.matches("[data-setuptab]")) { S.setupTab = t.dataset.setuptab; renderActive(); }
+  else if (t.matches("[data-slot-scroll]")) {
+    const scroller = t.closest(".crew-slot-scroller")?.querySelector(".local-slot-tabs");
+    if (scroller) scroller.scrollBy({ left: Number(t.dataset.slotScroll) * Math.max(220, scroller.clientWidth * .72), behavior: "smooth" });
+  }
   else if (t.matches(".local-slot-tabs button[data-slot]")) { S.activeSlot = t.dataset.slot; renderUpdate(); }
   else if (t.matches(".unassignBtn")) assign(t.dataset.game, t.dataset.slot, null);
   else if (t.matches(".delGameBtn")) {
@@ -1769,7 +1805,6 @@ document.addEventListener("click", async e => {
   else if (t.matches(".requestBtn")) openRequestDlg(t.dataset.game);
   else if (t.id === "printBtn") {
     S.printMode = S.view === "raster" ? "raster" : S.view === "tabelle" ? "tabelle" : "raeume";
-    S.printSlot = S.activeSlot;
     S.printReturnMode = S.mode; S.printReturnView = S.view;
     S.mode = "print"; renderActive();
   }
@@ -1902,7 +1937,7 @@ document.getElementById("requestForm").addEventListener("submit", async e => {
 const PRINT_ROOM_COLORS = ["#2563eb", "#16a34a", "#b45309", "#be123c", "#7c3aed", "#0e7490"];
 const printAccent = ri => S.printColor === "bw" ? null : PRINT_ROOM_COLORS[ri % PRINT_ROOM_COLORS.length];
 const PRINT_MODES = [{ key: "raster", nameKey: "viewRaster" }, { key: "tabelle", nameKey: "viewTable" }, { key: "raeume", nameKey: "viewRooms" }];
-const PRINT_AXES = [{ key: "rooms", nameKey: "axisRoomsRows" }, { key: "slots", nameKey: "axisSlotsRows" }];
+const PRINT_AXES = [{ key: "rooms", nameKey: "roomsLabel" }, { key: "slots", nameKey: "slotsLabel" }];
 const PRINT_ORIENTATIONS = [
   { key: "auto", nameKey: "printOrientationAuto" },
   { key: "portrait", nameKey: "printOrientationPortrait" },
@@ -1928,8 +1963,8 @@ function printTabelleHtml() {
     const a = asgFor(g); const table = S.tables.find(t => t.id === a.table_id); const room = table && roomOfTable(table.id);
     const slotObj = S.slots.find(s => s.key === g.slotKey);
     const reqLabels = (g.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => f.label);
-    return { title: g.title, host: g.provider || "–", slotLabel: slotObj?.label || g.slotKey || "–", room: room?.name || "–", table: table?.name || "–", seats: g.seats, tag: reqLabels.join(", ") || "–" };
-  }).sort((a, b) => a.slotLabel.localeCompare(b.slotLabel) || a.room.localeCompare(b.room));
+    return { title: g.title, host: g.provider || "–", slotKey: g.slotKey, slotLabel: slotObj?.label || g.slotKey || "–", room: room?.name || "–", table: table?.name || "–", seats: g.seats, tag: reqLabels.join(", ") || "–" };
+  }).sort((a, b) => S.slots.findIndex(s => s.key === a.slotKey) - S.slots.findIndex(s => s.key === b.slotKey) || a.room.localeCompare(b.room));
   return `<table class="print-table"><thead><tr>
     <th>${esc(tr("gameCol"))}</th><th>${esc(tr("printColHost"))}</th><th>${esc(tr("slotCol"))}</th><th>${esc(tr("roomCol"))}</th><th>${esc(tr("tableCol"))}</th><th>${esc(tr("seatsCol"))}</th><th>${esc(tr("printColTag"))}</th>
   </tr></thead><tbody>${rows.map(r => `<tr>
@@ -1999,11 +2034,18 @@ function printPageHtml() {
     <button type="button" id="doPrintBtn" class="primary" style="align-self:flex-end">${esc(tr("printBtn"))}</button>
   </div>`;
   const liveUrl = location.origin + location.pathname + "?con=" + encodeURIComponent(S.con?.slug || S.con?.id || "");
-  const docPageHtml = `<div class="doc-page" data-orientation="${orientation}">
-    <div class="doc-page-header"><span>${esc(S.con?.name || "Con-Raumplan")} · ${esc(document.getElementById("pageSub")?.textContent || "")}</span><span>${esc(modeLabel)}</span></div>
-    <div class="doc-page-body">${contentHtml}</div>
-    <div class="doc-page-footer"><span>${esc(tr("printCreatedOn", { time: new Date().toLocaleString(LANG === "en" ? "en-GB" : "de-AT", { dateStyle: "medium", timeStyle: "short" }) }))}</span><span>${esc(tr("printLiveVersion", { url: liveUrl }))}</span></div>
-  </div>`;
+  const conMeta = S.con?.playabl_event_id ? tr("printConMetaPlayabl", { id: S.con.playabl_event_id }) : tr("printConMetaManual");
+  const headerHtml = `<div class="doc-page-header"><span>${esc(S.con?.name || "Con-Raumplan")} · ${esc(conMeta)}</span><span>${esc(modeLabel)}</span></div>`;
+  const footerHtml = `<div class="doc-page-footer"><span>${esc(tr("printCreatedOn", { time: new Date().toLocaleString(LANG === "en" ? "en-GB" : "de-AT", { dateStyle: "medium", timeStyle: "short" }) }))}</span><span>${esc(tr("printLiveVersion", { url: liveUrl }))}</span></div>`;
+  const docPageHtml = `<div class="doc-page-stage"><div class="doc-page" data-orientation="${orientation}">
+    ${headerHtml}
+    <table class="doc-page-frame" role="presentation">
+      <thead><tr><td><div class="doc-page-header-space"></div></td></tr></thead>
+      <tbody><tr><td><div class="doc-page-body">${contentHtml}</div></td></tr></tbody>
+      <tfoot><tr><td><div class="doc-page-footer-space"></div></td></tr></tfoot>
+    </table>
+    ${footerHtml}
+  </div></div>`;
   return `<div class="print-page-wrap">
     <p class="no-print" style="margin:0 0 var(--sp-3)"><button type="button" id="printBackLink" class="link-btn">${esc(tr("printBackLink"))}</button></p>
     ${toolbarHtml}

@@ -86,11 +86,11 @@ const UKIYO_BACKGROUNDS = [
   { file: "images/ukiyo/hiroshige-full-moon.jpg", name: "Vollmond über Berglandschaft (Hiroshige)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Hiroshige_Full_moon_over_a_mountain_landscape.jpg" },
   { file: "images/ukiyo/hiroshige-landscape-5.jpg", name: "Landschaft (Hiroshige)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Hiroshige,_Landscape_5.jpg" },
 ];
-// Gemeinfreie Golden-Age-Comic-Cover (Wikimedia Commons), selbst gehostet.
-// Anders als Ukiyo NICHT zufällig, sondern seiten-fest (Landing/Raumplan/
-// Crew bekommen je ein eigenes, stabiles Bild) — nur auf der Druckseite
-// fällt es auf einen bei Theme-Wechsel gewürfelten Index zurück. 1:1 aus
-// der Vorlage (COMIC_PAGE_IDX/comicPick).
+// Gemeinfreie Golden-Age-Comic-Cover (Wikimedia Commons). Die ursprünglich
+// vorhandenen Motive liegen lokal; weitere Commons-Motive werden über
+// Special:Redirect/file in einer bildschirmgerechten Größe ausgeliefert.
+// Jeder Eintrag verlinkt in der Bildunterschrift auf seine konkrete
+// Commons-Dateiseite mit Urheber- und Lizenzangaben.
 const COMIC_BACKGROUNDS = [
   { file: "images/comic/black-owl-prize-comics.jpg", name: "Black Owl (Prize Comics)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Black_Owl_in_Prize_Comics_no2.jpg" },
   { file: "images/comic/thor-weird-comics.jpg", name: "Thor (Weird Comics)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Thor_Weird_Comics.jpg" },
@@ -99,26 +99,53 @@ const COMIC_BACKGROUNDS = [
   { file: "images/comic/blue-beetle-1.jpg", name: "Blue Beetle #1 Cover", sourceUrl: "https://commons.wikimedia.org/wiki/File:Blue_Beetle_Number_1_Cover.jpg" },
   { file: "images/comic/mystery-men-comics-16.jpg", name: "Mystery Men Comics #16", sourceUrl: "https://commons.wikimedia.org/wiki/File:Mystery_Men_Comics_16.jpg" },
   { file: "images/comic/smash-comics-14.jpg", name: "Smash Comics #14 (Cover Art)", sourceUrl: "https://commons.wikimedia.org/wiki/File:Smash_Comics_no._14_(cover_art).jpg" },
+  { file: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Planet_Comics_01.jpg?width=1600", name: "Planet Comics #1", sourceUrl: "https://commons.wikimedia.org/wiki/File:Planet_Comics_01.jpg" },
+  { file: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Planet_Comics_11.jpg?width=1600", name: "Planet Comics #11", sourceUrl: "https://commons.wikimedia.org/wiki/File:Planet_Comics_11.jpg" },
+  { file: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Planet_Comics_42.jpg?width=1600", name: "Planet Comics #42", sourceUrl: "https://commons.wikimedia.org/wiki/File:Planet_Comics_42.jpg" },
+  { file: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Planet_Comics_53.jpg?width=1600", name: "Planet Comics #53", sourceUrl: "https://commons.wikimedia.org/wiki/File:Planet_Comics_53.jpg" },
+  { file: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Fantastic_Comics_-11.jpg?width=1600", name: "Fantastic Comics #11", sourceUrl: "https://commons.wikimedia.org/wiki/File:Fantastic_Comics_-11.jpg" },
+  { file: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Jumbo_Comics_no._9_(cover_art).jpg?width=1600", name: "Jumbo Comics #9", sourceUrl: "https://commons.wikimedia.org/wiki/File:Jumbo_Comics_no._9_(cover_art).jpg" },
+  { file: "https://commons.wikimedia.org/wiki/Special:Redirect/file/WonderworldComics3.jpg?width=1600", name: "Wonderworld Comics #3", sourceUrl: "https://commons.wikimedia.org/wiki/File:WonderworldComics3.jpg" },
+  { file: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Silverstreak_001.jpg?width=1600", name: "Silver Streak Comics #11", sourceUrl: "https://commons.wikimedia.org/wiki/File:Silverstreak_001.jpg" },
+  { file: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Fight_Comics_82.jpg?width=1600", name: "Fight Comics #82", sourceUrl: "https://commons.wikimedia.org/wiki/File:Fight_Comics_82.jpg" },
+  { file: "https://commons.wikimedia.org/wiki/Special:Redirect/file/AmazingMan22.jpg?width=1600", name: "Amazing-Man Comics #22", sourceUrl: "https://commons.wikimedia.org/wiki/File:AmazingMan22.jpg" },
 ];
-let currentUkiyoPick = null, currentComicPick = null, comicPrintPick = 0;
+let currentUkiyoPick = null, currentComicPick = null, currentComicContext = null;
 function pickUkiyoBackground() {
   currentUkiyoPick = UKIYO_BACKGROUNDS[Math.floor(Math.random() * UKIYO_BACKGROUNDS.length)];
   document.documentElement.style.setProperty("--ukiyo-bg", `url("${currentUkiyoPick.file}")`);
   renderArtCaption();
 }
-// 1:1 aus der Vorlage (COMIC_PAGE_IDX = { landing:0, plan:1, crew:2 }):
-// index.html (kein S.mode) = Landing = 0, plan.html im Ansicht-Modus = 1,
-// im Crew-Modus = 2; auf der Druckseite fällt es auf den bei Theme-Wechsel
-// gewürfelten comicPrintPick zurück.
-function comicPageIndex() {
-  if (typeof S === "undefined" || !S.mode) return 0;
-  if (S.mode === "print") return comicPrintPick;
-  return S.mode === "crew" ? 2 : 1;
+// Ein neues Zufallsbild gehört zu einem echten Navigationswechsel, nicht zu
+// jedem renderActive()-Aufruf: Suche, Filter und Zuordnungen rendern dieselbe
+// Ansicht oft neu und würden sonst unangenehm flackern.
+function comicViewContext() {
+  const pathname = location.pathname.toLowerCase();
+  if (pathname.endsWith("index.html") || pathname.endsWith("/")) return "cons";
+  if (typeof S === "undefined" || !S.mode) return pathname;
+  if (S.mode === "print") return `print:${S.printMode || "raster"}`;
+  if (S.mode === "crew") {
+    const setup = S.crewView === "setup" ? `:${S.setupTab || "slots"}` : "";
+    return `crew:${S.crewView || "zuordnen"}${setup}`;
+  }
+  return `plan:${S.view || "raster"}`;
 }
-function pickComicBackground() {
-  currentComicPick = COMIC_BACKGROUNDS[comicPageIndex() % COMIC_BACKGROUNDS.length];
+function pickComicBackground(force = false) {
+  const context = comicViewContext();
+  if (!force && currentComicPick && currentComicContext === context) {
+    renderArtCaption();
+    return currentComicPick;
+  }
+  const previousIndex = COMIC_BACKGROUNDS.indexOf(currentComicPick);
+  let index = Math.floor(Math.random() * COMIC_BACKGROUNDS.length);
+  if (COMIC_BACKGROUNDS.length > 1 && index === previousIndex) {
+    index = (index + 1 + Math.floor(Math.random() * (COMIC_BACKGROUNDS.length - 1))) % COMIC_BACKGROUNDS.length;
+  }
+  currentComicPick = COMIC_BACKGROUNDS[index];
+  currentComicContext = context;
   document.documentElement.style.setProperty("--comic-bg", `url("${currentComicPick.file}")`);
   renderArtCaption();
+  return currentComicPick;
 }
 // Attributions-Bildunterschrift unten rechts (Name + Link zur Quelle) für
 // Ukiyo/Comic — 1:1 aus der Vorlage (ukiyoCaptionStyle/-Text/-Url), fehlte
@@ -143,7 +170,7 @@ function applyTheme(key) {
   if (key === "terminal") terminalEasterEgg();
   updateCatEasterEgg();
   if (key === "ukiyo") pickUkiyoBackground();
-  else if (key === "comic") { comicPrintPick = Math.floor(Math.random() * COMIC_BACKGROUNDS.length); pickComicBackground(); }
+  else if (key === "comic") pickComicBackground(true);
   else renderArtCaption();
 }
 
@@ -299,14 +326,15 @@ const STRINGS = {
     pageTabCons: "Cons", pageTabPlan: "Raumplan", pageTabCrew: "Crew",
     globalSearchPlaceholder: "Spiel, Anbieter, Raum oder Tisch …",
     viewLabel: "Ansicht", searchLabel: "Suche", rowsLabel: "Zeilen", slotLabel: "Slot", detailsLabel: "Details", printCurrentView: "Druckansicht öffnen",
-    printBtn: "⎙ Drucken", printAction: "Drucken", crewLabel: "Crew",
-    printSettingsTitle: "Druckeinstellungen", printModeLabel: "Modus", printAxisLabel: "Achse", printSlotLabel: "Slot",
-    printDetailLabel: "Detailgrad", printOrientationLabel: "Ausrichtung", printColorLabel: "Farbe",
+    printBtn: "Drucken", printAction: "Drucken", crewLabel: "Crew",
+    printSettingsTitle: "Druckeinstellungen", printModeLabel: "Modus", printAxisLabel: "Zeilen", printSlotLabel: "Slot",
+    printDetailLabel: "Details", printOrientationLabel: "Ausrichtung", printColorLabel: "Farbe",
     printOrientationAuto: "Automatisch", printOrientationPortrait: "Hochformat", printOrientationLandscape: "Querformat",
     printColorColor: "Farbig", printColorBw: "Schwarzweiß",
     printBackLink: "← zurück zum Plan", printAllSlots: "Alle Slots",
-    printColHost: "SL", printColTag: "Anforderung",
+    printColHost: "SL", printColTag: "Tag",
     printMetaSl: "SL: {host}", printMetaFull: "SL: {host}{tag} · {seats}p",
+    printConMetaPlayabl: "Playabl-Event {id}", printConMetaManual: "manuelle Con",
     printCreatedOn: "Erstellt am {time}", printLiveVersion: "Live-Version: {url}",
     footPlayabl: "Spiele werden bei jedem Öffnen live von der Playabl-API geladen; Plätze = Spielplätze + 1 anbietende Person.",
     footRequest: "Über „Änderung vorschlagen“ am Spiel kann jede*r der Crew einen Wunsch schicken.",
@@ -335,7 +363,7 @@ const STRINGS = {
     minSeatsLabel: "min. {n} Plätze", decreaseMinSeats: "weniger Plätze", increaseMinSeats: "mehr Plätze",
     selectedClickTable: "✓ ausgewählt — Tisch anklicken", selectBtn: "Auswählen", chooseTable: "– Tisch wählen –",
     assignTableFor: "Tisch zuweisen für {title}", removeFromTable: "{title} vom Tisch entfernen", deleteItemNamed: "{title} löschen",
-    gamesLabel: "Spiele", roomsLabel: "Räume", tablesLabel: "Tische",
+    gamesLabel: "Spiele", roomsLabel: "Räume", tablesLabel: "Tische", slotsLabel: "Slots",
     legendColorRoom: "Farbe = Raum", legendDashedWorkshop: "gestrichelt = Workshop", legendOverCapacity: "über Kapazität (blockiert nichts)",
     legendInfoText: "Raumfarbe: jeder Raum hat eine feste Farbe (Raster, Tabelle, Räume-Ansicht). Spieltitel anklicken öffnet Playabl (falls verknüpft). ✎ (bei Hover) schlägt eine Änderung vor — für alle offen, kein Login nötig.",
     noSearchResults: "Keine Treffer für diese Suche.", noGamesYet: "Noch keine Spiele.",
@@ -358,7 +386,7 @@ const STRINGS = {
     queueInfoText: "{hint} Filter-Chips wirken auch auf die Räume rechts — sie zeigen dann nur passende Räume.",
     // plan.html — Raster/Räume/Zuordnen
     noGames: "Keine Spiele", flipAxisBtn: "⇄ Achsen tauschen (aktuell: {axis})", axisSlotsRows: "Slots als Zeilen", axisRoomsRows: "Räume als Zeilen",
-    chooseSlotAriaLabel: "Slot wählen", editSlotTitle: "Aktuellen Termin ({label}) umbenennen/löschen", editSlotAriaLabel: "Aktuellen Termin umbenennen oder löschen",
+    chooseSlotAriaLabel: "Slot wählen", scrollSlotsLeftAriaLabel: "Frühere Slots anzeigen", scrollSlotsRightAriaLabel: "Weitere Slots anzeigen", editSlotTitle: "Aktuellen Termin ({label}) umbenennen/löschen", editSlotAriaLabel: "Aktuellen Termin umbenennen oder löschen",
     addSlotTitle: "Neuen Termin anlegen (z.B. für einen weiteren Tag) — Zeitabschnitts-Vorlagen wie „Vormittag/Nachmittag“ liegen unter Setup → Slots",
     addSlotAriaLabel: "Neuen Termin anlegen", addSlotBtnLabel: "+ Slot",
     locationLabel: "Lage: {floor}", noTablesYet: "Noch keine Tische.", seatsCountLabel: "{n} Plätze", freeLabel: "frei", overCapacityPlain: "über Kapazität", hostShortLabel: "SL: {name}",
@@ -504,14 +532,15 @@ const STRINGS = {
     pageTabCons: "Cons", pageTabPlan: "Plan", pageTabCrew: "Crew",
     globalSearchPlaceholder: "Game, host, room or table …",
     viewLabel: "View", searchLabel: "Search", rowsLabel: "Rows", slotLabel: "Slot", detailsLabel: "Detail", printCurrentView: "Open print view",
-    printBtn: "⎙ Print", printAction: "Print", crewLabel: "Crew",
-    printSettingsTitle: "Print settings", printModeLabel: "Mode", printAxisLabel: "Axis", printSlotLabel: "Slot",
-    printDetailLabel: "Detail level", printOrientationLabel: "Orientation", printColorLabel: "Color",
+    printBtn: "Print", printAction: "Print", crewLabel: "Crew",
+    printSettingsTitle: "Print settings", printModeLabel: "Mode", printAxisLabel: "Rows", printSlotLabel: "Slot",
+    printDetailLabel: "Details", printOrientationLabel: "Orientation", printColorLabel: "Color",
     printOrientationAuto: "Automatic", printOrientationPortrait: "Portrait", printOrientationLandscape: "Landscape",
     printColorColor: "Color", printColorBw: "Black & white",
     printBackLink: "← back to plan", printAllSlots: "All slots",
-    printColHost: "Host", printColTag: "Requirement",
+    printColHost: "Host", printColTag: "Tag",
     printMetaSl: "Host: {host}", printMetaFull: "Host: {host}{tag} · {seats}p",
+    printConMetaPlayabl: "Playabl event {id}", printConMetaManual: "manual con",
     printCreatedOn: "Created on {time}", printLiveVersion: "Live version: {url}",
     footPlayabl: "Games are loaded live from the Playabl API on every visit; seats = game seats + 1 GM.",
     footRequest: "Anyone can send the crew a request via “Propose change” on a game.",
@@ -540,7 +569,7 @@ const STRINGS = {
     minSeatsLabel: "min. {n} seats", decreaseMinSeats: "fewer seats", increaseMinSeats: "more seats",
     selectedClickTable: "✓ selected — click a table", selectBtn: "Select", chooseTable: "– choose table –",
     assignTableFor: "Assign table for {title}", removeFromTable: "Remove {title} from table", deleteItemNamed: "Delete {title}",
-    gamesLabel: "Games", roomsLabel: "Rooms", tablesLabel: "Tables",
+    gamesLabel: "Games", roomsLabel: "Rooms", tablesLabel: "Tables", slotsLabel: "Slots",
     legendColorRoom: "Color = room", legendDashedWorkshop: "dashed = workshop", legendOverCapacity: "over capacity (blocks nothing)",
     legendInfoText: "Room color: every room has a fixed color (grid, table, rooms view). Clicking a game title opens Playabl (if linked). ✎ (on hover) proposes a change — open to everyone, no login needed.",
     noSearchResults: "No results for this search.", noGamesYet: "No games yet.",
@@ -563,7 +592,7 @@ const STRINGS = {
     queueInfoText: "{hint} Filter chips also apply to the rooms on the right — they then show only matching rooms.",
     // plan.html — grid/rooms/assign
     noGames: "No games", flipAxisBtn: "⇄ Swap axes (currently: {axis})", axisSlotsRows: "slots as rows", axisRoomsRows: "rooms as rows",
-    chooseSlotAriaLabel: "Choose slot", editSlotTitle: "Rename/delete current slot ({label})", editSlotAriaLabel: "Rename or delete current slot",
+    chooseSlotAriaLabel: "Choose slot", scrollSlotsLeftAriaLabel: "Show earlier slots", scrollSlotsRightAriaLabel: "Show more slots", editSlotTitle: "Rename/delete current slot ({label})", editSlotAriaLabel: "Rename or delete current slot",
     addSlotTitle: "Add a new slot (e.g. for another day) — time-block templates like “morning/afternoon” live under Setup → Slots",
     addSlotAriaLabel: "Add new slot", addSlotBtnLabel: "+ Slot",
     locationLabel: "Location: {floor}", noTablesYet: "No tables yet.", seatsCountLabel: "{n} seats", freeLabel: "free", overCapacityPlain: "over capacity", hostShortLabel: "GM: {name}",
