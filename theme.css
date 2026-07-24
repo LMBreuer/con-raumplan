@@ -588,24 +588,27 @@
   white-space: nowrap;
 }
 :root[data-theme="punk"] body::after {
-  content: "THEME: PUNK ZINE";
+  content: none;
+}
+.punk-zine-banner {
   position: fixed;
   z-index: 3;
   right: -12vw;
   bottom: 1.2rem;
   width: 124vw;
   padding: 7px 0 6px;
-  pointer-events: none;
   border-block: 3px solid #0b0b0b;
   background: var(--accent-soft);
   color: #0b0b0b;
   font: 1000 clamp(.66rem, 1.05vw, .98rem)/1 "Arial Black", Arial, sans-serif;
-  letter-spacing: .07em;
+  letter-spacing: .03em;
   text-align: center;
   text-transform: uppercase;
   transform: rotate(1.4deg);
   white-space: nowrap;
+  overflow: hidden;
 }
+.punk-zine-banner a { color: inherit; text-decoration: none; }
 :root[data-theme="punk"] body > .wrap,
 :root[data-theme="punk"] .app-header {
   position: relative;
@@ -2992,7 +2995,10 @@ dialog {
   padding-top: 20px;
   border-top: var(--border-w) solid var(--border);
 }
-.plan-page .credits { display: none; }
+.plan-page .credits {
+  display: flex;
+  padding-bottom: var(--sp-2);
+}
 
 /* Der Export simuliert Login nur als Zustandswechsel. Der echte Dialog bleibt
    funktional, übernimmt aber dieselben Oberflächen-, Radius- und Chrome-

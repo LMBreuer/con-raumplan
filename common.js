@@ -71,6 +71,21 @@ function updateCatEasterEgg() {
   slot.innerHTML = document.documentElement.getAttribute("data-theme") === "terminal" ? PIXEL_CAT_SVG : "";
 }
 
+function renderPunkZineBanner() {
+  let el = document.getElementById("punkZineBanner");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "punkZineBanner";
+    el.className = "punk-zine-banner no-print";
+    document.body.appendChild(el);
+  }
+  const quotes = window.PUNK_ZINE_QUOTES || [];
+  if (document.documentElement.getAttribute("data-theme") !== "punk" || !quotes.length) { el.hidden = true; return; }
+  const pick = quotes[Math.floor(Math.random() * quotes.length)];
+  el.hidden = false;
+  el.innerHTML = `<a href="${esc(pick.url)}" target="_blank" rel="noopener" title="${esc(pick.source)}" aria-label="${esc(`${pick.quote} — ${pick.source}`)}">${esc(pick.quote)}</a>`;
+}
+
 // Gemeinfreie Ukiyo-e-Holzschnitte (Wikimedia/Wikipedia Commons, >150 Jahre
 // alt), selbst gehostet statt gehotlinkt — eines zufällig PRO THEME-WECHSEL
 // (nicht pro Aufruf/Klick) als dezenter Hintergrund (Deckkraft in theme.css),
@@ -186,6 +201,7 @@ function applyTheme(key) {
   try { localStorage.setItem("raumplan-theme", key); } catch {}
   if (key === "terminal") terminalEasterEgg();
   updateCatEasterEgg();
+  renderPunkZineBanner();
   if (key === "ukiyo") pickUkiyoBackground();
   else if (key === "comic") pickComicBackground(true);
   else {
@@ -237,6 +253,7 @@ function renderThemeSwitch(container) {
   if (current === "terminal") terminalEasterEgg();
   if (current === "solarpunk") randomizeSolarClouds();
   updateCatEasterEgg();
+  renderPunkZineBanner();
   const core = THEMES.filter(t => CORE_THEME_KEYS.includes(t.key));
   const specials = THEMES.filter(t => !CORE_THEME_KEYS.includes(t.key));
   const activeSpecial = specials.find(t => t.key === current);
