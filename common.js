@@ -32,13 +32,13 @@ const THEMES = [
   { key: "light", label: "☀️", nameKey: "themeLight" },
   { key: "contrast", label: "◐", nameKey: "themeContrast" },
   { key: "colorful", label: "🎨", nameKey: "themeColorful" },
-  { key: "terminal", label: "▚", nameKey: "themeTerminal" },
-  { key: "cyberpunk", label: "⚡", nameKey: "themeCyberpunk" },
+  { key: "glass", label: "🫧", nameKey: "themeGlass" },
   { key: "ukiyo", label: "🌸", nameKey: "themeUkiyo" },
   { key: "solarpunk", label: "🌱", nameKey: "themeSolarpunk" },
-  { key: "glass", label: "🫧", nameKey: "themeGlass" },
-  { key: "punk", label: "✖", nameKey: "themePunk" },
+  { key: "terminal", label: "▚", nameKey: "themeTerminal" },
+  { key: "cyberpunk", label: "⚡", nameKey: "themeCyberpunk" },
   { key: "comic", label: "💥", nameKey: "themeComic" },
+  { key: "punk", label: "✖", nameKey: "themePunk" },
 ];
 // Core-3 bleiben als flache Buttons im Header sichtbar, der Rest wandert in
 // ein "Weitere Themes"-Popover — siehe renderThemeSwitch().
@@ -149,6 +149,21 @@ function pickComicBackground(force = false) {
   renderArtCaption();
   return currentComicPick;
 }
+function randomizeSolarClouds(force = false) {
+  const root = document.documentElement;
+  if (!force && root.dataset.solarClouds === "ready") return;
+  const duration1 = 190 + Math.floor(Math.random() * 90);
+  const duration2 = 240 + Math.floor(Math.random() * 110);
+  root.style.setProperty("--solar-cloud-y-1", `${8 + Math.floor(Math.random() * 28)}vh`);
+  root.style.setProperty("--solar-cloud-y-2", `${38 + Math.floor(Math.random() * 26)}vh`);
+  root.style.setProperty("--solar-cloud-scale-1", (0.72 + Math.random() * 0.42).toFixed(2));
+  root.style.setProperty("--solar-cloud-scale-2", (0.58 + Math.random() * 0.36).toFixed(2));
+  root.style.setProperty("--solar-cloud-duration-1", `${duration1}s`);
+  root.style.setProperty("--solar-cloud-duration-2", `${duration2}s`);
+  root.style.setProperty("--solar-cloud-delay-1", `${-Math.floor(duration1 * (0.24 + Math.random() * 0.26))}s`);
+  root.style.setProperty("--solar-cloud-delay-2", `${-Math.floor(duration2 * (0.50 + Math.random() * 0.24))}s`);
+  root.dataset.solarClouds = "ready";
+}
 // Attributions-Bildunterschrift unten rechts (Name + Link zur Quelle) für
 // Ukiyo/Comic — 1:1 aus der Vorlage (ukiyoCaptionStyle/-Text/-Url), fehlte
 // bisher komplett.
@@ -173,7 +188,10 @@ function applyTheme(key) {
   updateCatEasterEgg();
   if (key === "ukiyo") pickUkiyoBackground();
   else if (key === "comic") pickComicBackground(true);
-  else renderArtCaption();
+  else {
+    if (key === "solarpunk") randomizeSolarClouds(true);
+    renderArtCaption();
+  }
 }
 
 // Core-3 (Dunkel/Hell/Kontrastreich) bleiben flache Buttons, der Rest wandert
@@ -217,6 +235,7 @@ function closeThemeMorePopover() {
 function renderThemeSwitch(container) {
   const current = document.documentElement.getAttribute("data-theme") || "dark";
   if (current === "terminal") terminalEasterEgg();
+  if (current === "solarpunk") randomizeSolarClouds();
   updateCatEasterEgg();
   const core = THEMES.filter(t => CORE_THEME_KEYS.includes(t.key));
   const specials = THEMES.filter(t => !CORE_THEME_KEYS.includes(t.key));

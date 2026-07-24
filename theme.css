@@ -335,6 +335,8 @@
   --card-border: 1.5px solid rgba(40,70,20,.18);
 }
 :root[data-theme="solarpunk"] body {
+  position: relative;
+  isolation: isolate;
   background-image:
     radial-gradient(circle at 96% -4%, rgba(244,190,72,.34) 0, rgba(244,190,72,.13) 12%, transparent 31%),
     repeating-conic-gradient(from 205deg at 98% 0%, rgba(221,161,45,.045) 0deg 7deg, transparent 7deg 17deg),
@@ -343,6 +345,50 @@
     repeating-linear-gradient(90deg, rgba(40,100,65,.026) 0 1px, transparent 1px 72px),
     repeating-linear-gradient(0deg, rgba(40,100,65,.022) 0 1px, transparent 1px 72px);
   background-attachment: fixed;
+}
+:root[data-theme="solarpunk"] body::before,
+:root[data-theme="solarpunk"] body::after {
+  content: "";
+  position: fixed;
+  z-index: 0;
+  left: -42vw;
+  width: clamp(420px, 42vw, 720px);
+  height: clamp(120px, 15vw, 220px);
+  pointer-events: none;
+  opacity: .52;
+  filter: blur(4px) drop-shadow(0 10px 18px rgba(71,132,145,.16));
+  background:
+    radial-gradient(ellipse at 17% 67%, rgba(255,255,255,.98) 0 15%, rgba(156,211,220,.70) 17%, transparent 21%),
+    radial-gradient(ellipse at 34% 48%, rgba(255,255,255,.98) 0 22%, rgba(156,211,220,.70) 24%, transparent 29%),
+    radial-gradient(ellipse at 54% 58%, rgba(255,255,255,.98) 0 26%, rgba(156,211,220,.70) 28%, transparent 33%),
+    radial-gradient(ellipse at 73% 70%, rgba(255,255,255,.98) 0 17%, rgba(156,211,220,.70) 19%, transparent 24%);
+  will-change: transform;
+}
+:root[data-theme="solarpunk"] body > .wrap {
+  position: relative;
+  z-index: 1;
+}
+:root[data-theme="solarpunk"] body::before {
+  top: var(--solar-cloud-y-1, 18vh);
+  animation: rp-solar-cloud-1 var(--solar-cloud-duration-1, 230s) linear var(--solar-cloud-delay-1, -80s) infinite;
+}
+:root[data-theme="solarpunk"] body::after {
+  top: var(--solar-cloud-y-2, 54vh);
+  opacity: .34;
+  filter: blur(6px) drop-shadow(0 9px 16px rgba(71,132,145,.13));
+  animation: rp-solar-cloud-2 var(--solar-cloud-duration-2, 300s) linear var(--solar-cloud-delay-2, -150s) infinite;
+}
+@keyframes rp-solar-cloud-1 {
+  from { transform: translate3d(0,0,0) scale(var(--solar-cloud-scale-1, .9)); }
+  to { transform: translate3d(170vw,0,0) scale(var(--solar-cloud-scale-1, .9)); }
+}
+@keyframes rp-solar-cloud-2 {
+  from { transform: translate3d(0,0,0) scale(var(--solar-cloud-scale-2, .72)); }
+  to { transform: translate3d(176vw,0,0) scale(var(--solar-cloud-scale-2, .72)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="solarpunk"] body::before,
+  :root[data-theme="solarpunk"] body::after { display: none; }
 }
 :root[data-theme="solarpunk"] ::selection { background: #f4c75d; color: var(--text-primary); }
 :root[data-theme="solarpunk"] .card,
@@ -460,9 +506,19 @@
   backdrop-filter: blur(12px);
 }
 :root[data-theme="glass"] .plan-page .grid-cell .grid-chip,
-:root[data-theme="glass"] .plan-page #viewContent .tablebox {
+:root[data-theme="glass"] .plan-page #viewContent .room-public-chip {
   background: rgba(8,15,31,.36);
-  border-color: rgba(255,255,255,.10);
+  border: 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 12px 26px -24px rgba(0,0,0,.82);
+}
+:root[data-theme="glass"] .plan-page #viewContent .tablebox {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+:root[data-theme="glass"] .plan-page #viewContent .tablebox .free {
+  border-color: rgba(255,255,255,.12);
+  background: rgba(8,15,31,.22);
 }
 :root[data-theme="glass"] button.primary,
 :root[data-theme="glass"] a.btn.primary {
@@ -470,106 +526,270 @@
   box-shadow: 0 12px 28px -15px rgba(110,220,255,.75), inset 0 1px 0 rgba(255,255,255,.72);
 }
 
-/* ---------- Punk (DIY-Zine, Fotokopie, Siebdruck) ---------- */
+/* ---------- Punk (radikales Protestplakat, Überdruck, kontrolliertes Chaos) ---------- */
 :root[data-theme="punk"] {
   color-scheme: light;
-  --page:      #eee9d7;
-  --surface-1: #fffdf2;
-  --surface-2: #e8e1ca;
-  --text-primary:   #101010;
-  --text-secondary: #292929;
-  --text-muted:     #67635a;
-  --grid:      #b9b29e;
-  --baseline:  #111111;
-  --border:    #111111;
-  --accent:      #e50062;
+  --page:      #d8d8d1;
+  --surface-1: #f5f4ed;
+  --surface-2: #c9c9c2;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #252525;
+  --text-muted:     #55554f;
+  --grid:      #85857f;
+  --baseline:  #0b0b0b;
+  --border:    #0b0b0b;
+  --accent:      #ff3d00;
   --accent-ink:  #ffffff;
-  --accent-soft: #f4e72d;
-  --good:  #16844a;
-  --warn:  #e50062;
-  --band:  #f4e72d;
-  --shadow-card: 6px 6px 0 #111111;
-  --room-a: #e50062; --room-b: #16844a; --room-c: #1f62d0; --room-d: #f09b16; --room-e: #7b2cbf;
-  --font-display: Impact, "Arial Black", sans-serif;
-  --font-body: Arial, Helvetica, sans-serif;
-  --border-w: 2px;
+  --accent-soft: #c7ff00;
+  --good:  #008f51;
+  --warn:  #ff3d00;
+  --band:  #c7ff00;
+  --shadow-card: none;
+  --room-a: #ff3d00; --room-b: #008f51; --room-c: #0057ff; --room-d: #f1bd00; --room-e: #7a2cff;
+  --font-display: "Arial Black", Arial, Helvetica, sans-serif;
+  --font-body: "Arial Narrow", Arial, Helvetica, sans-serif;
+  --border-w: 3px;
   --r-sm: 0; --r-md: 0; --r-pill: 0; --r-lg: 0;
-  --chrome-shadow: 4px 4px 0 #e50062;
-  --chrome-border-w: 2px;
-  --card-border: 2px solid #111111;
+  --chrome-shadow: none;
+  --chrome-border-w: 3px;
+  --card-border: 3px solid #0b0b0b;
 }
 :root[data-theme="punk"] body {
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
   background-color: var(--page);
   background-image:
-    radial-gradient(circle, rgba(17,17,17,.15) 1px, transparent 1.2px),
-    repeating-linear-gradient(174deg, transparent 0 94px, rgba(17,17,17,.055) 94px 96px),
-    linear-gradient(105deg, transparent 0 64%, rgba(229,0,98,.055) 64% 70%, transparent 70%);
-  background-size: 9px 9px, auto, auto;
+    linear-gradient(104deg, transparent 0 61%, rgba(0,87,255,.22) 61% 79%, transparent 79%),
+    linear-gradient(-7deg, transparent 0 72%, rgba(255,61,0,.18) 72% 88%, transparent 88%),
+    repeating-linear-gradient(90deg, rgba(11,11,11,.12) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(0deg, rgba(11,11,11,.12) 0 1px, transparent 1px 48px);
   background-attachment: fixed;
 }
+:root[data-theme="punk"] body::before {
+  content: "CON // RAUM // PLAN";
+  position: fixed;
+  z-index: 0;
+  top: 18vh;
+  left: -6vw;
+  width: 118vw;
+  pointer-events: none;
+  color: rgba(0,87,255,.17);
+  font-family: "Arial Black", Arial, sans-serif;
+  font-size: clamp(6rem, 17vw, 19rem);
+  font-weight: 1000;
+  line-height: .7;
+  letter-spacing: -.1em;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(-8deg);
+  white-space: nowrap;
+}
+:root[data-theme="punk"] body::after {
+  content: "NO BORING ROOMS  ✖  BUILD THE SCHEDULE  ✖  NO BORING ROOMS  ✖  BUILD THE SCHEDULE";
+  position: fixed;
+  z-index: 3;
+  right: -12vw;
+  bottom: 1.2rem;
+  width: 124vw;
+  padding: 7px 0 6px;
+  pointer-events: none;
+  border-block: 3px solid #0b0b0b;
+  background: var(--accent-soft);
+  color: #0b0b0b;
+  font: 1000 clamp(.72rem, 1.15vw, 1.05rem)/1 "Arial Black", Arial, sans-serif;
+  letter-spacing: .07em;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(1.4deg);
+  white-space: nowrap;
+}
+:root[data-theme="punk"] body > .wrap,
 :root[data-theme="punk"] .app-header {
-  background: rgba(238,233,215,.94);
-  border-bottom: 3px solid #111;
+  position: relative;
+  z-index: 1;
+}
+:root[data-theme="punk"] .app-header {
+  background: #0b0b0b;
+  border-bottom: 12px solid #0057ff;
   backdrop-filter: none;
 }
+:root[data-theme="punk"] .app-header .brand {
+  padding: 4px 9px;
+  background: var(--accent);
+  color: #fff;
+  transform: rotate(-2deg);
+}
+:root[data-theme="punk"] .app-header .page-tabs.slot-tabs { background: var(--accent-soft); }
 :root[data-theme="punk"] .card,
 :root[data-theme="punk"] .room,
 :root[data-theme="punk"] .kpi-bar .kpi,
 :root[data-theme="punk"] .next-con-card,
 :root[data-theme="punk"] dialog {
-  border-color: #111;
-  box-shadow: var(--shadow-card);
+  border-color: #0b0b0b;
+  box-shadow: none;
 }
 :root[data-theme="punk"] h1,
 :root[data-theme="punk"] h2,
 :root[data-theme="punk"] .brand {
-  letter-spacing: .025em;
+  letter-spacing: -.035em;
   text-transform: uppercase;
 }
 :root[data-theme="punk"] h1 {
-  text-shadow: 3px 3px 0 rgba(229,0,98,.72);
+  display: inline-block;
+  max-width: min(100%, 18ch);
+  padding: 7px 16px 9px;
+  background: #0b0b0b;
+  color: #fff;
+  box-shadow: 18px 0 0 var(--accent), -9px 9px 0 #0057ff;
+  font-size: clamp(2.3rem, 7vw, 6.8rem) !important;
+  line-height: .82 !important;
+  text-shadow: none;
+  transform: rotate(-1.5deg) skewX(-4deg);
+}
+:root[data-theme="punk"] h2 {
+  display: inline;
+  background: var(--accent-soft);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 1px 5px;
+  color: #0b0b0b;
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+:root[data-theme="punk"] .sub {
+  display: table;
+  margin-top: 14px;
+  padding: 5px 8px;
+  background: #0057ff;
+  color: #fff;
+  font-weight: 900;
+  transform: rotate(.7deg);
 }
 :root[data-theme="punk"] .app-header .page-tabs [aria-pressed="true"] {
   background: #111;
   color: var(--accent-soft);
-  box-shadow: 3px 3px 0 var(--accent);
-  transform: rotate(-1deg);
+  box-shadow: none;
+  transform: none;
 }
 :root[data-theme="punk"] .plan-page .public-view-tabs button[aria-pressed="true"],
 :root[data-theme="punk"] .crew-nav button[aria-pressed="true"] {
-  border-bottom-color: var(--accent);
-  color: #111;
+  border-bottom-color: #0b0b0b;
+  background: var(--accent);
+  color: #fff;
+}
+:root[data-theme="punk"] .plan-page .public-view-tabs {
+  border-bottom: 4px solid #0b0b0b;
+  gap: 10px;
+  transform: rotate(-.35deg);
+}
+:root[data-theme="punk"] .plan-page .public-view-tabs button {
+  padding-inline: 12px;
+  text-transform: uppercase;
+}
+:root[data-theme="punk"] .plan-page .public-toolbar {
+  border-top: 12px solid #0057ff;
+  border-bottom: 5px solid #0b0b0b;
+  transform: rotate(.35deg);
+}
+:root[data-theme="punk"] .landing-page .next-con-card {
+  border-left: 18px solid #0057ff;
+  transform: rotate(-.55deg);
+}
+:root[data-theme="punk"] .landing-page .con-directory {
+  border-top: 12px solid var(--accent);
+  transform: rotate(.4deg);
+}
+:root[data-theme="punk"] .landing-page .con-directory .card:nth-child(odd),
+:root[data-theme="punk"] .plan-page #viewContent .room:nth-child(odd) {
+  transform: rotate(-.35deg);
+}
+:root[data-theme="punk"] .landing-page .con-directory .card:nth-child(even),
+:root[data-theme="punk"] .plan-page #viewContent .room:nth-child(even) {
+  transform: rotate(.35deg);
 }
 :root[data-theme="punk"] .plan-page .matrix-label,
 :root[data-theme="punk"] .badge {
-  border: 1px solid #111;
+  border: 2px solid #0b0b0b;
   border-radius: 0;
-  background: var(--band);
+  background: #0b0b0b;
+  color: #fff;
+  text-transform: uppercase;
 }
 :root[data-theme="punk"] .plan-page .grid-cell {
   border-radius: 0;
-  background: #e5deca;
-  box-shadow: inset 0 0 0 1px #aaa18d;
+  background: #bdbdb6;
+  box-shadow: inset 0 0 0 2px #0b0b0b;
 }
 :root[data-theme="punk"] .plan-page .grid-cell .grid-chip {
-  border: 1px solid #111;
+  border: 2px solid #0b0b0b;
+  border-left: 8px solid #0057ff;
   border-radius: 0;
-  background: #fffdf2;
+  background: #f5f4ed;
+  transition: transform .12s steps(2,end), background-color .12s linear, box-shadow .12s linear;
 }
 :root[data-theme="punk"] .plan-page .room-swatch {
-  width: 5px;
+  width: 6px;
   border-radius: 0;
+}
+:root[data-theme="punk"] .plan-page #axisSwitch button[aria-pressed="true"],
+:root[data-theme="punk"] .plan-page #detailSwitch button[aria-pressed="true"] {
+  border-bottom: 4px solid var(--accent);
+}
+:root[data-theme="punk"] .toolbar-label {
+  color: #0b0b0b;
+  font-weight: 900;
 }
 :root[data-theme="punk"] button.primary,
 :root[data-theme="punk"] a.btn.primary {
-  border-color: #111;
+  border-color: #0b0b0b;
   background: var(--accent);
-  box-shadow: 3px 3px 0 #111;
+  box-shadow: 6px 6px 0 #0b0b0b;
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+:root[data-theme="punk"] button.primary:hover,
+:root[data-theme="punk"] a.btn.primary:hover,
+:root[data-theme="punk"] .plan-page .grid-cell .grid-chip:hover {
+  background: var(--accent-soft);
+  color: #0b0b0b;
+  box-shadow: 9px 9px 0 #0057ff;
+  transform: translate(-3px,-3px) rotate(-1deg);
 }
 :root[data-theme="punk"] button.primary:active,
 :root[data-theme="punk"] a.btn.primary:active {
-  transform: translate(2px,2px);
-  box-shadow: 1px 1px 0 #111;
+  transform: translate(1px,1px);
+  box-shadow: 2px 2px 0 #0b0b0b;
+}
+:root[data-theme="punk"] ::selection {
+  background: var(--accent-soft);
+  color: #0b0b0b;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme="punk"] body::before {
+    animation: rp-punk-poster-drift 22s steps(7,end) infinite alternate;
+  }
+  :root[data-theme="punk"] body::after {
+    animation: rp-punk-tape-shove 16s steps(4,end) infinite alternate;
+  }
+  :root[data-theme="punk"] h1 {
+    animation: rp-punk-title-jolt 8s steps(1,end) infinite;
+  }
+}
+@keyframes rp-punk-poster-drift {
+  0% { transform: translate3d(-3vw,-2vh,0) rotate(-8deg); }
+  48% { transform: translate3d(4vw,5vh,0) rotate(-5deg); }
+  100% { transform: translate3d(-1vw,11vh,0) rotate(-10deg); }
+}
+@keyframes rp-punk-tape-shove {
+  0%, 67% { transform: translate3d(0,0,0) rotate(1.4deg); }
+  68%, 83% { transform: translate3d(-4vw,-5px,0) rotate(-1.2deg); }
+  84%, 100% { transform: translate3d(3vw,2px,0) rotate(2deg); }
+}
+@keyframes rp-punk-title-jolt {
+  0%, 76%, 80%, 100% { transform: rotate(-1.5deg) skewX(-4deg); }
+  77% { transform: translate(-5px,2px) rotate(1deg) skewX(3deg); }
+  79% { transform: translate(4px,-2px) rotate(-3deg) skewX(-7deg); }
 }
 
 /* ---------- Comic (kräftige Outlines, harter Versatz-Schatten) ---------- */
