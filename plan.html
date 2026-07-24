@@ -831,7 +831,7 @@ function rasterHtml() {
   const cols = S.rasterAxis === "slots" ? S.rooms : S.slots;
   const headHtml = cols.map(c => {
     const room = S.rasterAxis === "slots" ? c : null;
-    return `<th scope="col"><span class="matrix-label">${room ? `<span class="room-swatch" style="--room-accent:${roomAccentVar(room)}"></span>` : ""}${esc(room ? room.name : c.label)}</span></th>`;
+    return `<th scope="col"><span class="matrix-label">${room ? `<span class="room-swatch" style="--room-accent:${roomAccentVar(room)}"></span>` : ""}<span class="matrix-label-text">${esc(room ? room.name : c.label)}</span></span></th>`;
   }).join("");
   const bodyHtml = rows.map(r => {
     const rowLabel = S.rasterAxis === "slots" ? r.label : r.name;
@@ -845,7 +845,7 @@ function rasterHtml() {
       return `<td class="grid-cell ${fillClass}${!gamesHere.length ? " empty" : ""}"${gamesHere.length ? "" : ` aria-label="${esc(tr("noGames"))}"`}>${inner}</td>`;
     }).join("");
     return `<tr>
-      <th scope="row"><span class="matrix-label">${rowRoom ? `<span class="room-swatch" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}${esc(rowLabel)}</span></th>
+      <th scope="row"><span class="matrix-label">${rowRoom ? `<span class="room-swatch" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}<span class="matrix-label-text">${esc(rowLabel)}</span></span></th>
       <td class="matrix-divider">${rowRoom ? `<span class="matrix-divider-bar" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}</td>
       ${cellsHtml}
     </tr>`;
@@ -868,7 +868,7 @@ function raeumeReadHtml() {
     const tables = S.tables.filter(t => t.room_id === room.id);
     const tablesHtml = tables.map(t => {
       const games = S.games.filter(g => g.slotKey === S.activeSlot && matchesSearchG(g)).filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
-      return `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span></div>${games.map(g => chipHtml(g, { crew: false, inRoom: true })).join("") || `<div class="free">${esc(tr("freeLabel"))}</div>`}</div>`;
+      return `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span></div>${games.map(g => chipHtml(g, { crew: false, inRoom: true })).join("") || `<div class="free room-public-free detail-${S.detailLevel}">${esc(tr("freeLabel"))}</div>`}</div>`;
     }).join("");
     return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
       <div class="room-head"><span class="room-swatch" style="--room-accent:${roomAccentVar(room)}"></span><h3>${esc(room.name)}</h3></div>
