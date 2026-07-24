@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&family=Space+Grotesk:wght@600;700&family=Nunito:wght@400;600;700&family=Bangers&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css">
 </head>
-<body>
+<body class="landing-page">
 <a class="skip-link" href="#main">Zum Inhalt springen</a>
 <div class="wrap">
   <header class="app-header" aria-label="Kopfzeile" data-i18n-aria-label="headerLabel">
@@ -40,18 +40,26 @@
     <p id="status" data-i18n="loadingCons">Lade Cons …</p>
     <div id="nextConCard"></div>
 
-    <section class="card">
-      <h2 data-i18n="existingCons">Bestehende Cons</h2>
-      <p class="hint" data-i18n="existingConsHint">Zeigt Cons mit verknüpftem Playabl-Event oder bewusst gelistete manuelle Cons. Bearbeiten kann nur, wer Mitglied der jeweiligen Crew ist.</p>
-      <div class="cons-toolbar">
-        <input type="search" id="conSearch" placeholder="Con suchen …" data-i18n-placeholder="searchCon" aria-label="Con suchen" data-i18n-aria-label="searchCon">
-        <input type="text" id="directInput" placeholder="…oder Link/ID direkt öffnen" data-i18n-placeholder="directInputPlaceholder" aria-label="Con direkt öffnen" data-i18n-aria-label="openConDirectly">
-        <button id="directGo" type="button" data-i18n="open">Öffnen</button>
+    <section class="card con-directory">
+      <div class="con-directory-head">
+        <div>
+          <h2 data-i18n="existingCons">Weitere Cons</h2>
+          <p class="hint" data-i18n="existingConsHint">Playabl-Events und manuell angelegte Cons · neueste zuerst.</p>
+        </div>
+        <div class="cons-toolbar">
+          <input type="search" id="conSearch" placeholder="Con suchen …" data-i18n-placeholder="searchCon" aria-label="Con suchen" data-i18n-aria-label="searchCon">
+          <input type="text" id="directInput" placeholder="…oder Link/ID direkt öffnen" data-i18n-placeholder="directInputPlaceholder" aria-label="Con direkt öffnen" data-i18n-aria-label="openConDirectly">
+          <button id="directGo" type="button" data-i18n="open">Öffnen</button>
+        </div>
       </div>
       <div class="con-list" id="conList"></div>
     </section>
 
     <button type="button" id="openCreateConBtn" hidden style="display:block;margin:var(--sp-4) auto 0" data-i18n="createConTriggerBtn">+ Neue Con anlegen</button>
+    <div class="landing-foot">
+      <div data-i18n="footPlayabl">Spiele werden bei jedem Öffnen live von der Playabl-API geladen; Plätze = Spielplätze + 1 anbietende Person.</div>
+      <div data-i18n="footRequest">Über „Änderung vorschlagen“ am Spiel kann jede*r der Crew einen Wunsch schicken.</div>
+    </div>
   </main>
   <div class="credits" id="credits"></div>
 </div>
@@ -157,6 +165,13 @@ function formatCountdown(date) {
   if (days === 1) return tr("nextConTomorrow");
   return tr("nextConInDays", { n: days });
 }
+function conDisplayDate(con) {
+  const ev = con.playabl_event_id ? allEvents.find(e => String(e.id) === String(con.playabl_event_id)) : null;
+  const date = ev?.start_time ? new Date(ev.start_time) : new Date(con.created_at);
+  return date.toLocaleDateString(LANG === "en" ? "en-GB" : "de-AT", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+  });
+}
 async function renderNextConCard() {
   const el = document.getElementById("nextConCard");
   const next = computeNextCon();
@@ -176,7 +191,7 @@ async function renderNextConCard() {
   // -OpenStyle): die GANZE Karte ist ein Link, mit vier gestapelten Zeilen
   // (Badge / Name(+Crew-Badge) / Meta / "Zur Übersicht →") statt einer
   // horizontalen Name-links/Button-rechts-Zeile.
-  const meta = `${esc(tr("createdOn", { date: new Date(con.created_at).toLocaleDateString(LANG === "en" ? "en-GB" : "de-AT") }))}${con.playabl_event_id ? ` · ${esc(tr("playablEvent"))}` : ""}`;
+  const meta = `${esc(con.playabl_event_id ? conDisplayDate(con) : tr("createdOn", { date: conDisplayDate(con) }))}${con.playabl_event_id ? ` · ${esc(tr("playablEvent"))}` : ""}`;
   el.innerHTML = `<a class="next-con-card" href="plan.html?con=${esc(con.slug || con.id)}">
     <div class="eyebrow">${esc(tr("nextConBadgeText", { countdown: formatCountdown(date) }))}</div>
     <div class="t">${esc(con.name)}${crewBadge}</div>
@@ -210,12 +225,14 @@ let allCons = [];
 let isSuperadmin = false;
 function renderCons() {
   const q = document.getElementById("conSearch").value.trim().toLowerCase();
-  const list = allCons.filter(c => !q || c.name.toLowerCase().includes(q));
+  const next = computeNextCon();
+  const nextId = next?.con?.id;
+  const list = allCons.filter(c => c.id !== nextId && (!q || c.name.toLowerCase().includes(q)));
   document.getElementById("conList").innerHTML = list.map(c => `
     <div class="con-card">
       <div>
         <div class="t">${esc(c.name)}${isSuperadmin && !c.listed ? ` <span class="badge">${esc(tr("unlisted"))}</span>` : ""}</div>
-        <div class="m">${esc(tr("createdOn", { date: new Date(c.created_at).toLocaleDateString(LANG === "en" ? "en-GB" : "de-AT") }))}${c.playabl_event_id ? ` · <a href="https://app.playabl.io/events/${esc(c.playabl_event_id)}/overview" target="_blank" rel="noopener">${esc(tr("playablEvent"))}</a>` : ""}</div>
+        <div class="m">${c.playabl_event_id ? esc(conDisplayDate(c)) : esc(tr("createdOn", { date: conDisplayDate(c) }))}${c.playabl_event_id ? ` · <a href="https://app.playabl.io/events/${esc(c.playabl_event_id)}/overview" target="_blank" rel="noopener">${esc(tr("playablEvent"))}</a>` : ""}</div>
       </div>
       <span style="display:flex;gap:8px;align-items:center">
         ${isSuperadmin ? `<button type="button" class="small danger delConBtn" data-id="${c.id}" data-name="${esc(c.name)}">🗑 ${esc(tr("delete"))}</button>` : ""}
@@ -314,10 +331,12 @@ document.getElementById("createConBtn").addEventListener("click", async () => {
     const [, events] = await Promise.all([reloadCons(), loadPlayablEventsList()]);
     fillEventsList(events);
     renderNextConCard();
+    renderCons();
     renderIndexPageTabs();
     authUI.refresh();
     document.getElementById("status").textContent =
       tr("asOf", { date: new Intl.DateTimeFormat(LANG === "en" ? "en-GB" : "de-AT", { dateStyle: "full", timeStyle: "short" }).format(new Date()) });
+    document.body.classList.add("is-ready");
   } catch (err) {
     document.getElementById("status").innerHTML = `<span class="err">${esc(tr("dataLoadFailed", { err: err.message }))}</span>`;
   }
