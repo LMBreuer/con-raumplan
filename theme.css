@@ -355,14 +355,16 @@
   width: clamp(420px, 42vw, 720px);
   height: clamp(120px, 15vw, 220px);
   pointer-events: none;
-  opacity: .52;
-  filter: blur(4px) drop-shadow(0 10px 18px rgba(71,132,145,.16));
+  opacity: .44;
+  /* Große, überlappende Stops + weicher Blur statt der zuvor sichtbaren
+     konzentrischen Ringe: dadurch bleiben die Wolken bei der sehr langsamen
+     Skalierung glatt und papierartig statt pixelig. */
+  filter: blur(11px);
   background:
-    radial-gradient(ellipse at 17% 67%, rgba(255,255,255,.98) 0 15%, rgba(156,211,220,.70) 17%, transparent 21%),
-    radial-gradient(ellipse at 34% 48%, rgba(255,255,255,.98) 0 22%, rgba(156,211,220,.70) 24%, transparent 29%),
-    radial-gradient(ellipse at 54% 58%, rgba(255,255,255,.98) 0 26%, rgba(156,211,220,.70) 28%, transparent 33%),
-    radial-gradient(ellipse at 73% 70%, rgba(255,255,255,.98) 0 17%, rgba(156,211,220,.70) 19%, transparent 24%);
-  will-change: transform;
+    radial-gradient(ellipse at 17% 67%, rgba(255,255,255,.92) 0 24%, rgba(195,226,228,.44) 43%, transparent 67%),
+    radial-gradient(ellipse at 34% 48%, rgba(255,255,255,.95) 0 31%, rgba(195,226,228,.46) 52%, transparent 75%),
+    radial-gradient(ellipse at 54% 58%, rgba(255,255,255,.95) 0 35%, rgba(195,226,228,.44) 56%, transparent 78%),
+    radial-gradient(ellipse at 73% 70%, rgba(255,255,255,.91) 0 27%, rgba(195,226,228,.40) 47%, transparent 70%);
 }
 :root[data-theme="solarpunk"] body > .wrap {
   position: relative;
@@ -374,8 +376,8 @@
 }
 :root[data-theme="solarpunk"] body::after {
   top: var(--solar-cloud-y-2, 54vh);
-  opacity: .34;
-  filter: blur(6px) drop-shadow(0 9px 16px rgba(71,132,145,.13));
+  opacity: .27;
+  filter: blur(15px);
   animation: rp-solar-cloud-2 var(--solar-cloud-duration-2, 300s) linear var(--solar-cloud-delay-2, -150s) infinite;
 }
 @keyframes rp-solar-cloud-1 {
@@ -586,7 +588,7 @@
   white-space: nowrap;
 }
 :root[data-theme="punk"] body::after {
-  content: "NO BORING ROOMS  ✖  BUILD THE SCHEDULE  ✖  NO BORING ROOMS  ✖  BUILD THE SCHEDULE";
+  content: "THEME: PUNK ZINE";
   position: fixed;
   z-index: 3;
   right: -12vw;
@@ -597,7 +599,7 @@
   border-block: 3px solid #0b0b0b;
   background: var(--accent-soft);
   color: #0b0b0b;
-  font: 1000 clamp(.72rem, 1.15vw, 1.05rem)/1 "Arial Black", Arial, sans-serif;
+  font: 1000 clamp(.66rem, 1.05vw, .98rem)/1 "Arial Black", Arial, sans-serif;
   letter-spacing: .07em;
   text-align: center;
   text-transform: uppercase;
