@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&family=Space+Grotesk:wght@600;700&family=Nunito:wght@400;600;700&family=Bangers&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css">
 </head>
-<body>
+<body class="plan-page">
 <a class="skip-link no-print" href="#main">Zum Inhalt springen</a>
 <div class="wrap">
   <header class="app-header no-print">
@@ -40,15 +40,29 @@
       <p id="status" data-i18n="loadingData">Lade Daten …</p>
       <div class="kpi-bar no-print" id="kpiBar"></div>
       <div class="legend no-print" id="legend"></div>
-      <div class="global-search no-print">
-        <input type="search" id="globalSearch" placeholder="Spiel, Raum oder Tisch suchen …" data-i18n-placeholder="globalSearchPlaceholder" aria-label="Suche über alle Ansichten" data-i18n-aria-label="globalSearchPlaceholder">
-      </div>
-      <div class="nav-groups no-print" id="viewNavGroup">
-        <span class="label" data-i18n="viewLabel">Ansicht</span>
-        <div class="slot-tabs" id="viewTabs" role="group" aria-label="Ansicht wählen"></div>
-        <span class="label" data-i18n="detailsLabel">Details</span>
-        <div id="detailSwitch" class="slot-tabs" role="group" aria-label="Detailgrad wählen"></div>
-        <button id="printBtn" type="button" title="Aktuelle Ansicht drucken" data-i18n-title="printCurrentView" data-i18n="printBtn">🖨️ Drucken</button>
+      <div class="no-print" id="viewNavGroup">
+        <div class="public-view-tabs" id="viewTabs" role="group" aria-label="Ansicht wählen"></div>
+        <div class="card public-toolbar">
+          <div class="toolbar-group toolbar-search-group">
+            <span class="toolbar-label" data-i18n="searchLabel">Suche</span>
+            <div class="global-search">
+              <input type="search" id="globalSearch" placeholder="Spiel, Anbieter, Raum oder Tisch …" data-i18n-placeholder="globalSearchPlaceholder" aria-label="Suche über alle Ansichten" data-i18n-aria-label="globalSearchPlaceholder">
+            </div>
+          </div>
+          <div class="toolbar-divider" id="contextDivider"></div>
+          <div class="toolbar-group" id="contextGroup">
+            <span class="toolbar-label" id="contextLabel" data-i18n="rowsLabel">Zeilen</span>
+            <div id="axisSwitch" class="toolbar-pill-row" role="group" aria-label="Rasterzeilen wählen"></div>
+          </div>
+          <div class="toolbar-divider" id="detailDivider"></div>
+          <div class="toolbar-group" id="detailGroup">
+            <span class="toolbar-label" data-i18n="detailsLabel">Details</span>
+            <div id="detailSwitch" class="toolbar-pill-row" role="group" aria-label="Detailgrad wählen"></div>
+          </div>
+          <div class="public-toolbar-spacer"></div>
+          <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="Hinweise zur Ansicht" data-info-text="">i</span>
+          <button id="printBtn" type="button" title="Druckansicht öffnen" aria-label="Druckansicht öffnen"><span class="print-icon" aria-hidden="true">⎙</span> Drucken</button>
+        </div>
       </div>
     </div>
     <section id="viewContent" aria-label="Öffentliche Ansicht"></section>
@@ -152,10 +166,30 @@
 <!-- Auto-Zuordnung: Vorschau vor der Übernahme -->
 <dialog id="autoPreviewDlg" aria-labelledby="autoPreviewDlgH">
   <h2 id="autoPreviewDlgH" data-i18n="autoAssignPreviewTitle">Vorschlag: Auto-Zuordnung</h2>
+  <div class="auto-preview-explainer">
+    <strong data-i18n="autoAssignRulesTitle">So entscheidet die Auto-Zuordnung</strong>
+    <p id="autoPreviewExplanation"></p>
+  </div>
+  <p class="auto-preview-summary" id="autoPreviewSummary"></p>
+  <p class="auto-preview-edit-hint" data-i18n="autoAssignEditHint">Ziel direkt ändern; ein bereits verwendeter Tisch wird mit dem bisherigen Ziel getauscht.</p>
   <div class="auto-preview-list" id="autoPreviewList"></div>
   <div class="dactions">
     <button type="button" onclick="this.closest('dialog').close()" data-i18n="cancel">Abbrechen</button>
     <button type="button" id="autoPreviewApplyBtn" class="primary" data-i18n="apply">Übernehmen</button>
+  </div>
+</dialog>
+
+<!-- Alle Tischzuordnungen des aktiven Slots lösen -->
+<dialog id="clearSlotDlg" aria-labelledby="clearSlotDlgH">
+  <h2 id="clearSlotDlgH" data-i18n="clearSlotDialogTitle">Slot wirklich leeren?</h2>
+  <div class="danger-confirm-panel">
+    <strong id="clearSlotWarningTitle"></strong>
+    <p id="clearSlotWarningText"></p>
+  </div>
+  <p class="msg err" id="clearSlotMsg" role="alert"></p>
+  <div class="dactions">
+    <button type="button" onclick="this.closest('dialog').close()" data-i18n="cancel">Abbrechen</button>
+    <button type="button" id="clearSlotConfirmBtn" class="danger" data-i18n="clearSlotConfirmBtn">Zuordnungen entfernen</button>
   </div>
 </dialog>
 
@@ -213,20 +247,32 @@ async function loadCon(idOrSlug) {
 // buckets: die aktiven Tagesabschnitts-Vorlagen dieser Con (S.slotBuckets),
 // ersetzen den früher hart codierten CUTOFF-Vergleich. Sessions, die in
 // keinen Bucket fallen (z.B. Lücke zwischen zwei Abschnitten), landen in
-// einem Pro-Tag-Sammelslot "Unsortiert" statt zu verschwinden.
+// einem Pro-Tag-Sammelslot "Unsortiert" statt zu verschwinden. Hat eine
+// neue Con noch gar keine Vorlagen, ist der sinnvolle Ganztags-Fallback
+// dagegen "Tag" (und anschließend unter Setup → Slots frei bearbeitbar).
 async function loadPlayabl(eventId, buckets) {
   if (!eventId) return [];
-  const sessions = await playablApi(`sessions?select=id,start_time,end_time,participant_count,game_id!inner(id,title,system,event_id,description)&deleted_at=is.null&game_id.event_id=eq.${eventId}&order=start_time.asc`);
+  const sessions = await playablApi(`sessions?select=id,start_time,end_time,participant_count,game_id!inner(id,title,system,event_id,description,creator_id)&deleted_at=is.null&game_id.event_id=eq.${eventId}&order=start_time.asc`);
+  // Die anbietende Person hängt in Playabl am Spiel (games.creator_id), nicht
+  // an unserer lokalen Con. Profile separat laden statt eine fragile
+  // mehrstufige PostgREST-Einbettung zu verwenden; so bleibt die
+  // Sessions-Abfrage auch bei geänderten Relation-Aliasnamen stabil.
+  const creatorIds = [...new Set(sessions.map(s => s.game_id.creator_id).filter(Boolean))];
+  const profiles = creatorIds.length
+    ? await playablApi(`profiles?select=id,username&id=in.(${creatorIds.map(encodeURIComponent).join(",")})`)
+    : [];
+  const providerById = new Map(profiles.map(p => [p.id, p.username || ""]));
   return sessions.map(s => {
     const date = dayKey.format(new Date(s.start_time));
     const h = hourOf(s.start_time);
     const bucket = buckets.find(b => h >= b.start_hour && h < b.end_hour);
-    const part = bucket ? bucket.label : "Unsortiert";
+    const part = bucket ? bucket.label : (buckets.length ? "Unsortiert" : "Tag");
     return {
       key: "playabl:" + s.id, gameId: s.game_id.id,
       title: (s.game_id.title.replace(/\s*[\[(][^\])]*(?:3W6|Offline|Con)[^\])]*[\])]\s*/gi, "").trim() || s.game_id.title),
       url: "https://app.playabl.io/games/" + s.game_id.id,
       seats: s.participant_count + 1,
+      provider: providerById.get(s.game_id.creator_id) || "",
       ws: WS_RE.test((s.game_id.system || "") + " " + s.game_id.title),
       slotKey: date + "|" + part,
       slotLabel: `${fmtDay.format(new Date(s.start_time)).split(",")[0]} ${part}`,
@@ -284,6 +330,21 @@ function makeStore(conId) {
     },
     async deleteAssignment(slotKey, sessionKey) {
       await supaFetch(`assignments?con_id=eq.${conId}&slot_key=eq.${encodeURIComponent(slotKey)}&session_key=eq.${encodeURIComponent(sessionKey)}`, { method: "DELETE", headers: supaHeaders(await w()) });
+    },
+    async clearSlotTableAssignments(slotKey) {
+      const token = await w();
+      const base = `assignments?con_id=eq.${conId}&slot_key=eq.${encodeURIComponent(slotKey)}&table_id=not.is.null`;
+      // Playabl-Zeilen enthalten ausschließlich die Tischzuordnung und
+      // können weg; bei manuellen Spielen trägt dieselbe Zeile zusätzlich
+      // die Slot-Zugehörigkeit, deshalb bleibt sie mit table_id=null erhalten.
+      await Promise.all([
+        supaFetch(`${base}&game_id=is.null`, { method: "DELETE", headers: supaHeaders(token) }),
+        supaFetch(`${base}&game_id=not.is.null`, {
+          method: "PATCH",
+          headers: supaHeaders(token, true),
+          body: JSON.stringify({ table_id: null }),
+        }),
+      ]);
     },
     async addRequest(r) {
       await supaFetch("requests", {
@@ -355,12 +416,12 @@ const S = {
   mode: "view", view: "raster", crewView: "zuordnen", setupTab: "raeume",
   rasterAxis: "rooms", tableSort: { key: "when", dir: 1 },
   showDoneRequests: false, minSeats: 0,
-  filterReqTags: [],
+  filterReqTags: [], crewSearch: "",
   assignMode: Prefs.get("assign-mode", "dnd"), selectedGame: null,
   detailLevel: Prefs.get("detail-level", "full"), pinnedRequest: null,
   crewShowDetails: true, expandedRoomIds: new Set(),
-  printMode: "raster", printAxis: "rooms", printSlot: null, printDetail: "full",
-  printOrientation: "auto", printColor: "bw", printReturnMode: "view", printReturnView: "raster",
+  printMode: "raster", printAxis: "rooms", printSlot: "alle", printDetail: "full",
+  printOrientation: "auto", printColor: "color", printReturnMode: "view", printReturnView: "raster",
 };
 
 const VIEWS = [{ key: "raster", nameKey: "viewRaster" }, { key: "tabelle", nameKey: "viewTable" }, { key: "raeume", nameKey: "viewRooms" }];
@@ -373,9 +434,10 @@ const CREW_VIEWS = [
   { key: "wuensche", nameKey: "crewViewRequests" },
 ];
 const SETUP_VIEWS = [
-  { key: "raeume", nameKey: "crewViewRooms" },
-  { key: "spiele", nameKey: "crewViewGames" },
-  { key: "crew", nameKey: "crewViewCrew" },
+  { key: "raeume", nameKey: "setupTabRooms" },
+  { key: "slots", nameKey: "setupTabSlots" },
+  { key: "spiele", nameKey: "setupTabGames" },
+  { key: "crew", nameKey: "setupTabCrew" },
 ];
 
 const bySlot = slot => S.games.filter(g => g.slotKey === slot);
@@ -385,7 +447,7 @@ const asgFor = g => S.assignments.find(a => a.slot_key === g.slotKey && a.sessio
 // (siehe openRequestDlg) — reicht für ein Best-Effort-Zurückfinden zum Spiel.
 const findGameByRef = ref => ref ? S.games.find(g => `${g.title} (${g.slotLabel})` === ref) : null;
 function jumpToGameInZuordnen(gameKey, slotKey, message) {
-  S.mode = "crew"; S.crewView = "zuordnen"; S.activeSlot = slotKey;
+  S.mode = "crew"; S.crewView = "zuordnen"; S.activeSlot = slotKey; S.crewSearch = "";
   S.pinnedRequest = { gameKey, message };
   renderActive();
   requestAnimationFrame(() => {
@@ -397,7 +459,8 @@ function jumpToGameInZuordnen(gameKey, slotKey, message) {
   });
 }
 const roomOfTable = tableId => { const t = S.tables.find(x => x.id === tableId); return t && S.rooms.find(r => r.id === t.room_id); };
-const roomAccentVar = room => room ? `var(--room-${"abcde"[S.rooms.indexOf(room) % 5]})` : "var(--accent)";
+const ROOM_ACCENTS = ["var(--accent)", "var(--good)", "var(--warn)", "var(--text-secondary)"];
+const roomAccentVar = room => room ? ROOM_ACCENTS[S.rooms.indexOf(room) % ROOM_ACCENTS.length] : "var(--accent)";
 const emptyState = msg => `<div class="empty-state"><span class="glyph"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10l8-6 8 6v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span>${esc(msg)}</div>`;
 
 // ---------------- Platzanzahl-Stepper (ersetzt die winzigen nativen
@@ -437,6 +500,7 @@ function wireNumberStepper(id) {
 function sortSlots() { S.slots.sort((a, b) => (a.day || "9999-99-99").localeCompare(b.day || "9999-99-99") || a.sort - b.sort); }
 const roomTagIds = room => S.roomFeatureTags.filter(x => x.room_id === room.id).map(x => x.feature_tag_id);
 const roomBadgesHtml = room => roomTagIds(room).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => `<span class="badge">${esc(f.label)}</span>`).join("");
+const plainFeatureLabel = label => label.replace(/^[^\p{L}\p{N}]+/u, "").trim() || label;
 const roomHasTagKey = (room, key) => roomTagIds(room).some(id => S.featureTags.find(f => f.id === id)?.key === key);
 const gameReqTagIds = dbId => S.gameRequiredTags.filter(x => x.game_id === dbId).map(x => x.feature_tag_id);
 // Ein Raum "erfüllt" Anforderungen nur, wenn er ALLE hat (UND) — anders als
@@ -492,6 +556,22 @@ function matchesSearchG(g) {
   }
   return false;
 }
+function matchesCrewGameSearch(g) {
+  const query = S.crewSearch.trim().toLowerCase();
+  if (!query) return true;
+  const a = asgFor(g);
+  const table = a && S.tables.find(t => t.id === a.table_id);
+  const room = table && roomOfTable(table.id);
+  const reqLabels = (g.requiredTagIds || [])
+    .map(id => S.featureTags.find(f => f.id === id)?.label || "")
+    .filter(Boolean);
+  const haystack = [
+    g.title, g.provider, g.slotLabel, g.time, String(g.seats),
+    g.ws ? tr("workshop") : "", g.manual ? tr("manuallyCreated") : "",
+    room?.name, table?.name, ...reqLabels,
+  ].filter(Boolean).join(" ").toLowerCase();
+  return query.split(/\s+/).filter(Boolean).every(token => haystack.includes(token));
+}
 
 /* ---------------- Spiel-Chip (überall wiederverwendet) ---------------- */
 // Detailgrad (S.detailLevel) steuert, wie viel Info pro Chip sichtbar ist.
@@ -501,7 +581,7 @@ function matchesSearchG(g) {
 // Kapazitätswarnung selbst läuft auf JEDEM Detailgrad, nie nur bei
 // medium/full (das war ein Bug: eine sicherheitsrelevante Warnung darf
 // "weniger Detail" nicht komplett verschwinden lassen).
-function chipHtml(g, { crew = false, forceMinimal = false } = {}) {
+function chipHtml(g, { crew = false, forceMinimal = false, inGrid = false, inRoom = false } = {}) {
   const a = asgFor(g);
   const table = a && S.tables.find(t => t.id === a.table_id);
   const room = table && roomOfTable(table.id);
@@ -541,7 +621,29 @@ function chipHtml(g, { crew = false, forceMinimal = false } = {}) {
   const reqIconMinimal = reqTags.length ? `<span class="badge${reqUnmet.length ? " warn" : ""}" aria-hidden="true">🔧</span>` : "";
 
   let bodyHtml;
-  if (level === "minimal") {
+  if (inGrid) {
+    const gridMeta = level === "medium"
+      ? (table?.name || "")
+      : [
+          table?.name,
+          `${g.seats}p`,
+          overSeats > 0 ? `+${overSeats}` : "",
+          ...reqTags.map(f => plainFeatureLabel(f.label)),
+        ].filter(Boolean).join(" · ");
+    const gridHost = level === "full"
+      ? `<div class="grid-chip-host">${esc(tr("hostShortLabel", { name: g.provider || "–" }))}</div>`
+      : "";
+    bodyHtml = `<div class="title">${titleHtml}${requestIconBtn}</div>${gridHost}${level === "minimal" ? "" : `<div class="grid-chip-meta">${esc(gridMeta)}</div>`}`;
+  } else if (inRoom) {
+    const roomMeta = level === "minimal" ? "" : [
+      tr("seatsCountLabel", { n: g.seats }),
+      level === "full" && overSeats > 0 ? tr("overCapacityPlain") : "",
+      ...(level === "full" ? reqTags.map(f => f.label) : []),
+    ].filter(Boolean).join(" · ");
+    bodyHtml = `<div class="title">${titleHtml}${requestIconBtn}</div>
+      <div class="room-chip-host">${esc(tr("hostShortLabel", { name: g.provider || "–" }))}</div>
+      <div class="room-chip-meta">${esc(roomMeta)}</div>`;
+  } else if (level === "minimal") {
     bodyHtml = `<div class="title-row"><span class="title-short">${titleShort}</span><span class="seats-short">${g.seats}p</span>${warnIconMinimal}${reqIconMinimal}${requestIconBtn}</div>`;
   } else {
     const whereHtml = room && table
@@ -585,7 +687,24 @@ function chipHtml(g, { crew = false, forceMinimal = false } = {}) {
   // Greif-Icon nur im Drag&Drop-Modus — im Auswahl-Modus gibt es ohnehin
   // schon den Auswählen-Button, ein Greif-Icon wäre dort irreführend.
   const gripHtml = crew && S.assignMode === "dnd" ? `<span class="chip-grip" aria-hidden="true">⠿</span>` : "";
-  return `<div class="chip${g.ws ? " ws" : ""}${level === "minimal" ? " minimal" : ""}${selectedClass}" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}"${drag} role="group" aria-label="${esc(summary)}" title="${esc(summary)}">
+  if (crew) {
+    const assigned = !!(a && a.table_id);
+    const showCrewMeta = !assigned || S.crewShowDetails;
+    const crewMeta = [
+      tr("seatsCountLabel", { n: g.seats }),
+      g.provider ? tr("hostShortLabel", { name: g.provider }) : "",
+      reqTags.length ? tr("needsTags", { tags: reqTags.map(f => f.label).join(", ") }) : "",
+    ].filter(Boolean).join(" · ");
+    const actions = `${assigned ? `<button type="button" class="unassignBtn crew-chip-action" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}" aria-label="${esc(tr("removeFromTable", { title: g.title }))}">✕</button>` : ""}${g.manual ? `<button type="button" class="delGameBtn crew-chip-action danger" data-id="${esc(g.dbId)}" aria-label="${esc(tr("deleteItemNamed", { title: g.title }))}">🗑</button>` : ""}`;
+    return `<div class="chip crew-chip detail-${level}${assigned ? " is-assigned" : ""}${selectedClass}" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}"${drag} role="button" tabindex="0" aria-pressed="${String(!!selectedClass)}" aria-label="${esc(summary)}" title="${esc(summary)}">
+      ${gripHtml}
+      <div class="crew-chip-col">
+        <div class="crew-chip-top"><span class="crew-chip-title" title="${esc(summary)}">${titleHtml}</span>${actions}</div>
+        ${showCrewMeta ? `<div class="crew-chip-meta">${esc(crewMeta)}</div>` : ""}
+      </div>
+    </div>`;
+  }
+  return `<div class="chip ${crew ? "crew-chip" : "public-chip"} detail-${level}${inGrid ? " grid-chip" : ""}${inRoom ? " room-public-chip" : ""}${g.ws ? " ws" : ""}${level === "minimal" ? " minimal" : ""}${selectedClass}" data-game="${esc(g.key)}" data-slot="${esc(g.slotKey)}"${drag} role="group" aria-label="${esc(summary)}" title="${esc(summary)}">
     ${gripHtml}${bodyHtml}${controlsHtml}
   </div>`;
 }
@@ -621,21 +740,58 @@ function renderNav() {
   document.getElementById("viewNavGroup").hidden = S.mode !== "view";
   document.getElementById("viewTabs").innerHTML = VIEWS.map(v =>
     `<button type="button" data-view="${v.key}" aria-pressed="${String(S.mode === "view" && S.view === v.key)}">${esc(tr(v.nameKey))}</button>`).join("");
+  const contextGroup = document.getElementById("contextGroup");
+  const contextDivider = document.getElementById("contextDivider");
+  const contextLabel = document.getElementById("contextLabel");
+  const axisSwitch = document.getElementById("axisSwitch");
+  const detailGroup = document.getElementById("detailGroup");
+  const detailDivider = document.getElementById("detailDivider");
+  const isTableView = S.view === "tabelle";
+  contextGroup.hidden = isTableView;
+  contextDivider.hidden = isTableView;
+  detailGroup.hidden = isTableView;
+  detailDivider.hidden = isTableView;
+  if (S.view === "raeume") {
+    contextLabel.textContent = tr("slotLabel");
+    axisSwitch.classList.add("local-slot-tabs");
+    axisSwitch.setAttribute("aria-label", tr("chooseSlotAriaLabel"));
+    axisSwitch.innerHTML = S.slots.map(s =>
+      `<button type="button" data-slot="${esc(s.key)}" aria-pressed="${String(s.key === S.activeSlot)}">${esc(s.label)}</button>`
+    ).join("");
+  } else {
+    contextLabel.textContent = tr("rowsLabel");
+    axisSwitch.classList.remove("local-slot-tabs");
+    axisSwitch.setAttribute("aria-label", tr("rowsLabel"));
+    axisSwitch.innerHTML = `
+      <button type="button" data-axis="rooms" aria-pressed="${String(S.rasterAxis !== "slots")}">${esc(tr("roomsLabel"))}</button>
+      <button type="button" data-axis="slots" aria-pressed="${String(S.rasterAxis === "slots")}">Slots</button>`;
+  }
+  const publicInfo = document.querySelector(".public-toolbar .info-tip-trigger");
+  if (publicInfo) {
+    publicInfo.dataset.infoText = tr("legendInfoText");
+    publicInfo.setAttribute("aria-label", tr("legendInfoText"));
+  }
+  const printBtn = document.getElementById("printBtn");
+  printBtn.innerHTML = `<span class="print-icon" aria-hidden="true">⎙</span> ${esc(tr("printAction"))}`;
+  printBtn.title = tr("printCurrentView");
+  printBtn.setAttribute("aria-label", tr("printCurrentView"));
   // 1:1 aus der Vorlage (showDetailToggle = !viewIsTable): der Detailgrad-
   // Switch wirkt sich in der Tabellen-Ansicht nicht aus (tableRows liest
   // S.detailLevel nirgends) — dort ausblenden statt ein totes Bedienelement
   // stehen zu lassen.
-  document.getElementById("detailSwitch").hidden = S.view === "tabelle";
+  document.getElementById("detailSwitch").hidden = isTableView;
 }
 
 /* ---------------- Ansicht: Tabelle ---------------- */
 function sortGames(list, sort) {
   const val = g => {
     if (sort.key === "title") return g.title.toLowerCase();
+    if (sort.key === "provider") return g.provider ? g.provider.toLowerCase() : "￿";
     if (sort.key === "seats") return g.seats;
     if (sort.key === "room") { const a = asgFor(g); const t = a && S.tables.find(x => x.id === a.table_id); const r = t && S.rooms.find(x => x.id === t.room_id); return r ? r.name.toLowerCase() : "￿"; }
     if (sort.key === "table") { const a = asgFor(g); const t = a && S.tables.find(x => x.id === a.table_id); return t ? t.name.toLowerCase() : "￿"; }
-    return g.start;
+    const slotIndex = S.slots.findIndex(s => s.key === g.slotKey);
+    return slotIndex < 0 ? Number.MAX_SAFE_INTEGER : slotIndex;
   };
   return [...list].sort((a, b) => { const va = val(a), vb = val(b); return (va < vb ? -1 : va > vb ? 1 : 0) * sort.dir; });
 }
@@ -645,18 +801,21 @@ function tabelleHtml() {
   const arrow = k => S.tableSort.key === k ? (S.tableSort.dir === 1 ? " ▲" : " ▼") : "";
   const trs = rows.map(g => {
     const a = asgFor(g); const table = a && S.tables.find(t => t.id === a.table_id); const room = table && roomOfTable(table.id);
+    const slot = S.slots.find(s => s.key === g.slotKey);
     return `<tr>
       <td>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title)}${g.ws ? ` <span class="badge">${esc(tr("workshop"))}</span>` : ""} <button type="button" class="icon-btn requestBtn no-print" data-game="${esc(g.key)}" aria-label="${esc(tr("proposeChangeTo", { title: g.title }))}" title="${esc(tr("proposeChangeHint"))}">✎</button></td>
-      <td>${esc(g.slotLabel)}</td>
+      <td>${g.provider ? esc(g.provider) : '<span style="color:var(--text-muted)">–</span>'}</td>
+      <td>${esc(slot?.label || g.slotLabel)}</td>
       <td>${room ? `<span class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)}</span>` : '<span style="color:var(--text-muted)">–</span>'}</td>
       <td>${table ? esc(table.name) : "–"}</td>
       <td>${g.seats}</td>
     </tr>`;
   }).join("");
-  return `<div class="card"><div style="overflow-x:auto"><table>
+  return `<div class="card public-table-card"><div style="overflow-x:auto"><table>
     <caption class="sr-only">${esc(tr("tableCaption"))}</caption>
     <thead><tr>
       <th scope="col" data-sort="title">${esc(tr("gameCol"))}${arrow("title")}</th>
+      <th scope="col" data-sort="provider">${esc(tr("printColHost"))}${arrow("provider")}</th>
       <th scope="col" data-sort="when">${esc(tr("slotCol"))}${arrow("when")}</th>
       <th scope="col" data-sort="room">${esc(tr("roomCol"))}${arrow("room")}</th>
       <th scope="col" data-sort="table">${esc(tr("tableCol"))}${arrow("table")}</th>
@@ -670,21 +829,28 @@ function rasterHtml() {
   if (!S.slots.length) return emptyState(tr("noSlotsYet"));
   const rows = S.rasterAxis === "slots" ? S.slots : S.rooms;
   const cols = S.rasterAxis === "slots" ? S.rooms : S.slots;
-  const headHtml = cols.map(c => `<th scope="col">${esc(S.rasterAxis === "slots" ? c.name : c.label)}</th>`).join("");
+  const headHtml = cols.map(c => {
+    const room = S.rasterAxis === "slots" ? c : null;
+    return `<th scope="col"><span class="matrix-label">${room ? `<span class="room-swatch" style="--room-accent:${roomAccentVar(room)}"></span>` : ""}${esc(room ? room.name : c.label)}</span></th>`;
+  }).join("");
   const bodyHtml = rows.map(r => {
     const rowLabel = S.rasterAxis === "slots" ? r.label : r.name;
+    const rowRoom = S.rasterAxis === "slots" ? null : r;
     const cellsHtml = cols.map(c => {
       const room = S.rasterAxis === "slots" ? c : r;
       const slot = S.rasterAxis === "slots" ? r : c;
       const gamesHere = S.games.filter(g => g.slotKey === slot.key && matchesSearchG(g)).filter(g => { const a = asgFor(g); const t = a && S.tables.find(x => x.id === a.table_id); return t && t.room_id === room.id; });
       const fillClass = gamesHere.length === 0 ? "fill-0" : gamesHere.length === 1 ? "fill-low" : gamesHere.length === 2 ? "fill-mid" : "fill-high";
-      const inner = gamesHere.length ? gamesHere.map(g => chipHtml(g, { crew: false })).join("") : `<span class="sr-only">${esc(tr("noGames"))}</span>·`;
-      return `<td class="grid-cell ${fillClass}${!gamesHere.length ? " empty" : ""}">${inner}</td>`;
+      const inner = gamesHere.length ? gamesHere.map(g => chipHtml(g, { crew: false, inGrid: true })).join("") : "·";
+      return `<td class="grid-cell ${fillClass}${!gamesHere.length ? " empty" : ""}"${gamesHere.length ? "" : ` aria-label="${esc(tr("noGames"))}"`}>${inner}</td>`;
     }).join("");
-    return `<tr><th scope="row">${esc(rowLabel)}</th>${cellsHtml}</tr>`;
+    return `<tr>
+      <th scope="row"><span class="matrix-label">${rowRoom ? `<span class="room-swatch" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}${esc(rowLabel)}</span></th>
+      <td class="matrix-divider">${rowRoom ? `<span class="matrix-divider-bar" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}</td>
+      ${cellsHtml}
+    </tr>`;
   }).join("");
-  return `<div class="controls no-print"><button type="button" id="flipAxisBtn">${esc(tr("flipAxisBtn", { axis: S.rasterAxis === "slots" ? tr("axisSlotsRows") : tr("axisRoomsRows") }))}</button></div>
-    <div class="grid-view"><table class="grid-table"><thead><tr><th></th>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+  return `<div class="grid-view"><table class="grid-table" style="--matrix-cols:${cols.length}"><thead><tr><th class="matrix-corner"></th><th class="matrix-divider"></th>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
 }
 
 /* ---------------- Slot-Tabs (geteilt: Räume-Ansicht + Zuordnen) ---------------- */
@@ -702,36 +868,43 @@ function raeumeReadHtml() {
     const tables = S.tables.filter(t => t.room_id === room.id);
     const tablesHtml = tables.map(t => {
       const games = S.games.filter(g => g.slotKey === S.activeSlot && matchesSearchG(g)).filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
-      return `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span></div>${games.map(g => chipHtml(g, { crew: false })).join("") || `<div class="free">${esc(tr("freeLabel"))}</div>`}</div>`;
+      return `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span></div>${games.map(g => chipHtml(g, { crew: false, inRoom: true })).join("") || `<div class="free">${esc(tr("freeLabel"))}</div>`}</div>`;
     }).join("");
     return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
-      <div class="room-head"><h3>${esc(room.name)}</h3></div>
+      <div class="room-head"><span class="room-swatch" style="--room-accent:${roomAccentVar(room)}"></span><h3>${esc(room.name)}</h3></div>
       <div class="room-badges">${roomBadgesHtml(room)}</div>
-      ${room.notes || room.floor ? `<details class="room-more"><summary>${esc(tr("detailsLabel"))}</summary>${room.floor ? `<div class="room-notes">${esc(tr("locationLabel", { floor: room.floor }))}</div>` : ""}${room.notes ? `<div class="room-notes">${esc(room.notes)}</div>` : ""}</details>` : ""}
       ${tablesHtml || `<p class="hint">${esc(tr("noTablesYet"))}</p>`}
     </div>`;
   }).join("") || emptyState(tr("noRoomsYet"));
-  return `${slotTabsHtml(false)}<div id="board" style="margin-top:var(--sp-4)">${boardHtml}</div>`;
+  return `<div id="board">${boardHtml}</div>`;
 }
 
 /* ---------------- Crew: Zuordnen ---------------- */
 function zuordnenHtml() {
   if (!S.slots.length) return emptyState(tr("noSlotsYet")) + `<div class="controls no-print" style="margin-top:var(--sp-3)"><button type="button" id="addSlotBtn" class="primary">${esc(tr("addFirstSlotBtn"))}</button></div>`;
   const slotGames = bySlot(S.activeSlot);
-  const unassigned = slotGames.filter(g => { const a = asgFor(g); return !a || !a.table_id; })
-    .filter(g => !S.filterReqTags.length || S.filterReqTags.every(id => (g.requiredTagIds || []).includes(id)))
+  const unassignedCandidates = slotGames.filter(g => { const a = asgFor(g); return !a || !a.table_id; });
+  const unassigned = unassignedCandidates
+    .filter(matchesCrewGameSearch)
+    // Mehrere Filterchips sind wie in der Vorlage Alternativen (ODER):
+    // "ruhig" + "laut ok" zeigt Spiele mit mindestens einem der Tags.
+    .filter(g => !S.filterReqTags.length || S.filterReqTags.some(id => (g.requiredTagIds || []).includes(id)))
     .filter(g => g.seats >= S.minSeats);
   const queueHintText = S.assignMode === "click" ? tr("queueHintClick") : tr("queueHintDnd");
+  const assignedInSlot = S.assignments.filter(a => a.slot_key === S.activeSlot && a.table_id).length;
   // Ein Filter-Set (Plätze + Anforderungen) wirkt auf die Warteschlange UND
   // hebt passende Räume rechts hervor — 1:1 aus der Vorlage (kein getrenntes
   // zweites Filter-Set für Tische, wie noch in Phase 9).
+  const queueEmptyText = unassignedCandidates.length ? tr("noCrewGameMatches") : tr("allAssigned");
   const queueHtml = `<div class="assign-queue">
     <div class="queue-head">
       <div class="queue-title-row"><h2>${esc(tr("unassignedTitle"))}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("queueInfoAriaLabel"))}" data-info-text="${esc(tr("queueInfoText", { hint: queueHintText }))}">i</span></div>
-      <button type="button" id="autoBtn" class="primary" title="${esc(tr("autoAssignBtnTitle"))}">${esc(tr("autoAssignBtn"))}</button>
+      <div class="queue-actions">
+        <button type="button" id="autoBtn" class="primary" title="${esc(tr("autoAssignBtnTitle"))}">${esc(tr("autoAssignBtn"))}</button>
+        <button type="button" id="clearSlotBtn" class="small danger" title="${esc(tr("clearSlotBtnTitle"))}"${assignedInSlot ? "" : " disabled"}>${esc(tr("clearSlotBtn"))}</button>
+      </div>
     </div>
-    <p class="hint">${esc(queueHintText)}</p>
-    <div class="chipbar" id="unassignedBar">${unassigned.map(g => chipHtml(g, { crew: true })).join("") || `<p class="hint">${esc(tr("allAssigned"))}</p>`}</div>
+    <div class="chipbar" id="unassignedBar">${unassigned.map(g => chipHtml(g, { crew: true })).join("") || `<p class="hint">${esc(queueEmptyText)}</p>`}</div>
   </div>`;
   // Anforderungs-Hinweis auf Tischen: nur fürs aktuell in Einzelauswahl
   // ausgewählte Spiel sinnvoll berechenbar (bei Drag&Drop gibt es kein
@@ -740,18 +913,21 @@ function zuordnenHtml() {
   const selectedGameObj = S.selectedGame && gameByKey(S.selectedGame);
   const forceMinimal = !S.crewShowDetails;
   // 1:1 aus der Vorlage (roomBoardsCrew-Filter): Tag-Filter blenden nicht
-  // passende Räume komplett aus dem Grid aus, statt sie nur hervorzuheben —
-  // deckt sich mit dem eigenen Info-Text ("...zeigen dann nur passende
-  // Räume").
-  const filteredRooms = S.filterReqTags.length ? S.rooms.filter(room => roomSatisfiesTags(room, S.filterReqTags)) : S.rooms;
+  // passende Räume komplett aus dem Grid aus. Mehrere Chips werden auch hier
+  // als Alternativen (ODER) behandelt, nicht als immer enger werdende
+  // UND-Schnittmenge.
+  const filteredRooms = S.filterReqTags.length
+    ? S.rooms.filter(room => S.filterReqTags.some(id => roomTagIds(room).includes(id)))
+    : S.rooms;
   const boardHtml = filteredRooms.map(room => {
     const tables = S.tables.filter(t => t.room_id === room.id);
     const missingForRoom = selectedGameObj
       ? (selectedGameObj.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).filter(f => !roomTagIds(room).includes(f.id))
       : [];
     const tablesHtml = tables.map(t => {
-      const games = slotGames.filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
-      const double = games.length > 1 ? `<span class="badge warn">${esc(tr("doubleBooked"))}</span>` : "";
+      const tableGames = slotGames.filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
+      const games = tableGames.filter(matchesCrewGameSearch);
+      const double = tableGames.length > 1 ? `<span class="badge warn">${esc(tr("doubleBooked"))}</span>` : "";
       const reqMismatch = missingForRoom.length ? " req-mismatch" : "";
       const reqHint = missingForRoom.length ? `<span class="badge warn" title="${esc(tr("doesNotMeet", { tags: missingForRoom.map(f => f.label).join(", ") }))}">${esc(tr("missingTags", { tags: missingForRoom.map(f => f.label).join(", ") }))}</span>` : "";
       // Zieltisch-Scoring: nur im Auswahl-Modus mit einem gewählten Spiel
@@ -762,9 +938,10 @@ function zuordnenHtml() {
         const seatsFit = t.seats >= selectedGameObj.seats;
         gameMatch = seatsFit && !missingForRoom.length ? " gm-full" : seatsFit ? " gm-partial" : " gm-none";
       }
-      return `<div class="tablebox${reqMismatch}${gameMatch}" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span>${double}${reqHint}</div>${games.map(g => chipHtml(g, { crew: true, forceMinimal })).join("") || `<div class="free">${esc(tr("freeLabel"))}</div>`}</div>`;
+      const emptyTableText = S.crewSearch && tableGames.length ? tr("noCrewTableGameMatch") : tr("freeLabel");
+      return `<div class="tablebox${reqMismatch}${gameMatch}" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span>${double}${reqHint}</div>${games.map(g => chipHtml(g, { crew: true, forceMinimal })).join("") || `<div class="free">${esc(emptyTableText)}</div>`}</div>`;
     }).join("");
-    return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><h3>${esc(room.name)}</h3></div>${tablesHtml || `<p class="hint">${esc(tr("noTablesCreateInRooms"))}</p>`}</div>`;
+    return `<div class="room" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><span class="room-swatch" style="--room-accent:${roomAccentVar(room)}"></span><h3>${esc(room.name)}</h3></div><div class="room-badges">${roomBadgesHtml(room)}</div>${tablesHtml || `<p class="hint">${esc(tr("noTablesCreateInRooms"))}</p>`}</div>`;
   }).join("") || emptyState(tr("noRoomsGoToManage"));
   const pinnedBannerHtml = (() => {
     if (!S.pinnedRequest) return "";
@@ -772,10 +949,11 @@ function zuordnenHtml() {
     return `<div class="pinned-banner no-print"><div><strong>${esc(g ? g.title : "")}</strong> — ${esc(S.pinnedRequest.message)}</div><button type="button" id="pinnedBannerCloseBtn" class="icon-btn" aria-label="${esc(tr("closeBanner"))}">✕</button></div>`;
   })();
   // Toolbar-Karte mit 4 durch Divider getrennten Gruppen (Slot/Zuordnen per/
-  // Filter/Details) — 1:1 aus der Vorlage (toolbarCrewCardStyle), ersetzt die
-  // vorherigen mehreren getrennten Steuerzeilen aus Phase 9.
+  // Details/Filter) — Filter steht bewusst zuletzt, weil aktive Chips und
+  // Textsuche mehr Platz beanspruchen können; ersetzt die vorherigen
+  // mehreren getrennten Steuerzeilen.
   const toolbarHtml = `<div class="card toolbar-card no-print">
-    <div class="toolbar-group">
+    <div class="toolbar-group crew-slot-group">
       <span class="toolbar-label">${esc(tr("toolbarSlotLabel"))}</span>
       ${slotTabsHtml(true)}
     </div>
@@ -789,16 +967,20 @@ function zuordnenHtml() {
     </div>
     <div class="toolbar-divider"></div>
     <div class="toolbar-group">
+      <span class="toolbar-label">${esc(tr("toolbarDetailsLabel"))}</span>
+      <button type="button" id="crewDetailsToggle" class="details-toggle${S.crewShowDetails ? " is-active" : ""}" title="${esc(tr("toolbarDetailsHint"))}">ⓘ ${esc(tr("toolbarDetailsBtn"))}</button>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-group crew-filter-group">
       <span class="toolbar-label">${esc(tr("toolbarFilterLabel"))}</span>
       <div class="toolbar-pill-row">
+        <label class="crew-game-search" for="crewGameSearch">
+          <input type="search" id="crewGameSearch" value="${esc(S.crewSearch)}" placeholder="${esc(tr("crewGameSearchPlaceholder"))}" aria-label="${esc(tr("crewGameSearchAriaLabel"))}">
+          <span>${esc(tr("crewGameSearchScope"))}</span>
+        </label>
         ${minSeatsStepperHtml()}
         ${filterTagPickerHtml("games", S.filterReqTags)}
       </div>
-    </div>
-    <div class="toolbar-divider"></div>
-    <div class="toolbar-group">
-      <span class="toolbar-label">${esc(tr("toolbarDetailsLabel"))}</span>
-      <button type="button" id="crewDetailsToggle" class="details-toggle${S.crewShowDetails ? " is-active" : ""}" title="${esc(tr("toolbarDetailsHint"))}">ⓘ ${esc(tr("toolbarDetailsBtn"))}</button>
     </div>
   </div>`;
   return `${pinnedBannerHtml}${unscheduledBacklogHtml()}${toolbarHtml}
@@ -809,7 +991,7 @@ function zuordnenHtml() {
 // sichtbar (nicht nur in Spiele verwalten), damit die Crew sie nicht
 // übersieht. "→ in diesen Slot" übernimmt den aktuell aktiven Slot.
 function unscheduledBacklogHtml() {
-  const unscheduled = S.games.filter(g => g.manual && !g.slotKey);
+  const unscheduled = S.games.filter(g => g.manual && !g.slotKey).filter(matchesCrewGameSearch);
   if (!unscheduled.length) return "";
   return `<details class="hint-details" style="margin-bottom:var(--sp-3)">
     <summary>${esc(tr("unscheduledCount", { n: unscheduled.length }))}</summary>
@@ -824,18 +1006,44 @@ function unscheduledBacklogHtml() {
 /* ---------------- Crew: Zeitabschnitts-Vorlagen (Slot-Buckets) ---------------- */
 function bucketsHtml() {
   const rows = S.slotBuckets.map(b => `
-    <div class="req">
-      <span>${esc(b.label)} (${esc(tr("bucketTimeRange", { start: b.start_hour, end: b.end_hour }))})${b.active ? "" : ` <span class="badge">${esc(tr("inactiveBadge"))}</span>`}</span>
-      <span style="float:right;display:flex;gap:4px">
-        <button type="button" class="small no-print editBucketBtn" data-id="${b.id}" aria-label="${esc(tr("editBucketAriaLabel", { label: b.label }))}">✎</button>
-      </span>
+    <div class="manage-row">
+      <div class="manage-copy">
+        <div class="manage-title">${esc(b.label)}${b.active ? "" : ` <span class="badge muted">${esc(tr("inactiveBadge"))}</span>`}</div>
+        <div class="manage-meta">${esc(tr("bucketTimeRange", { start: b.start_hour, end: b.end_hour }))}</div>
+      </div>
+      <div class="manage-actions">
+        <button type="button" class="small no-print editBucketBtn" data-id="${b.id}" aria-label="${esc(tr("editBucketAriaLabel", { label: b.label }))}">${esc(tr("editBtnLabel"))}</button>
+      </div>
     </div>`).join("") || `<p class="hint">${esc(tr("noBucketsYet"))}</p>`;
-  return `<div class="card" style="margin-bottom:var(--sp-4)">
-    <h2>${esc(tr("bucketsTitle"))}</h2>
+  return `<div class="card setup-card slots-template-card">
+    <div class="setup-head">
+      <div class="setup-head-title"><h2>${esc(tr("bucketsTitle"))}</h2></div>
+      <button type="button" id="addBucketBtn" class="primary">${esc(tr("addBucketBtn"))}</button>
+    </div>
     <p class="hint">${esc(tr("bucketsHint"))}</p>
     ${rows}
-    <div class="controls no-print" style="margin-top:var(--sp-2)"><button type="button" id="addBucketBtn" class="small">${esc(tr("addBucketBtn"))}</button></div>
   </div>`;
+}
+
+function slotsVerwaltenHtml() {
+  const rows = S.slots.map(s => {
+    const assignmentCount = S.assignments.filter(a => a.slot_key === s.key).length;
+    const metaParts = [s.day ? new Intl.DateTimeFormat(LANG === "en" ? "en-GB" : "de-AT", { dateStyle: "medium", timeZone: TZ }).format(new Date(`${s.day}T12:00:00Z`)) : null, tr(assignmentCount === 1 ? "assignmentCount" : "assignmentCountPlural", { n: assignmentCount })].filter(Boolean);
+    return `<div class="manage-row">
+      <div class="manage-copy">
+        <div class="manage-title">${esc(s.label)}</div>
+        <div class="manage-meta">${esc(metaParts.join(" · "))}</div>
+      </div>
+      <div class="manage-actions">
+        <button type="button" class="small editSlotRowBtn" data-id="${s.id}" aria-label="${esc(tr("editSlotTitle", { label: s.label }))}">${esc(tr("editBtnLabel"))}</button>
+      </div>
+    </div>`;
+  }).join("") || `<p class="hint">${esc(tr("noSlotsYet"))}</p>`;
+  return `<div class="card setup-card slots-manage-card">
+      ${setupHeadHtml(tr("slotsInfoTitle"), tr("slotsInfoAriaLabel"), tr("slotsInfoText"), "addSlotBtn", tr("addSlotBtnLabel"))}
+      ${rows}
+    </div>
+    ${bucketsHtml()}`;
 }
 
 /* ---------------- Crew: Räume verwalten ---------------- */
@@ -865,10 +1073,11 @@ function raeumeVerwaltenHtml() {
         <button type="button" class="room-row-toggle" data-room-toggle="${room.id}" aria-expanded="${String(expanded)}" aria-label="${esc(tr("expandRoomAriaLabel", { name: room.name }))}">
           <span class="dot"></span>
           <span class="room-row-main"><span class="room-row-name">${esc(room.name)}${room.floor ? ` · ${esc(room.floor)}` : ""}</span>
-            <span class="room-row-meta"><span class="badge">${esc(tr("tableCountLabel", { n: tables.length }))}</span>${roomBadgesHtml(room)}</span>
+            <span class="room-row-meta"><span>${esc(tr("tableCountLabel", { n: tables.length }))}</span>${roomBadgesHtml(room)}</span>
           </span>
         </button>
         <span class="room-actions">
+          <button type="button" class="small addTableBtn" data-room="${room.id}">${esc(tr("addTableBtn"))}</button>
           <button type="button" class="small editRoomBtn" data-id="${room.id}" aria-label="${esc(tr("editRoomAriaLabel", { name: room.name }))}">${esc(tr("editBtnLabel"))}</button>
           <button type="button" class="small danger delRoomBtn" data-id="${room.id}" aria-label="${esc(tr("deleteRoomAriaLabel", { name: room.name }))}">${esc(tr("deleteBtnLabel"))}</button>
         </span>
@@ -876,56 +1085,69 @@ function raeumeVerwaltenHtml() {
       <div class="room-row-detail"${expanded ? "" : " hidden"}>
         ${room.notes ? `<p class="hint">${esc(room.notes)}</p>` : ""}
         ${tablesHtml || `<p class="hint">${esc(tr("noTablesYet"))}</p>`}
-        <button type="button" class="small addTableBtn" data-room="${room.id}">${esc(tr("addTableBtn"))}</button>
       </div>
     </div>`;
   }).join("") || emptyState(tr("noRoomsYet"));
-  return `${bucketsHtml()}
+  return `<div class="card setup-card">
     ${setupHeadHtml(tr("roomsInfoTitle"), tr("roomsInfoAriaLabel"), tr("roomsInfoText"), "addRoomBtn", tr("addRoomBtn"))}
-    <div id="board" style="margin-top:var(--sp-4)">${roomsHtml}</div>`;
+    <div id="board">${roomsHtml}</div>
+  </div>`;
 }
 
 /* ---------------- Crew: Spiele verwalten ---------------- */
 function spieleVerwaltenHtml() {
-  const rows = S.dbGames.map(dg => {
+  const manualRows = S.dbGames.map(dg => {
     const a = S.assignments.find(x => x.game_id === dg.id);
     const slot = a && S.slots.find(s => s.key === a.slot_key);
     const reqLabels = gameReqTagIds(dg.id).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => f.label);
     // 1:1 aus der Vorlage (manageGames.statusLabel/statusStyle): Zuordnungs-
     // status als farbige Pille direkt neben dem Titel.
-    const statusBadge = a ? `<span class="badge good">${esc(tr("gameAssignedBadge"))}</span>` : `<span class="badge warn">${esc(tr("gameOpenBadge"))}</span>`;
-    return `<div class="req">
-      <div><strong>${esc(dg.title)}</strong> ${statusBadge}${dg.provider ? " · " + esc(dg.provider) : ""} · ${esc(tr("personsShort", { n: dg.seats }))}${dg.workshop ? ` <span class="badge">${esc(tr("workshop"))}</span>` : ""}${reqLabels.length ? ` <span class="badge">${esc(tr("needsTags", { tags: reqLabels.join(", ") }))}</span>` : ""}</div>
-      <div class="hint">${slot ? esc(slot.label) : esc(tr("noSlot"))}${dg.description ? " · " + esc(dg.description) : ""}</div>
-      <div class="ractions">
+    const statusBadge = a?.table_id ? `<span class="badge good">${esc(tr("gameAssignedBadge"))}</span>` : `<span class="badge warn">${esc(tr("gameOpenBadge"))}</span>`;
+    return `<div class="manage-row">
+      <div class="manage-copy">
+        <div class="manage-title">${esc(dg.title)} ${statusBadge}</div>
+        <div class="manage-meta">${dg.provider ? `${esc(tr("hostShortLabel", { name: dg.provider }))} · ` : ""}${esc(tr("personsShort", { n: dg.seats }))}${slot ? ` · ${esc(slot.label)}` : ` · ${esc(tr("noSlot"))}`}${reqLabels.length ? ` · ${esc(tr("needsTags", { tags: reqLabels.join(", ") }))}` : ""}</div>
+      </div>
+      <div class="manage-actions">
         <button type="button" class="small editGameBtn" data-id="${dg.id}" aria-label="${esc(tr("editItemNamed", { title: dg.title }))}">${esc(tr("editBtnLabel"))}</button>
         <button type="button" class="small danger delGameBtn" data-id="${dg.id}" aria-label="${esc(tr("deleteItemNamed", { title: dg.title }))}">${esc(tr("deleteBtnLabel"))}</button>
       </div>
     </div>`;
   }).join("") || `<p class="hint">${esc(tr("noManualGamesYet"))}</p>`;
-  // Playabl-Spiele werden live geladen, nicht in der games-Tabelle
-  // gespeichert — hier nur zur Übersicht, damit "Spiele verwalten" nicht
-  // fälschlich wirkt, als gäbe es nur die manuellen Spiele. Bearbeiten geht
-  // nur direkt auf Playabl (Link).
-  const playablGames = S.games.filter(g => !g.manual);
-  const playablHtml = playablGames.length ? `<div class="card" style="margin-top:var(--sp-4)">
-    <h2>${esc(tr("playablGamesTitle"))}</h2>
-    <p class="hint">${esc(tr("playablGamesHint"))}</p>
-    ${playablGames.map(g => {
-      const reqLabels = (g.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => f.label);
-      return `<div class="req">
-      <div>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener"><strong>${esc(g.title)}</strong></a>` : `<strong>${esc(g.title)}</strong>`} · ${esc(tr("personsShort", { n: g.seats }))}${g.ws ? ` <span class="badge">${esc(tr("workshop"))}</span>` : ""}${reqLabels.length ? ` <span class="badge">${esc(tr("needsTags", { tags: reqLabels.join(", ") }))}</span>` : ""}</div>
-      <div class="hint">${esc(g.slotLabel)}</div>
+
+  const slotOrder = new Map(S.slots.map((slot, index) => [slot.key, index]));
+  const playablGames = S.games
+    .filter(g => !g.manual)
+    .sort((a, b) => (slotOrder.get(a.slotKey) ?? Number.MAX_SAFE_INTEGER) - (slotOrder.get(b.slotKey) ?? Number.MAX_SAFE_INTEGER)
+      || a.title.localeCompare(b.title, LANG));
+  const playablRows = playablGames.map(g => {
+    const a = asgFor(g);
+    const table = a?.table_id && S.tables.find(t => t.id === a.table_id);
+    const room = table && roomOfTable(table.id);
+    const statusBadge = table ? `<span class="badge good">${esc(tr("gameAssignedBadge"))}</span>` : `<span class="badge warn">${esc(tr("gameOpenBadge"))}</span>`;
+    const where = room && table ? `${room.name} · ${table.name}` : tr("noTableYet");
+    return `<div class="manage-row playabl-game-row">
+      <div class="manage-copy">
+        <div class="manage-title">${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title)} ${statusBadge}</div>
+        <div class="manage-meta">${g.provider ? `${esc(tr("hostShortLabel", { name: g.provider }))} · ` : ""}${esc(tr("personsShort", { n: g.seats }))} · ${esc(g.slotLabel || tr("noSlot"))}${g.time ? ` · ${esc(g.time)}` : ""} · ${esc(where)}</div>
+      </div>
+      ${g.url ? `<div class="manage-actions"><a class="btn small" href="${esc(g.url)}" target="_blank" rel="noopener">${esc(tr("openOnPlayabl"))}</a></div>` : ""}
     </div>`;
-    }).join("")}
-  </div>` : "";
-  return `${setupHeadHtml(tr("gamesInfoTitle"), tr("gamesInfoAriaLabel"), tr("gamesInfoText"), "addGameBtn", tr("addGameBtn"))}
-    <div class="card" style="margin-top:var(--sp-3)">
-      <h2>${esc(tr("manualGamesTitle"))}</h2>
-      <p class="hint">${esc(tr("manualGamesHint"))}</p>
-      ${rows}
+  }).join("") || `<p class="hint">${esc(tr("noPlayablGamesYet"))}</p>`;
+
+  return `<div class="card setup-card games-manual-card">
+      ${setupHeadHtml(tr("manualGamesTitle"), tr("gamesInfoAriaLabel"), tr("gamesInfoText"), "addGameBtn", tr("addGameBtn"))}
+      <p class="hint setup-section-hint">${esc(tr("manualGamesHint"))}</p>
+      ${manualRows}
     </div>
-    ${playablHtml}`;
+    <div class="card setup-card games-playabl-card">
+      <div class="setup-head-title games-source-title">
+        <h2>${esc(tr("playablGamesTitle"))} <span class="badge">${playablGames.length}</span></h2>
+        <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("playablGamesTitle"))}" data-info-text="${esc(tr("playablGamesHint"))}">i</span>
+      </div>
+      <p class="hint setup-section-hint">${esc(tr("playablGamesHint"))}</p>
+      <div class="playabl-games-list">${playablRows}</div>
+    </div>`;
 }
 
 /* ---------------- Crew: Änderungswünsche ---------------- */
@@ -943,45 +1165,44 @@ function requestContextHtml(matchedGame) {
   return `<div class="req-context">${esc(text)}</div>`;
 }
 function wuenscheHtml() {
-  const list = S.showDoneRequests ? S.requests : S.requests.filter(r => r.status === "offen");
+  const list = S.requests;
   const rowsHtml = list.map(r => {
     const matchedGame = findGameByRef(r.game_ref);
+    const requestGameTitle = matchedGame ? matchedGame.title : String(r.game_ref || tr("general")).replace(/\s+\([^()]+\)\s*$/, "");
     const jumpBtn = matchedGame ? `<button type="button" class="small jumpToGameBtn" data-game="${esc(matchedGame.key)}" data-slot="${esc(matchedGame.slotKey)}" data-msg="${esc(r.message)}">${esc(tr("jumpToGameBtn"))}</button>` : "";
     // 1:1 aus der Vorlage: Kontakt steht als EIGENE letzte Zeile (mit
     // "—"-Fallback statt Weglassen), das Erstelldatum steht nicht in der
     // Vorlage — bleibt nur informativ am Zeilenende der Aktionen erhalten.
     return `
-    <div class="req ${r.status !== "offen" ? "done" : ""}">
-      <div><strong>${esc(r.game_ref || tr("general"))}</strong> <span class="badge ${REQ_STATUS_BADGE[r.status] || "muted"}">${esc(tr(REQ_STATUS_KEY[r.status] || r.status))}</span> ${jumpBtn}</div>
-      <div class="rmsg">${esc(r.message)}</div>
-      ${requestContextHtml(matchedGame)}
-      <div class="rcontact">${r.contact ? esc(r.contact) : "—"}</div>
-      <div class="ractions">
-        <button type="button" class="small reqStatus" data-id="${r.id}" data-status="erledigt">${esc(tr("statusDoneBtn"))}</button>
-        <button type="button" class="small reqStatus" data-id="${r.id}" data-status="abgelehnt">${esc(tr("statusRejectedBtn"))}</button>
-        <button type="button" class="small reqStatus" data-id="${r.id}" data-status="offen">${esc(tr("statusOpenBtn"))}</button>
-        <input type="text" class="reqNote" data-id="${r.id}" placeholder="${esc(tr("crewNotePlaceholder"))}" value="${esc(r.orga_notiz || "")}" style="flex:1;min-width:140px">
-        <span class="rdate">${esc(new Date(r.created_at).toLocaleString(LANG === "en" ? "en-GB" : "de-AT", { timeZone: TZ }))}</span>
+    <div class="request-row">
+      <div class="request-copy">
+        <div class="manage-title">${esc(requestGameTitle)} <span class="badge ${REQ_STATUS_BADGE[r.status] || "muted"}">${esc(tr(REQ_STATUS_KEY[r.status] || r.status))}</span></div>
+        <div class="rmsg">${esc(r.message)}</div>
+        ${requestContextHtml(matchedGame)}
+        <div class="rcontact">${r.contact ? esc(r.contact) : "—"}</div>
+      </div>
+      <div class="manage-actions">
+        ${jumpBtn}
+        <button type="button" class="small reqStatus request-status-done" data-id="${r.id}" data-status="erledigt">${esc(tr("markDoneShort"))}</button>
+        <button type="button" class="small reqStatus request-status-rejected" data-id="${r.id}" data-status="abgelehnt">${esc(tr("rejectShort"))}</button>
       </div>
     </div>`;
   }).join("") || `<p class="hint">${esc(tr("noOpenRequests"))}</p>`;
-  return `<div class="controls no-print" style="justify-content:space-between">
-      <div class="setup-head-title"><h2>${esc(tr("requestsInfoTitle"))}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("requestsInfoAriaLabel"))}" data-info-text="${esc(tr("requestsInfoText"))}">i</span></div>
-      <label style="display:flex;gap:6px;align-items:center;font-size:var(--fs-sm);cursor:pointer"><input type="checkbox" id="showDoneChk" ${S.showDoneRequests ? "checked" : ""}> ${esc(tr("showDoneCheckbox"))}</label>
-    </div>
-    <div class="card" style="margin-top:var(--sp-3)">${rowsHtml}</div>`;
+  return `<div class="card setup-card requests-card">
+    <div class="setup-head-title"><h2>${esc(tr("requestsInfoTitle"))}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("requestsInfoAriaLabel"))}" data-info-text="${esc(tr("requestsInfoText"))}">i</span></div>
+    ${rowsHtml}
+  </div>`;
 }
 
 /* ---------------- Crew: Crew verwalten ---------------- */
 function crewVerwaltenHtml() {
   // 1:1 aus der Vorlage (quickOpenRowStyle vor crewMembers-sc-for): die
   // Einladen-Zeile steht VOR der Mitgliederliste, nicht danach.
-  return `<div class="card">
-    <h2>${esc(tr("crewTitle"))} <span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("crewInfoAriaLabel"))}" data-info-text="${esc(tr("crewInfoText"))}">i</span></h2>
-    <p class="hint">${esc(S.role === "admin" ? tr("adminCanManage") : tr("onlyAdminsCanManage"))}</p>
-    ${S.role === "admin" ? `<form id="inviteForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:var(--sp-3)">
-      <div class="frow" style="margin:0;flex:1;min-width:200px"><label for="inviteEmail">${esc(tr("inviteEmailLabel"))}</label><input type="email" id="inviteEmail" placeholder="crew@beispiel.de" required></div>
-      <div class="frow" style="margin:0"><label for="inviteRole">${esc(tr("roleLabel"))}</label><select id="inviteRole"><option value="editor">${esc(tr("roleEditor"))}</option><option value="admin">${esc(tr("roleAdmin"))}</option></select></div>
+  return `<div class="card setup-card crew-manage-card">
+    <div class="setup-head-title"><h2>${esc(tr("crewTitle"))}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("crewInfoAriaLabel"))}" data-info-text="${esc(tr("crewInfoText"))}">i</span></div>
+    ${S.role === "admin" ? `<form id="inviteForm" class="crew-invite-row">
+      <input type="email" id="inviteEmail" aria-label="${esc(tr("inviteEmailLabel"))}" placeholder="crew@beispiel.de" required>
+      <input type="hidden" id="inviteRole" value="editor">
       <button type="submit" class="primary">${esc(tr("inviteBtn"))}</button>
     </form>` : ""}
     <div id="crewList"><p class="hint">${esc(tr("loading"))}</p></div>
@@ -997,9 +1218,9 @@ async function refreshCrewList() {
     // 1:1 aus der Vorlage (crewMembers/roleSelectStyle): Rollenwechsel per
     // <select>, nicht per Umschalt-Button.
     listEl.innerHTML = members.map(m => `
-      <div class="req">
-        <span>${esc(m.email)}</span> ${roleBadgeHtml(m.role, m.status)}
-        ${S.role === "admin" ? `<span style="float:right;display:flex;gap:4px;align-items:center">
+      <div class="manage-row">
+        <div class="manage-copy"><div class="manage-title">${esc(m.email)}</div><div class="manage-meta">${esc(m.role === "admin" ? tr("roleAdmin") : tr("roleEditor"))}</div></div>
+        ${S.role === "admin" ? `<span class="manage-actions">
           <select class="small roleSelect" data-uid="${m.user_id}" aria-label="${esc(tr("roleLabel"))} — ${esc(m.email)}">
             <option value="editor"${m.role === "editor" ? " selected" : ""}>${esc(tr("roleEditor"))}</option>
             <option value="admin"${m.role === "admin" ? " selected" : ""}>${esc(tr("roleAdmin"))}</option>
@@ -1021,12 +1242,14 @@ function crewNavHtml() {
 function setupHtml() {
   const subTabsHtml = `<div class="slot-tabs" role="group" aria-label="${esc(tr("setupSubTabsAriaLabel"))}">${SETUP_VIEWS.map(v =>
     `<button type="button" data-setuptab="${v.key}" aria-pressed="${String(S.setupTab === v.key)}">${esc(tr(v.nameKey))}</button>`).join("")}</div>`;
-  const contentHtml = S.setupTab === "spiele" ? spieleVerwaltenHtml() : S.setupTab === "crew" ? crewVerwaltenHtml() : raeumeVerwaltenHtml();
+  const contentHtml = S.setupTab === "slots" ? slotsVerwaltenHtml() : S.setupTab === "spiele" ? spieleVerwaltenHtml() : S.setupTab === "crew" ? crewVerwaltenHtml() : raeumeVerwaltenHtml();
   return `${subTabsHtml}<div style="margin-top:var(--sp-3)">${contentHtml}</div>`;
 }
 
 /* ---------------- Render-Dispatcher ---------------- */
-function renderActive() {
+function renderActive({ animate = true } = {}) {
+  document.body.classList.add("is-ready");
+  document.body.classList.toggle("print-mode", S.mode === "print");
   // Comic-Hintergrund ist seiten-/modusabhängig (Raumplan/Crew/Druck
   // bekommen je einen eigenen Index) — deterministisch, deshalb harmlos bei
   // jedem renderActive() neu zu berechnen (anders als Ukiyos Zufalls-Pick,
@@ -1034,6 +1257,11 @@ function renderActive() {
   if (document.documentElement.getAttribute("data-theme") === "comic") pickComicBackground();
   const viewC = document.getElementById("viewContent"), crewC = document.getElementById("crewContent");
   const printC = document.getElementById("printContent");
+  // Live-Filter rendern denselben Ergebnisbereich bei jedem Buchstaben neu.
+  // Die normale Seiten-Eingangsanimation bleibt für echte Ansichtswechsel
+  // erhalten, wird während dieser fortlaufenden Eingabe aber unterdrückt.
+  viewC.classList.toggle("suppress-enter-animation", !animate);
+  crewC.classList.toggle("suppress-enter-animation", !animate);
   // Druckseite ist eine vierte, gleichrangige Seite (kein Dialog) — der
   // gesamte App-Header verschwindet dort komplett (showChrome=!isPrint aus
   // der Vorlage), alle anderen Kopfzeilen-Bausteine (KPI/Legende/Suche/Nav)
@@ -1041,6 +1269,8 @@ function renderActive() {
   document.querySelector(".app-header").hidden = S.mode === "print";
   document.getElementById("pageTitleCard").hidden = S.mode === "print";
   document.getElementById("chromeExtras").hidden = S.mode === "print";
+  document.querySelector(".foot").hidden = S.mode === "print";
+  document.querySelector(".credits").hidden = S.mode === "print";
   if (S.mode === "print") {
     viewC.hidden = true; crewC.hidden = true; printC.hidden = false;
     printC.innerHTML = printPageHtml();
@@ -1065,15 +1295,23 @@ function renderActive() {
   }
 }
 
+// Zustandsänderung innerhalb derselben Ansicht (Filter, Auswahl, Zuordnung,
+// Details usw.): Inhalte aktualisieren, ohne die Seiten-Eingangsanimation
+// erneut abzuspielen. Echte Navigationswechsel rufen weiter renderActive()
+// auf und dürfen einmalig animieren.
+function renderUpdate() {
+  renderActive({ animate: false });
+}
+
 // Für Live-Filter-Eingaben, die (anders als #globalSearch im persistenten
 // Header) INNERHALB des per renderActive() ersetzten Crew-Contents liegen:
 // ohne das würde jeder Tastendruck den Fokus verlieren, weil innerHTML das
 // Input-Element komplett neu erzeugt.
-function renderActivePreservingFocus() {
+function renderActivePreservingFocus({ animate = false } = {}) {
   const active = document.activeElement;
   const id = active && active.id;
   const selStart = active && active.selectionStart, selEnd = active && active.selectionEnd;
-  renderActive();
+  renderActive({ animate });
   if (!id) return;
   const el = document.getElementById(id);
   if (!el) return;
@@ -1103,17 +1341,29 @@ async function assign(gameKey, slotKey, tableId) {
         g.slotLabel = S.slots.find(s => s.key === slotKey)?.label || slotKey;
       }
     }
-    renderActive();
+    renderUpdate();
     // Kurzes, sichtbares Feedback auf dem Zieltisch (siehe theme.css
     // .just-assigned) — nur bei echter Tisch-Zuweisung, nicht beim Entfernen.
     if (tableId) {
       const box = document.querySelector(`.tablebox[data-table="${tableId}"]`);
       if (box) {
         box.classList.add("just-assigned");
-        box.addEventListener("animationend", () => box.classList.remove("just-assigned"), { once: true });
+        setTimeout(() => box.classList.remove("just-assigned"), 650);
       }
     }
   } catch (e) { alert(tr("saveFailed", { err: e.message })); }
+}
+
+function autoAssignReqLabels(g) {
+  return (g.requiredTagIds || [])
+    .map(id => S.featureTags.find(f => f.id === id)?.label)
+    .filter(Boolean);
+}
+
+function autoAssignCapacityNote(g, table) {
+  return table.seats >= g.seats
+    ? tr("autoReasonCapacityFits", { tableSeats: table.seats, gameSeats: g.seats })
+    : tr("autoReasonCapacityShort", { n: g.seats - table.seats, tableSeats: table.seats, gameSeats: g.seats });
 }
 
 function computeAutoAssignJobs() {
@@ -1127,15 +1377,48 @@ function computeAutoAssignJobs() {
   for (const g of regular) {
     const prev = prevOf(g);
     let target = null;
-    if (prev) { const t = S.tables.find(t => t.id === prev.table_id); if (t && t.seats >= g.seats && !S.assignments.some(a => a.slot_key === slot && a.table_id === t.id) && !jobs.some(j => j.tableId === t.id)) target = t; }
+    let reason = "";
+    if (prev) {
+      const t = S.tables.find(t => t.id === prev.table_id);
+      if (t && t.seats >= g.seats && !S.assignments.some(a => a.slot_key === slot && a.table_id === t.id) && !jobs.some(j => j.tableId === t.id)) {
+        target = t;
+        reason = `${tr("autoReasonPreviousTable")} ${autoAssignCapacityNote(g, t)}`;
+        const reqLabels = autoAssignReqLabels(g);
+        if (reqLabels.length) {
+          const room = roomOfTable(t.id);
+          const missingLabels = (g.requiredTagIds || [])
+            .filter(id => !roomTagIds(room).includes(id))
+            .map(id => S.featureTags.find(f => f.id === id)?.label)
+            .filter(Boolean);
+          reason += missingLabels.length
+            ? ` ${tr("autoReasonPreviousRequirementsWarning", { tags: missingLabels.join(", ") })}`
+            : ` ${tr("autoReasonRequirementsMatch", { tags: reqLabels.join(", ") })}`;
+        }
+      }
+    }
     if (!target) {
       const candidates = freeTables().filter(t => t.seats >= g.seats && !jobs.some(j => j.tableId === t.id)).sort((a, b) => a.seats - b.seats);
       // Anforderungen (falls das Spiel welche hat) bevorzugen, aber nicht
       // erzwingen — lieber ein Tisch ohne perfekten Match als gar keiner.
       const matching = g.requiredTagIds?.length ? candidates.filter(t => roomSatisfiesTags(roomOfTable(t.id), g.requiredTagIds)) : candidates;
       target = (matching[0] || candidates[0] || null);
+      if (target) {
+        const reqLabels = autoAssignReqLabels(g);
+        if (reqLabels.length && matching.includes(target)) {
+          reason = `${tr("autoReasonRequirementsMatch", { tags: reqLabels.join(", ") })} ${tr("autoReasonSmallestFit")} ${autoAssignCapacityNote(g, target)}`;
+        } else if (reqLabels.length) {
+          const room = roomOfTable(target.id);
+          const missingLabels = (g.requiredTagIds || [])
+            .filter(id => !roomTagIds(room).includes(id))
+            .map(id => S.featureTags.find(f => f.id === id)?.label)
+            .filter(Boolean);
+          reason = `${tr("autoReasonRequirementsFallback", { tags: missingLabels.join(", ") || reqLabels.join(", ") })} ${tr("autoReasonSmallestFit")} ${autoAssignCapacityNote(g, target)}`;
+        } else {
+          reason = `${tr("autoReasonSmallestFit")} ${autoAssignCapacityNote(g, target)}`;
+        }
+      }
     }
-    if (target) jobs.push({ gameKey: g.key, tableId: target.id });
+    if (target) jobs.push({ gameKey: g.key, tableId: target.id, reason });
   }
   for (const g of workshops) {
     const candidates = freeTables().filter(t => !jobs.some(j => j.tableId === t.id)).sort((a, b) => b.seats - a.seats);
@@ -1146,24 +1429,107 @@ function computeAutoAssignJobs() {
       ? candidates.filter(t => roomSatisfiesTags(roomOfTable(t.id), g.requiredTagIds))
       : candidates.filter(t => { const r = roomOfTable(t.id); return r && (roomHasTagKey(r, "bewegung") || roomHasTagKey(r, "laut_ok")); });
     const target = (roomOk[0] || candidates.find(t => t.seats >= g.seats) || null);
-    if (target) jobs.push({ gameKey: g.key, tableId: target.id });
+    if (target) {
+      const reqLabels = autoAssignReqLabels(g);
+      let reason;
+      if (reqLabels.length && roomOk.includes(target)) {
+        reason = `${tr("autoReasonWorkshopRequirements", { tags: reqLabels.join(", ") })} ${autoAssignCapacityNote(g, target)}`;
+      } else if (!reqLabels.length && roomOk.includes(target)) {
+        reason = `${tr("autoReasonWorkshopFeatures")} ${autoAssignCapacityNote(g, target)}`;
+      } else {
+        reason = `${tr("autoReasonWorkshopFallback")} ${autoAssignCapacityNote(g, target)}`;
+      }
+      jobs.push({ gameKey: g.key, tableId: target.id, reason });
+    }
   }
   return { jobs, totalUnassigned: un.length };
 }
 
 let pendingAutoAssignJobs = null;
 
+function autoPreviewAvailableTables() {
+  return S.tables
+    .filter(t => !S.assignments.some(a => a.slot_key === S.activeSlot && a.table_id === t.id))
+    .sort((a, b) => {
+      const ar = roomOfTable(a.id), br = roomOfTable(b.id);
+      return (ar?.sort || 0) - (br?.sort || 0)
+        || (ar?.name || "").localeCompare(br?.name || "", LANG)
+        || (a.sort || 0) - (b.sort || 0)
+        || a.name.localeCompare(b.name, LANG);
+    });
+}
+
+function manualAutoAssignReason(g, table, { swapped = false } = {}) {
+  const room = roomOfTable(table.id);
+  const reqLabels = autoAssignReqLabels(g);
+  const missingLabels = (g.requiredTagIds || [])
+    .filter(id => !roomTagIds(room).includes(id))
+    .map(id => S.featureTags.find(f => f.id === id)?.label)
+    .filter(Boolean);
+  const reqNote = !reqLabels.length
+    ? ""
+    : missingLabels.length
+      ? ` ${tr("autoReasonManualRequirementsMissing", { tags: missingLabels.join(", ") })}`
+      : ` ${tr("autoReasonManualRequirementsMatch", { tags: reqLabels.join(", ") })}`;
+  return `${tr(swapped ? "autoReasonManualSwap" : "autoReasonManualChoice")} ${autoAssignCapacityNote(g, table)}${reqNote}`;
+}
+
+function renderAutoAssignPreviewList() {
+  const list = document.getElementById("autoPreviewList");
+  const scrollTop = list.scrollTop;
+  const tables = autoPreviewAvailableTables();
+  list.innerHTML = (pendingAutoAssignJobs || []).map((j, index) => {
+    const g = gameByKey(j.gameKey);
+    const table = S.tables.find(t => t.id === j.tableId);
+    const options = tables.map(t => {
+      const room = roomOfTable(t.id);
+      return `<option value="${esc(t.id)}"${t.id === j.tableId ? " selected" : ""}>${esc(room.name)} · ${esc(t.name)} (${esc(tr("seatsCountLabel", { n: t.seats }))})</option>`;
+    }).join("");
+    return `<div class="auto-preview-row">
+      <div class="auto-preview-main">
+        <span class="auto-preview-game" title="${esc(g.title)}">${esc(g.title)}</span>
+        <span class="auto-preview-arrow" aria-hidden="true">→</span>
+        <select class="auto-preview-target-select" data-auto-job-index="${index}" aria-label="${esc(tr("autoAssignChangeTargetAria", { title: g.title }))}">${options}</select>
+      </div>
+      <p class="auto-preview-reason"><span aria-hidden="true">↳</span> ${esc(j.reason)}</p>
+    </div>`;
+  }).join("");
+  list.scrollTop = scrollTop;
+}
+
+function changeAutoPreviewTarget(index, tableId) {
+  if (!pendingAutoAssignJobs?.[index]) return;
+  const job = pendingAutoAssignJobs[index];
+  const oldTableId = job.tableId;
+  if (!tableId || tableId === oldTableId) return;
+  const target = S.tables.find(t => t.id === tableId);
+  if (!target || !autoPreviewAvailableTables().some(t => t.id === tableId)) return;
+  const swapIndex = pendingAutoAssignJobs.findIndex((other, i) => i !== index && other.tableId === tableId);
+  job.tableId = tableId;
+  job.reason = manualAutoAssignReason(gameByKey(job.gameKey), target, { swapped: swapIndex >= 0 });
+  if (swapIndex >= 0) {
+    const swapJob = pendingAutoAssignJobs[swapIndex];
+    const oldTarget = S.tables.find(t => t.id === oldTableId);
+    swapJob.tableId = oldTableId;
+    swapJob.reason = manualAutoAssignReason(gameByKey(swapJob.gameKey), oldTarget, { swapped: true });
+  }
+  renderAutoAssignPreviewList();
+}
+
 function openAutoAssignPreview() {
   const { jobs, totalUnassigned } = computeAutoAssignJobs();
   if (!totalUnassigned) { alert(tr("autoAssignNothingToDo")); return; }
   if (!jobs.length) { alert(tr("autoAssignNoFittingTables")); return; }
   pendingAutoAssignJobs = jobs;
-  document.getElementById("autoPreviewList").innerHTML = jobs.map(j => {
-    const g = gameByKey(j.gameKey);
-    const table = S.tables.find(t => t.id === j.tableId);
-    const room = roomOfTable(j.tableId);
-    return `<div class="auto-preview-row"><span class="auto-preview-game">${esc(g.title)}</span><span class="auto-preview-arrow">→</span><span class="auto-preview-target">${esc(room.name)} · ${esc(table.name)}</span></div>`;
-  }).join("");
+  const slotLabel = S.slots.find(s => s.key === S.activeSlot)?.label || S.activeSlot;
+  const unresolved = Math.max(0, totalUnassigned - jobs.length);
+  document.getElementById("autoPreviewExplanation").textContent = tr("autoAssignInfoText");
+  document.getElementById("autoPreviewSummary").textContent = tr("autoAssignPreviewSummary", {
+    n: jobs.length,
+    slot: slotLabel,
+    unresolved,
+  });
+  renderAutoAssignPreviewList();
   document.getElementById("autoPreviewDlg").showModal();
 }
 
@@ -1176,6 +1542,45 @@ async function applyPendingAutoAssignJobs() {
   for (const j of jobs) await assign(j.gameKey, slot, j.tableId);
   const rest = bySlot(slot).filter(g => { const a = asgFor(g); return !a || !a.table_id; }).length;
   document.getElementById("status").textContent = tr("autoAssignResult", { n: jobs.length, rest: rest ? tr("autoAssignRest", { n: rest }) : "" });
+}
+
+function openClearSlotDialog() {
+  const count = S.assignments.filter(a => a.slot_key === S.activeSlot && a.table_id).length;
+  if (!count) return;
+  const slotLabel = S.slots.find(s => s.key === S.activeSlot)?.label || S.activeSlot;
+  document.getElementById("clearSlotWarningTitle").textContent = tr("clearSlotWarningTitle", { slot: slotLabel });
+  document.getElementById("clearSlotWarningText").textContent = tr("clearSlotWarningText", { n: count });
+  const msg = document.getElementById("clearSlotMsg");
+  msg.textContent = "";
+  const btn = document.getElementById("clearSlotConfirmBtn");
+  btn.disabled = false;
+  btn.textContent = tr("clearSlotConfirmBtn");
+  document.getElementById("clearSlotDlg").showModal();
+}
+
+async function clearActiveSlotAssignments() {
+  const slot = S.activeSlot;
+  const affected = S.assignments.filter(a => a.slot_key === slot && a.table_id);
+  if (!affected.length) { document.getElementById("clearSlotDlg").close(); return; }
+  const btn = document.getElementById("clearSlotConfirmBtn");
+  const msg = document.getElementById("clearSlotMsg");
+  btn.disabled = true;
+  btn.textContent = tr("clearSlotWorking");
+  msg.textContent = "";
+  try {
+    await S.store.clearSlotTableAssignments(slot);
+    S.assignments = S.assignments
+      .filter(a => !(a.slot_key === slot && a.table_id && !a.game_id))
+      .map(a => a.slot_key === slot && a.table_id && a.game_id ? { ...a, table_id: null } : a);
+    gamesFromDb();
+    document.getElementById("clearSlotDlg").close();
+    document.getElementById("status").textContent = tr("clearSlotResult", { n: affected.length });
+    renderUpdate();
+  } catch (err) {
+    msg.textContent = tr("clearSlotFailed", { err: err.message });
+    btn.disabled = false;
+    btn.textContent = tr("clearSlotConfirmBtn");
+  }
 }
 
 /* ---------------- Drag & Drop (nur Zuordnen) ---------------- */
@@ -1274,13 +1679,22 @@ document.addEventListener("click", e => {
 });
 
 /* ---------------- Event-Delegation ---------------- */
+document.addEventListener("keydown", e => {
+  if (S.assignMode !== "click" || !["Enter", " "].includes(e.key)) return;
+  const chip = e.target.closest(".crew-chip[data-game]");
+  if (!chip || e.target.closest("a, button, select")) return;
+  e.preventDefault();
+  S.selectedGame = S.selectedGame === chip.dataset.game ? null : chip.dataset.game;
+  renderUpdate();
+});
 document.addEventListener("change", e => {
   if (e.target.matches(".assignSel")) assign(e.target.dataset.game, e.target.dataset.slot, e.target.value || null);
+  else if (e.target.matches(".auto-preview-target-select")) changeAutoPreviewTarget(Number(e.target.dataset.autoJobIndex), e.target.value);
   else if (e.target.id === "showDoneChk") { S.showDoneRequests = e.target.checked; renderActive(); }
   else if (e.target.matches(".tag-add-select") && e.target.value) { tagPickerSelection.add(e.target.value); renderTagPicker(e.target.closest("[id]").id); }
   else if (e.target.matches(".filter-tag-select") && e.target.value) {
     if (!S.filterReqTags.includes(e.target.value)) S.filterReqTags = [...S.filterReqTags, e.target.value];
-    renderActive();
+    renderUpdate();
   }
   else if (e.target.matches(".roleSelect")) {
     (async () => {
@@ -1293,6 +1707,12 @@ document.addEventListener("change", e => {
   }
 });
 document.addEventListener("click", async e => {
+  const clickedCrewChip = e.target.closest(".crew-chip[data-game]");
+  if (S.assignMode === "click" && clickedCrewChip && !e.target.closest("a, button, select")) {
+    S.selectedGame = S.selectedGame === clickedCrewChip.dataset.game ? null : clickedCrewChip.dataset.game;
+    renderUpdate();
+    return;
+  }
   // Einzelauswahl-Modus: Klick auf einen Tisch (oder die Warteschlange
   // selbst) übernimmt das aktuell ausgewählte Spiel — Ersatz fürs Dropdown.
   if (S.assignMode === "click" && S.selectedGame && !e.target.closest("button, select")) {
@@ -1305,7 +1725,7 @@ document.addEventListener("click", async e => {
   if (!t) return;
   if (t.matches(".min-seats-btn")) {
     S.minSeats = Math.max(0, S.minSeats + Number(t.dataset.dir));
-    renderActive();
+    renderUpdate();
   }
   else if (t.matches(".stepper-btn")) {
     const el = document.getElementById(t.dataset.target);
@@ -1321,19 +1741,19 @@ document.addEventListener("click", async e => {
   if (t.matches("[data-assignmode]")) {
     S.assignMode = t.dataset.assignmode; S.selectedGame = null;
     Prefs.set("assign-mode", S.assignMode);
-    renderActive();
+    renderUpdate();
     return;
   }
   if (t.matches(".selectGameBtn")) {
     S.selectedGame = S.selectedGame === t.dataset.game ? null : t.dataset.game;
-    renderActive();
+    renderUpdate();
     return;
   }
   if (t.matches("[data-page]")) { S.mode = t.dataset.page; renderActive(); }
   else if (t.matches("[data-view]")) { S.mode = "view"; S.view = t.dataset.view; renderActive(); }
   else if (t.matches("[data-crewview]")) { S.mode = "crew"; S.crewView = t.dataset.crewview; renderActive(); }
   else if (t.matches("[data-setuptab]")) { S.setupTab = t.dataset.setuptab; renderActive(); }
-  else if (t.matches(".local-slot-tabs button[data-slot]")) { S.activeSlot = t.dataset.slot; renderActive(); }
+  else if (t.matches(".local-slot-tabs button[data-slot]")) { S.activeSlot = t.dataset.slot; renderUpdate(); }
   else if (t.matches(".unassignBtn")) assign(t.dataset.game, t.dataset.slot, null);
   else if (t.matches(".delGameBtn")) {
     if (!confirm(tr("confirmDeleteGame"))) return;
@@ -1368,12 +1788,13 @@ document.addEventListener("click", async e => {
     styleEl.textContent = `@media print { @page { size: ${orientation}; } }`;
     window.print();
   }
+  else if (t.matches("[data-axis]")) { S.rasterAxis = t.dataset.axis; renderActive(); }
   else if (t.id === "flipAxisBtn") { S.rasterAxis = S.rasterAxis === "slots" ? "rooms" : "slots"; renderActive(); }
   else if (t.matches(".filter-tag-remove")) {
     S.filterReqTags = S.filterReqTags.filter(id => id !== t.dataset.tagId);
-    renderActive();
+    renderUpdate();
   }
-  else if (t.id === "crewDetailsToggle") { S.crewShowDetails = !S.crewShowDetails; renderActive(); }
+  else if (t.id === "crewDetailsToggle") { S.crewShowDetails = !S.crewShowDetails; renderUpdate(); }
   else if (t.matches(".room-row-toggle")) {
     const id = t.dataset.roomToggle;
     if (S.expandedRoomIds.has(id)) S.expandedRoomIds.delete(id); else S.expandedRoomIds.add(id);
@@ -1401,10 +1822,13 @@ document.addEventListener("click", async e => {
   }
   else if (t.id === "autoBtn") openAutoAssignPreview();
   else if (t.id === "autoPreviewApplyBtn") applyPendingAutoAssignJobs();
+  else if (t.id === "clearSlotBtn") openClearSlotDialog();
+  else if (t.id === "clearSlotConfirmBtn") clearActiveSlotAssignments();
   else if (t.id === "pinnedBannerCloseBtn") { S.pinnedRequest = null; renderActive(); }
   else if (t.matches(".jumpToGameBtn")) jumpToGameInZuordnen(t.dataset.game, t.dataset.slot, t.dataset.msg);
   else if (t.id === "addSlotBtn") openSlotDlg(null);
   else if (t.id === "editSlotBtn") openSlotDlg(S.slots.find(s => s.key === S.activeSlot));
+  else if (t.matches(".editSlotRowBtn")) openSlotDlg(S.slots.find(s => s.id === t.dataset.id));
   else if (t.id === "addBucketBtn") openBucketDlg(null);
   else if (t.matches(".editBucketBtn")) openBucketDlg(S.slotBuckets.find(b => b.id === t.dataset.id));
   else if (t.matches(".tag-remove")) { tagPickerSelection.delete(t.dataset.tagId); renderTagPicker(t.closest("[id]").id); }
@@ -1440,7 +1864,15 @@ document.addEventListener("submit", async e => {
 document.addEventListener("focusout", async e => {
   if (e.target.matches(".reqNote")) { await S.store.updateRequest(e.target.dataset.id, { orga_notiz: e.target.value }); S.requests.find(r => r.id === e.target.dataset.id).orga_notiz = e.target.value; }
 });
-document.getElementById("globalSearch").addEventListener("input", e => { S.search = e.target.value.trim().toLowerCase(); renderActive(); });
+document.getElementById("globalSearch").addEventListener("input", e => {
+  S.search = e.target.value.trim().toLowerCase();
+  renderActive({ animate: false });
+});
+document.addEventListener("input", e => {
+  if (e.target.id !== "crewGameSearch") return;
+  S.crewSearch = e.target.value;
+  renderActivePreservingFocus();
+});
 
 /* ---------------- Dialoge ---------------- */
 function openRequestDlg(gameKey) {
@@ -1592,11 +2024,21 @@ function printPageHtml() {
 function filterTagPickerHtml(filterKey, selectedIds) {
   const selected = selectedIds.map(id => S.featureTags.find(f => f.id === id)).filter(Boolean);
   const remaining = S.featureTags.filter(f => !selectedIds.includes(f.id));
-  const pills = selected.map(f => `<span class="tag-pill filter-pill">${esc(f.label)}<button type="button" class="filter-tag-remove" data-filterkey="${filterKey}" data-tag-id="${f.id}" aria-label="${esc(tr("removeFromFilterAriaLabel", { label: f.label }))}">×</button></span>`).join("");
+  // Die Feature-Liste trägt zur schnellen Erkennung an anderen Stellen ein
+  // führendes Emoji. In der kompakten Filterleiste verwendet die Vorlage
+  // bewusst nur den Text ("ruhig", "laut ok", …), damit alle Pills dieselbe
+  // Schriftmetrik und Höhe haben.
+  const pills = selected.map(f => {
+    const label = plainFeatureLabel(f.label);
+    return `<span class="tag-pill filter-pill">${esc(label)}<button type="button" class="filter-tag-remove" data-filterkey="${filterKey}" data-tag-id="${f.id}" aria-label="${esc(tr("removeFromFilterAriaLabel", { label }))}">✕</button></span>`;
+  }).join("");
   // 1:1 aus der Vorlage (hasMoreTags): Add-Dropdown nur zeigen, wenn noch
   // etwas hinzufügbar ist.
-  const addSelect = remaining.length ? `<select class="filter-tag-select" data-filterkey="${filterKey}" aria-label="${esc(tr("addRequirementToFilterAriaLabel"))}"><option value="">${esc(tr("addRequirementOption"))}</option>${remaining.map(f => `<option value="${f.id}">${esc(f.label)}</option>`).join("")}</select>` : "";
-  return `<span class="tag-pills" style="display:inline-flex;margin:0 6px 0 0">${pills}</span>${addSelect}`;
+  const addSelect = remaining.length ? `<select class="filter-tag-select" data-filterkey="${filterKey}" aria-label="${esc(tr("addRequirementToFilterAriaLabel"))}"><option value="">${esc(tr("addRequirementOption"))}</option>${remaining.map(f => `<option value="${f.id}">${esc(plainFeatureLabel(f.label))}</option>`).join("")}</select>` : "";
+  // Aktive Filter liegen als direkte Kinder in der Toolbar-Zeile. Dadurch
+  // greifen deren 8px-Grid-Gap und Wrap-Verhalten exakt wie in der Vorlage;
+  // ein zusätzlicher Wrapper erzeugte vorher doppelte/ungleiche Abstände.
+  return `${pills}${addSelect}`;
 }
 
 let tagPickerSelection = new Set();
@@ -1867,7 +2309,8 @@ updateCatEasterEgg();
       const days = [...new Set(S.games.map(g => g.slotKey.split("|")[0]))].filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
       await S.store.ensureSlotsForDays(days);
       S.slots = await supaFetch(`slots?select=*&con_id=eq.${con.id}&order=day.asc.nullslast,sort.asc`);
-      // Rand-Fall (siehe loadPlayabl): Sessions außerhalb aller Buckets ("Unsortiert")
+      // Rand-Fall (siehe loadPlayabl): Sessions außerhalb aller Buckets
+      // ("Unsortiert", bei einer neuen Con ohne Vorlagen zunächst "Tag")
       // materialisieren sich nicht über ensure_slots_for_days (das kennt nur Buckets)
       // — hier direkt nachziehen, damit sie trotzdem zuordenbar bleiben. Nur als
       // Crew möglich (anon darf slots nicht schreiben, siehe RLS).
