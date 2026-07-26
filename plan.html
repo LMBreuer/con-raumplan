@@ -19,6 +19,7 @@
       <a class="brand" href="index.html"><span class="brand-eyebrow" aria-hidden="true">&gt; </span>Con-Raumplan<span class="brand-cursor" aria-hidden="true">_</span></a>
       <nav class="page-tabs slot-tabs" id="pageTabs" role="group" aria-label="Seite wählen"></nav>
       <div class="header-right">
+        <div id="contrastAidSwitch" class="contrast-aid-slot" hidden></div>
         <div class="controls-group">
           <div id="langSwitch"></div>
           <div class="controls-divider"></div>
@@ -37,7 +38,7 @@
     <div id="chromeExtras">
       <div id="inviteBanner" class="no-print" hidden></div>
       <p class="banner no-print" id="viewBanner" hidden></p>
-      <p id="status" data-i18n="loadingData">Lade Daten …</p>
+      <p id="status" role="status" aria-live="polite" data-i18n="loadingData">Lade Daten …</p>
       <div class="kpi-bar no-print" id="kpiBar"></div>
       <div class="legend no-print" id="legend"></div>
       <div class="no-print" id="viewNavGroup">
@@ -103,6 +104,25 @@
       <div class="frow"><label for="roomFloor" data-i18n="floorLocation">Stock / Lage</label><input type="text" id="roomFloor" maxlength="40" placeholder="z.B. EG, 1. Stock links" data-i18n-placeholder="floorLocationPlaceholder"></div>
       <div class="frow"><label for="roomSort" data-i18n="sortOrder100">Reihenfolge (1–100)</label><input type="number" id="roomSort" min="0" max="100" value="0"></div>
     </div>
+    <fieldset class="room-color-field"><legend>Raumfarbe</legend>
+      <div class="room-color-modes" role="radiogroup" aria-label="Farbmodus für den Raum">
+        <label class="toggle-row"><input type="radio" name="roomColorMode" value="standard" checked aria-controls="roomColor roomColorPalette"> Automatische Standardfarbe verwenden</label>
+        <label class="toggle-row"><input type="radio" name="roomColorMode" value="custom" aria-controls="roomColor roomColorPalette"> Eigene Grundfarbe wählen</label>
+        <button type="button" class="icon-btn info-tip-trigger" aria-label="Hinweis zu Raumfarben" data-info-text="Eigene Farben bleiben als Grundton erhalten. Spezial-Themes passen sie für Stil und Lesbarkeit an. Im Kontrastmodus kann zusätzlich eine persönliche Musterhilfe aktiviert werden.">i</button>
+      </div>
+      <details class="room-color-picker" id="roomColorPicker">
+        <summary><span class="room-color-preview" id="roomColorPreview" aria-hidden="true"></span><span>Farbe auswählen</span></summary>
+        <div class="room-color-controls">
+        <label class="native-color-picker" for="roomColor"><span class="sr-only">Frei wählbare Farbe</span><input type="color" id="roomColor" value="#5b8def"></label>
+        <div class="room-color-palette" id="roomColorPalette" role="group" aria-label="Farbpalette für den Raum">
+          <div class="room-color-row" role="group" aria-label="Kühle Farben"><button type="button" data-room-color="#2563eb" aria-label="Königsblau"></button><button type="button" data-room-color="#0ea5e9" aria-label="Himmelblau"></button><button type="button" data-room-color="#0891b2" aria-label="Türkis"></button><button type="button" data-room-color="#0f766e" aria-label="Petrol"></button></div>
+          <div class="room-color-row" role="group" aria-label="Grüne und gelbe Farben"><button type="button" data-room-color="#16a34a" aria-label="Grün"></button><button type="button" data-room-color="#65a30d" aria-label="Lindgrün"></button><button type="button" data-room-color="#ca8a04" aria-label="Gold"></button><button type="button" data-room-color="#ea580c" aria-label="Orange"></button></div>
+          <div class="room-color-row" role="group" aria-label="Warme Farben"><button type="button" data-room-color="#dc2626" aria-label="Rot"></button><button type="button" data-room-color="#e11d48" aria-label="Himbeerrot"></button><button type="button" data-room-color="#db2777" aria-label="Pink"></button><button type="button" data-room-color="#c2410c" aria-label="Terrakotta"></button></div>
+          <div class="room-color-row" role="group" aria-label="Violette und neutrale Farben"><button type="button" data-room-color="#7c3aed" aria-label="Violett"></button><button type="button" data-room-color="#9333ea" aria-label="Lila"></button><button type="button" data-room-color="#4f46e5" aria-label="Indigo"></button><button type="button" data-room-color="#64748b" aria-label="Schiefergrau"></button></div>
+        </div>
+        </div>
+      </details>
+    </fieldset>
     <fieldset style="border:none;margin-bottom:10px"><legend style="font-size:.78rem;color:var(--text-secondary);margin-bottom:4px" data-i18n="features">Eigenschaften</legend>
       <div class="filter-chips" id="roomFeatures"></div>
     </fieldset>
@@ -454,14 +474,30 @@ function jumpToGameInZuordnen(gameKey, slotKey, message) {
   requestAnimationFrame(() => {
     const chip = document.querySelector(`.chip[data-game="${gameKey}"]`);
     if (!chip) return;
-    chip.scrollIntoView({ behavior: "smooth", block: "center" });
+    const reduceMotion = document.documentElement.getAttribute("data-theme") === "contrast" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    chip.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
     chip.classList.add("pulse-highlight");
     chip.addEventListener("animationend", () => chip.classList.remove("pulse-highlight"), { once: true });
   });
 }
 const roomOfTable = tableId => { const t = S.tables.find(x => x.id === tableId); return t && S.rooms.find(r => r.id === t.room_id); };
 const ROOM_ACCENTS = ["var(--accent)", "var(--good)", "var(--warn)", "var(--text-secondary)"];
-const roomAccentVar = room => room ? ROOM_ACCENTS[S.rooms.indexOf(room) % ROOM_ACCENTS.length] : "var(--accent)";
+// Darkened Wong-inspired palette: each accent keeps at least 3:1 contrast on
+// the contrast theme's white surface, while shapes provide the second cue.
+const ROOM_ACCENTS_HIGH_CONTRAST = ["#005a9c", "#9a4f00", "#006b54", "#7a2d8e", "#b33c00", "#006f88", "#706000", "#4a4a4a"];
+const validRoomColor = color => /^#[0-9a-f]{6}$/i.test(color || "");
+const colorVisionAidEnabled = () => document.documentElement.hasAttribute("data-color-aid");
+const roomMarkerClass = room => colorVisionAidEnabled() ? ` room-marker-pattern-${Math.max(0, S.rooms.indexOf(room)) % ROOM_ACCENTS_HIGH_CONTRAST.length}` : "";
+const roomAccentVar = room => {
+  const index = S.rooms.indexOf(room);
+  const base = room ? (colorVisionAidEnabled() ? ROOM_ACCENTS_HIGH_CONTRAST[index % ROOM_ACCENTS_HIGH_CONTRAST.length] : validRoomColor(room.color) ? room.color : ROOM_ACCENTS[index % ROOM_ACCENTS.length]) : "var(--accent)";
+  const theme = document.documentElement.getAttribute("data-theme");
+  if (theme === "solarpunk") return `color-mix(in oklab, ${base} 72%, #8bbf65)`;
+  if (theme === "ukiyo") return `color-mix(in oklab, ${base} 62%, #d9b9a0)`;
+  if (theme === "cyberpunk") return `color-mix(in oklab, ${base} 65%, #00f0ff)`;
+  if (theme === "terminal") return `color-mix(in srgb, ${base} 45%, #3dff85)`;
+  return base;
+};
 const emptyState = msg => `<div class="empty-state"><span class="glyph"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10l8-6 8 6v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span>${esc(msg)}</div>`;
 
 // ---------------- Platzanzahl-Stepper (ersetzt die winzigen nativen
@@ -648,7 +684,7 @@ function chipHtml(g, { crew = false, forceMinimal = false, inGrid = false, inRoo
     bodyHtml = `<div class="title-row"><span class="title-short">${titleShort}</span><span class="seats-short">${g.seats}p</span>${warnIconMinimal}${reqIconMinimal}${requestIconBtn}</div>`;
   } else {
     const whereHtml = room && table
-      ? `<div class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)} · ${esc(table.name)}</div>`
+      ? `<div class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot${roomMarkerClass(room)}"></span>${esc(room.name)} · ${esc(table.name)}</div>`
       : `<div class="where" style="color:var(--text-muted)">${esc(tr("noTableYetDash"))}</div>`;
     const metaHtml = level === "medium"
       ? `<div class="meta-row"><span>${esc(tr("personsShort", { n: g.seats }))}</span>${g.provider ? `<span>${esc(g.provider)}</span>` : ""}${g.ws ? `<span class="badge">${esc(tr("workshop"))}</span>` : ""}${warnBadgeFull}${reqBadgeFull}</div>`
@@ -807,7 +843,7 @@ function tabelleHtml() {
       <td>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title)}${g.ws ? ` <span class="badge">${esc(tr("workshop"))}</span>` : ""} <button type="button" class="icon-btn requestBtn no-print" data-game="${esc(g.key)}" aria-label="${esc(tr("proposeChangeTo", { title: g.title }))}" title="${esc(tr("proposeChangeHint"))}">✎</button></td>
       <td>${g.provider ? esc(g.provider) : '<span style="color:var(--text-muted)">–</span>'}</td>
       <td>${esc(slot?.label || g.slotLabel)}</td>
-      <td>${room ? `<span class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot"></span>${esc(room.name)}</span>` : '<span style="color:var(--text-muted)">–</span>'}</td>
+      <td>${room ? `<span class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot${roomMarkerClass(room)}"></span>${esc(room.name)}</span>` : '<span style="color:var(--text-muted)">–</span>'}</td>
       <td>${table ? esc(table.name) : "–"}</td>
       <td>${g.seats}</td>
     </tr>`;
@@ -832,7 +868,7 @@ function rasterHtml() {
   const cols = S.rasterAxis === "slots" ? S.rooms : S.slots;
   const headHtml = cols.map(c => {
     const room = S.rasterAxis === "slots" ? c : null;
-    return `<th scope="col"><span class="matrix-label">${room ? `<span class="room-swatch" style="--room-accent:${roomAccentVar(room)}"></span>` : ""}<span class="matrix-label-text">${esc(room ? room.name : c.label)}</span></span></th>`;
+    return `<th scope="col"><span class="matrix-label">${room ? `<span class="room-swatch${roomMarkerClass(room)}" aria-hidden="true" style="--room-accent:${roomAccentVar(room)}"></span>` : ""}<span class="matrix-label-text">${esc(room ? room.name : c.label)}</span></span></th>`;
   }).join("");
   const bodyHtml = rows.map(r => {
     const rowLabel = S.rasterAxis === "slots" ? r.label : r.name;
@@ -846,8 +882,8 @@ function rasterHtml() {
       return `<td class="grid-cell ${fillClass}${!gamesHere.length ? " empty" : ""}"${gamesHere.length ? "" : ` aria-label="${esc(tr("noGames"))}"`}>${inner}</td>`;
     }).join("");
     return `<tr>
-      <th scope="row"><span class="matrix-label">${rowRoom ? `<span class="room-swatch" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}<span class="matrix-label-text">${esc(rowLabel)}</span></span></th>
-      <td class="matrix-divider">${rowRoom ? `<span class="matrix-divider-bar" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}</td>
+      <th scope="row"><span class="matrix-label">${rowRoom ? `<span class="room-swatch${roomMarkerClass(rowRoom)}" aria-hidden="true" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}<span class="matrix-label-text">${esc(rowLabel)}</span></span></th>
+      <td class="matrix-divider">${rowRoom ? `<span class="matrix-divider-bar${roomMarkerClass(rowRoom)}" aria-hidden="true" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}</td>
       ${cellsHtml}
     </tr>`;
   }).join("");
@@ -897,7 +933,7 @@ function raeumeReadHtml() {
       return `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span></div>${games.map(g => chipHtml(g, { crew: false, inRoom: true })).join("") || `<div class="free room-public-free detail-${S.detailLevel}">${esc(tr("freeLabel"))}</div>`}</div>`;
     }).join("");
     return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
-      <div class="room-head"><span class="room-swatch" style="--room-accent:${roomAccentVar(room)}"></span><h3>${esc(room.name)}</h3></div>
+      <div class="room-head"><span class="room-swatch${roomMarkerClass(room)}" aria-hidden="true" style="--room-accent:${roomAccentVar(room)}"></span><h3>${esc(room.name)}</h3></div>
       <div class="room-badges">${roomBadgesHtml(room)}</div>
       ${tablesHtml || `<p class="hint">${esc(tr("noTablesYet"))}</p>`}
     </div>`;
@@ -967,7 +1003,7 @@ function zuordnenHtml() {
       const emptyTableText = S.crewSearch && tableGames.length ? tr("noCrewTableGameMatch") : tr("freeLabel");
       return `<div class="tablebox${reqMismatch}${gameMatch}" data-table="${t.id}"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span>${double}${reqHint}</div>${games.map(g => chipHtml(g, { crew: true, forceMinimal })).join("") || `<div class="free">${esc(emptyTableText)}</div>`}</div>`;
     }).join("");
-    return `<div class="room" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><span class="room-swatch" style="--room-accent:${roomAccentVar(room)}"></span><h3>${esc(room.name)}</h3></div><div class="room-badges">${roomBadgesHtml(room)}</div>${tablesHtml || `<p class="hint">${esc(tr("noTablesCreateInRooms"))}</p>`}</div>`;
+    return `<div class="room" style="--room-accent:${roomAccentVar(room)}"><div class="room-head"><span class="room-swatch${roomMarkerClass(room)}" aria-hidden="true" style="--room-accent:${roomAccentVar(room)}"></span><h3>${esc(room.name)}</h3></div><div class="room-badges">${roomBadgesHtml(room)}</div>${tablesHtml || `<p class="hint">${esc(tr("noTablesCreateInRooms"))}</p>`}</div>`;
   }).join("") || emptyState(tr("noRoomsGoToManage"));
   const pinnedBannerHtml = (() => {
     if (!S.pinnedRequest) return "";
@@ -1101,7 +1137,7 @@ function raeumeVerwaltenHtml() {
     return `<div class="room-row" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
       <div class="room-row-summary">
         <button type="button" class="room-row-toggle" data-room-toggle="${room.id}" aria-expanded="${String(expanded)}" aria-label="${esc(tr("expandRoomAriaLabel", { name: room.name }))}">
-          <span class="dot"></span>
+          <span class="dot${roomMarkerClass(room)}"></span>
           <span class="room-row-main"><span class="room-row-name">${esc(room.name)}${room.floor ? ` · ${esc(room.floor)}` : ""}</span>
             <span class="room-row-meta"><span>${esc(tr("tableCountLabel", { n: tables.length }))}</span>${roomBadgesHtml(room)}</span>
           </span>
@@ -1327,6 +1363,9 @@ function renderActive({ animate = true } = {}) {
     else viewC.innerHTML = raeumeReadHtml();
   }
 }
+window.addEventListener("raumplan-theme-change", () => {
+  if (S.con) renderActive({ animate: false });
+});
 
 // Zustandsänderung innerhalb derselben Ansicht (Filter, Auswahl, Zuordnung,
 // Details usw.): Inhalte aktualisieren, ohne die Seiten-Eingangsanimation
@@ -1710,6 +1749,15 @@ document.addEventListener("click", e => {
   if (popover && !popover.hidden && popover.dataset.forTrigger === t.dataset.infoText) hideInfoTip();
   else showInfoTip(t, t.dataset.infoText);
 });
+// Die bestehenden Info-Trigger werden an mehreren Stellen dynamisch erzeugt.
+// Einige sind aus Kompatibilitätsgründen role="button"-Spans; Enter/Leertaste
+// ergänzt ihre native Button-Semantik zuverlässig für Tastatur-Nutzung.
+document.addEventListener("keydown", e => {
+  const t = e.target.closest('[data-info-text][role="button"]');
+  if (!t || !["Enter", " "].includes(e.key)) return;
+  e.preventDefault();
+  t.click();
+});
 
 /* ---------------- Event-Delegation ---------------- */
 document.addEventListener("keydown", e => {
@@ -1817,7 +1865,7 @@ document.addEventListener("click", async e => {
   else if (t.matches("[data-printorientation]")) { S.printOrientation = t.dataset.printorientation; renderActive(); }
   else if (t.matches("[data-printcolor]")) { S.printColor = t.dataset.printcolor; renderActive(); }
   else if (t.id === "doPrintBtn") {
-    document.documentElement.classList.toggle("print-bw", S.printColor === "bw");
+    document.documentElement.classList.toggle("print-bw", S.printColor !== "color");
     const orientation = S.printOrientation === "auto" ? (S.printMode === "raster" ? "landscape" : "portrait") : S.printOrientation;
     let styleEl = document.getElementById("printOrientationStyle");
     if (!styleEl) { styleEl = document.createElement("style"); styleEl.id = "printOrientationStyle"; document.head.appendChild(styleEl); }
@@ -1936,7 +1984,13 @@ document.getElementById("requestForm").addEventListener("submit", async e => {
 // sichtbare A4-Vorschau (.doc-page) mit echten Daten und fest kodierten,
 // theme-unabhängigen Farben (druckt lesbar unabhängig vom aktiven Theme).
 const PRINT_ROOM_COLORS = ["#2563eb", "#16a34a", "#b45309", "#be123c", "#7c3aed", "#0e7490"];
+const PRINT_ROOM_SYMBOLS = ["●", "▲", "■", "◆", "✚", "✕", "★", "✦"];
 const printAccent = ri => S.printColor === "bw" ? null : PRINT_ROOM_COLORS[ri % PRINT_ROOM_COLORS.length];
+const printRoomMarker = ri => {
+  if (S.printColor === "symbols") return `<span class="print-symbol" aria-hidden="true">${PRINT_ROOM_SYMBOLS[ri % PRINT_ROOM_SYMBOLS.length]}</span>`;
+  const accent = printAccent(ri);
+  return accent ? `<span class="print-swatch" aria-hidden="true" style="background:${accent}"></span>` : "";
+};
 const PRINT_MODES = [{ key: "raster", nameKey: "viewRaster" }, { key: "tabelle", nameKey: "viewTable" }, { key: "raeume", nameKey: "viewRooms" }];
 const PRINT_AXES = [{ key: "rooms", nameKey: "roomsLabel" }, { key: "slots", nameKey: "slotsLabel" }];
 const PRINT_ORIENTATIONS = [
@@ -1944,7 +1998,7 @@ const PRINT_ORIENTATIONS = [
   { key: "portrait", nameKey: "printOrientationPortrait" },
   { key: "landscape", nameKey: "printOrientationLandscape" },
 ];
-const PRINT_COLORS = [{ key: "color", nameKey: "printColorColor" }, { key: "bw", nameKey: "printColorBw" }];
+const PRINT_COLORS = [{ key: "color", nameKey: "printColorColor" }, { key: "symbols", nameKey: "printColorSymbols" }, { key: "bw", nameKey: "printColorBw" }];
 
 function printPillsHtml(items, dataAttr, current) {
   return items.map(it =>
@@ -1964,12 +2018,12 @@ function printTabelleHtml() {
     const a = asgFor(g); const table = S.tables.find(t => t.id === a.table_id); const room = table && roomOfTable(table.id);
     const slotObj = S.slots.find(s => s.key === g.slotKey);
     const reqLabels = (g.requiredTagIds || []).map(id => S.featureTags.find(f => f.id === id)).filter(Boolean).map(f => f.label);
-    return { title: g.title, host: g.provider || "–", slotKey: g.slotKey, slotLabel: slotObj?.label || g.slotKey || "–", room: room?.name || "–", table: table?.name || "–", seats: g.seats, tag: reqLabels.join(", ") || "–" };
+    return { title: g.title, host: g.provider || "–", slotKey: g.slotKey, slotLabel: slotObj?.label || g.slotKey || "–", room: room?.name || "–", roomIndex: room ? S.rooms.indexOf(room) : -1, table: table?.name || "–", seats: g.seats, tag: reqLabels.join(", ") || "–" };
   }).sort((a, b) => S.slots.findIndex(s => s.key === a.slotKey) - S.slots.findIndex(s => s.key === b.slotKey) || a.room.localeCompare(b.room));
   return `<table class="print-table"><thead><tr>
     <th>${esc(tr("gameCol"))}</th><th>${esc(tr("printColHost"))}</th><th>${esc(tr("slotCol"))}</th><th>${esc(tr("roomCol"))}</th><th>${esc(tr("tableCol"))}</th><th>${esc(tr("seatsCol"))}</th><th>${esc(tr("printColTag"))}</th>
   </tr></thead><tbody>${rows.map(r => `<tr>
-    <td><b>${esc(r.title)}</b></td><td>${esc(r.host)}</td><td>${esc(r.slotLabel)}</td><td>${esc(r.room)}</td><td>${esc(r.table)}</td><td>${r.seats}</td><td>${esc(r.tag)}</td>
+    <td><b>${esc(r.title)}</b></td><td>${esc(r.host)}</td><td>${esc(r.slotLabel)}</td><td>${r.roomIndex >= 0 ? printRoomMarker(r.roomIndex) : ""}${esc(r.room)}</td><td>${esc(r.table)}</td><td>${r.seats}</td><td>${esc(r.tag)}</td>
   </tr>`).join("")}</tbody></table>`;
 }
 function printRaeumeHtml() {
@@ -1977,7 +2031,6 @@ function printRaeumeHtml() {
   return slotKeys.map((slotKey, si) => {
     const slotObj = S.slots.find(s => s.key === slotKey);
     const roomsHtml = S.rooms.map((room, ri) => {
-      const accent = printAccent(ri);
       const tables = S.tables.filter(t => t.room_id === room.id);
       const tablesHtml = tables.map(t => {
         const g = S.games.find(x => { const a = asgFor(x); return a && a.table_id === t.id && x.slotKey === slotKey; });
@@ -1987,7 +2040,7 @@ function printRaeumeHtml() {
           : `<div class="print-free">${esc(tr("freeLabel"))}</div>`}</div>`;
       }).join("");
       const badges = roomBadgeLabels(room).join(" · ");
-      return `<div class="print-room-block"><h3 class="print-room-head">${accent ? `<span class="print-swatch" style="background:${accent}"></span>` : ""}${esc(room.name)}</h3>${badges ? `<p class="print-room-badges">${esc(badges)}</p>` : ""}${tablesHtml}</div>`;
+      return `<div class="print-room-block"><h3 class="print-room-head">${printRoomMarker(ri)}${esc(room.name)}</h3>${badges ? `<p class="print-room-badges">${esc(badges)}</p>` : ""}${tablesHtml}</div>`;
     }).join("");
     return `<div${si > 0 ? ' style="break-before:page"' : ""}><h2 class="print-slot-head">${esc(slotObj?.label || slotKey)}</h2><div class="print-rooms-columns">${roomsHtml}</div></div>`;
   }).join("");
@@ -1995,11 +2048,10 @@ function printRaeumeHtml() {
 function printRasterHtml() {
   const rowsSrc = S.printAxis === "rooms" ? S.rooms : S.slots;
   const colsSrc = S.printAxis === "rooms" ? S.slots : S.rooms;
-  const colHeadHtml = colsSrc.map(c => `<th>${esc(S.printAxis === "rooms" ? c.label : c.name)}</th>`).join("");
+  const colHeadHtml = colsSrc.map((c, ci) => `<th>${S.printAxis === "slots" ? printRoomMarker(ci) : ""}${esc(S.printAxis === "rooms" ? c.label : c.name)}</th>`).join("");
   const bodyHtml = rowsSrc.map((rowItem, ri) => {
     const isRoomRow = S.printAxis === "rooms";
     const rowLabel = isRoomRow ? rowItem.name : rowItem.label;
-    const accent = isRoomRow ? printAccent(ri) : null;
     const cellsHtml = colsSrc.map(colItem => {
       const room = isRoomRow ? rowItem : colItem;
       const slot = isRoomRow ? colItem : rowItem;
@@ -2011,7 +2063,7 @@ function printRasterHtml() {
       }).join("");
       return `<td class="print-matrix-td">${entries}</td>`;
     }).join("");
-    return `<tr><th class="print-row-head">${accent ? `<span class="print-swatch" style="background:${accent}"></span>` : ""}${esc(rowLabel)}</th>${cellsHtml}</tr>`;
+    return `<tr><th class="print-row-head">${isRoomRow ? printRoomMarker(ri) : ""}${esc(rowLabel)}</th>${cellsHtml}</tr>`;
   }).join("");
   return `<table class="print-table"><thead><tr><th></th>${colHeadHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
 }
@@ -2101,18 +2153,50 @@ function openTagPicker(containerId, selectedIds) {
   renderTagPicker(containerId);
 }
 
+function updateRoomColorControls() {
+  const custom = document.querySelector('input[name="roomColorMode"]:checked').value === "custom";
+  const picker = document.getElementById("roomColor");
+  const chooser = document.getElementById("roomColorPicker");
+  const preview = document.getElementById("roomColorPreview");
+  picker.disabled = !custom;
+  chooser.classList.toggle("is-disabled", !custom);
+  chooser.querySelector("summary").setAttribute("aria-disabled", String(!custom));
+  if (!custom) chooser.open = false;
+  preview.style.background = picker.value;
+  document.querySelectorAll("[data-room-color]").forEach(button => {
+    button.disabled = !custom;
+    button.setAttribute("aria-pressed", String(custom && button.dataset.roomColor.toLowerCase() === picker.value.toLowerCase()));
+  });
+}
+document.querySelectorAll('input[name="roomColorMode"]').forEach(input => input.addEventListener("change", updateRoomColorControls));
+document.getElementById("roomColor").addEventListener("input", updateRoomColorControls);
+document.querySelector("#roomColorPicker summary").addEventListener("click", event => {
+  if (document.getElementById("roomColor").disabled) event.preventDefault();
+});
+document.querySelector(".room-color-palette").addEventListener("click", event => {
+  const button = event.target.closest("[data-room-color]");
+  if (!button || button.disabled) return;
+  document.getElementById("roomColor").value = button.dataset.roomColor;
+  updateRoomColorControls();
+  document.getElementById("roomColorPicker").open = false;
+});
+
 function openRoomDlg(room) {
   document.getElementById("roomId").value = room?.id || "";
   document.getElementById("roomName").value = room?.name || "";
   document.getElementById("roomFloor").value = room?.floor || "";
   document.getElementById("roomSort").value = room?.sort || 0;
   document.getElementById("roomNotes").value = room?.notes || "";
+  document.querySelector(`input[name="roomColorMode"][value="${validRoomColor(room?.color) ? "custom" : "standard"}"]`).checked = true;
+  document.getElementById("roomColor").value = validRoomColor(room?.color) ? room.color : "#5b8def";
+  updateRoomColorControls();
   openTagPicker("roomFeatures", room ? roomTagIds(room) : []);
   document.getElementById("roomDlg").showModal();
 }
 document.getElementById("roomForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const room = { id: document.getElementById("roomId").value || undefined, name: document.getElementById("roomName").value.trim(), floor: document.getElementById("roomFloor").value.trim(), sort: parseInt(document.getElementById("roomSort").value, 10) || 0, notes: document.getElementById("roomNotes").value.trim() };
+  const colorMode = document.querySelector('input[name="roomColorMode"]:checked').value;
+  const room = { id: document.getElementById("roomId").value || undefined, name: document.getElementById("roomName").value.trim(), floor: document.getElementById("roomFloor").value.trim(), sort: parseInt(document.getElementById("roomSort").value, 10) || 0, notes: document.getElementById("roomNotes").value.trim(), color: colorMode === "custom" ? document.getElementById("roomColor").value : null };
   const tagIds = [...tagPickerSelection];
   try {
     const saved = await S.store.saveRoom(room);

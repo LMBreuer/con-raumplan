@@ -196,9 +196,24 @@ function renderArtCaption() {
   el.hidden = false;
   el.innerHTML = `<a href="${esc(pick.sourceUrl)}" target="_blank" rel="noopener">${esc((theme === "ukiyo" ? "波 " : "") + pick.name)}</a>`;
 }
+
+function colorVisionAidIsOn() {
+  try { return localStorage.getItem("raumplan-color-vision-aid") === "1"; } catch { return false; }
+}
+function updateColorVisionAidAttribute() {
+  const enabled = document.documentElement.getAttribute("data-theme") === "contrast" && colorVisionAidIsOn();
+  document.documentElement.toggleAttribute("data-color-aid", enabled);
+  return enabled;
+}
+function setColorVisionAid(enabled) {
+  try { localStorage.setItem("raumplan-color-vision-aid", enabled ? "1" : "0"); } catch {}
+  updateColorVisionAidAttribute();
+  window.dispatchEvent(new CustomEvent("raumplan-theme-change", { detail: { key: document.documentElement.getAttribute("data-theme"), colorVisionAid: enabled } }));
+}
 function applyTheme(key) {
   document.documentElement.setAttribute("data-theme", key);
   try { localStorage.setItem("raumplan-theme", key); } catch {}
+  updateColorVisionAidAttribute();
   if (key === "terminal") terminalEasterEgg();
   updateCatEasterEgg();
   renderPunkZineBanner();
@@ -208,6 +223,7 @@ function applyTheme(key) {
     if (key === "solarpunk") randomizeSolarClouds(true);
     renderArtCaption();
   }
+  window.dispatchEvent(new CustomEvent("raumplan-theme-change", { detail: { key } }));
 }
 
 // Core-3 (Dunkel/Hell/Kontrastreich) bleiben flache Buttons, der Rest wandert
@@ -248,6 +264,26 @@ function closeThemeMorePopover() {
   if (popover) popover.hidden = true;
   document.querySelectorAll(".theme-more-trigger[aria-expanded='true']").forEach(t => t.setAttribute("aria-expanded", "false"));
 }
+function renderContrastAidSwitch() {
+  const slot = document.getElementById("contrastAidSwitch");
+  if (!slot) return;
+  const visible = document.documentElement.getAttribute("data-theme") === "contrast";
+  slot.hidden = !visible;
+  if (!visible) { slot.innerHTML = ""; return; }
+  const enabled = updateColorVisionAidAttribute();
+  slot.innerHTML = `<button type="button" class="contrast-aid-toggle" data-color-vision-aid role="switch" aria-checked="${String(enabled)}" aria-label="${esc(tr("colorVisionAid"))}" title="${esc(tr("colorVisionAid"))}">
+    <span class="contrast-aid-glyphs" aria-hidden="true">●▲</span><span>${esc(tr("shapesToggle"))}</span>
+  </button>`;
+  if (!slot.dataset.wired) {
+    slot.dataset.wired = "1";
+    slot.addEventListener("click", event => {
+      const toggle = event.target.closest("[data-color-vision-aid]");
+      if (!toggle) return;
+      setColorVisionAid(toggle.getAttribute("aria-checked") !== "true");
+      renderContrastAidSwitch();
+    });
+  }
+}
 function renderThemeSwitch(container) {
   const current = document.documentElement.getAttribute("data-theme") || "dark";
   if (current === "terminal") terminalEasterEgg();
@@ -257,12 +293,14 @@ function renderThemeSwitch(container) {
   const core = THEMES.filter(t => CORE_THEME_KEYS.includes(t.key));
   const specials = THEMES.filter(t => !CORE_THEME_KEYS.includes(t.key));
   const activeSpecial = specials.find(t => t.key === current);
+  const coreHtml = core.map(th => `<button type="button" data-theme-key="${th.key}" aria-pressed="${String(th.key === current)}" title="${esc(tr(th.nameKey))}" aria-label="${esc(tr(th.nameKey))}">${th.label}</button>`).join("");
+  renderContrastAidSwitch();
   container.className = "theme-switch-group";
   container.setAttribute("role", "group");
   container.setAttribute("aria-label", tr("themeSwitchLabel"));
   container.innerHTML = `
     <div class="theme-switch">
-      ${core.map(th => `<button type="button" data-theme-key="${th.key}" aria-pressed="${String(th.key === current)}" title="${esc(tr(th.nameKey))}" aria-label="${esc(tr(th.nameKey))}">${th.label}</button>`).join("")}
+      ${coreHtml}
     </div>
     <div class="theme-more-wrap">
       <button type="button" class="theme-more-trigger${activeSpecial ? " is-active" : ""}" aria-haspopup="true" aria-expanded="false" title="${esc(tr("moreThemes"))}" aria-label="${esc(tr("moreThemes"))}">
@@ -324,6 +362,7 @@ const STRINGS = {
     themeDark: "Dunkel", themeLight: "Hell", themeContrast: "Kontrastreich", themeColorful: "Playabl",
     themeTerminal: "Terminal", themeCyberpunk: "Cyberpunk", themeUkiyo: "Ukiyo-e",
     themeSolarpunk: "Solarpunk", themeGlass: "Glassmorphism", themePunk: "Punk", themeComic: "Comic", moreThemes: "Weitere Themes",
+    shapesToggle: "Formen", colorVisionAid: "Raumfarben zusätzlich mit Formen unterscheiden",
     themeSwitchLabel: "Farbschema wählen", langSwitchLabel: "Sprache wählen",
     langDe: "Deutsch", langEn: "English",
     loginRegister: "Login / Registrieren", logout: "Logout", login: "Login", register: "Registrieren", loggingIn: "Einloggen",
@@ -368,7 +407,7 @@ const STRINGS = {
     printSettingsTitle: "Druckeinstellungen", printModeLabel: "Modus", printAxisLabel: "Zeilen", printSlotLabel: "Slot",
     printDetailLabel: "Details", printOrientationLabel: "Ausrichtung", printColorLabel: "Farbe",
     printOrientationAuto: "Automatisch", printOrientationPortrait: "Hochformat", printOrientationLandscape: "Querformat",
-    printColorColor: "Farbig", printColorBw: "Schwarzweiß",
+    printColorColor: "Farbig", printColorSymbols: "Symbole", printColorBw: "Schwarzweiß",
     printBackLink: "← zurück zum Plan", printAllSlots: "Alle Slots",
     printColHost: "SL", printColTag: "Tag",
     printMetaSl: "SL: {host}", printMetaFull: "SL: {host}{tag} · {seats}p",
@@ -531,6 +570,7 @@ const STRINGS = {
     themeDark: "Dark", themeLight: "Light", themeContrast: "High contrast", themeColorful: "Playabl",
     themeTerminal: "Terminal", themeCyberpunk: "Cyberpunk", themeUkiyo: "Ukiyo-e",
     themeSolarpunk: "Solarpunk", themeGlass: "Glassmorphism", themePunk: "Punk", themeComic: "Comic", moreThemes: "More themes",
+    shapesToggle: "Shapes", colorVisionAid: "Distinguish room colours with additional shapes",
     themeSwitchLabel: "Choose color scheme", langSwitchLabel: "Choose language",
     langDe: "Deutsch", langEn: "English",
     loginRegister: "Log in / Register", logout: "Log out", login: "Log in", register: "Register", loggingIn: "Log in",
@@ -574,7 +614,7 @@ const STRINGS = {
     printSettingsTitle: "Print settings", printModeLabel: "Mode", printAxisLabel: "Rows", printSlotLabel: "Slot",
     printDetailLabel: "Details", printOrientationLabel: "Orientation", printColorLabel: "Color",
     printOrientationAuto: "Automatic", printOrientationPortrait: "Portrait", printOrientationLandscape: "Landscape",
-    printColorColor: "Color", printColorBw: "Black & white",
+    printColorColor: "Color", printColorSymbols: "Symbols", printColorBw: "Black & white",
     printBackLink: "← back to plan", printAllSlots: "All slots",
     printColHost: "Host", printColTag: "Tag",
     printMetaSl: "Host: {host}", printMetaFull: "Host: {host}{tag} · {seats}p",
@@ -751,6 +791,12 @@ function applyLang(key) {
   LANG = key;
   Prefs.set("lang", key);
   translateStaticDom();
+  // Die Header-Controls enthalten ihre Texte als dynamisch erzeugtes Markup.
+  // Nach einem Sprachwechsel deshalb einmal neu zeichnen, damit auch der
+  // Kontrast-Schalter ("Formen" / "Shapes") sofort die richtige Sprache hat.
+  document.querySelectorAll(".lang-switch-flat").forEach(renderLangSwitch);
+  document.querySelectorAll(".theme-switch-group").forEach(renderThemeSwitch);
+  renderContrastAidSwitch();
   (window.__authUIRefreshers || []).forEach(fn => fn());
   if (typeof gamesFromDb === "function") gamesFromDb();
   if (typeof renderDetailSwitch === "function") renderDetailSwitch();
@@ -765,12 +811,14 @@ function renderLangSwitch(container) {
   container.innerHTML = LANGS.map(l =>
     `<button type="button" data-lang-key="${l.key}" aria-pressed="${String(l.key === LANG)}" title="${esc(tr("lang" + (l.key === "de" ? "De" : "En")))}" aria-label="${esc(tr("lang" + (l.key === "de" ? "De" : "En")))}">${l.label}</button>`
   ).join("");
-  container.addEventListener("click", e => {
-    const btn = e.target.closest("button[data-lang-key]");
-    if (!btn) return;
-    applyLang(btn.dataset.langKey);
-    container.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
-  });
+  if (!container.dataset.wired) {
+    container.dataset.wired = "1";
+    container.addEventListener("click", e => {
+      const btn = e.target.closest("button[data-lang-key]");
+      if (!btn) return;
+      applyLang(btn.dataset.langKey);
+    });
+  }
 }
 
 /* ---------- Supabase REST/RPC ---------- */
