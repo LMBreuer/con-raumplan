@@ -349,6 +349,7 @@ function configureIndexTour() {
             target: () => document.querySelector("#nextConCard a") || document.querySelector("#conList a.btn") || document.querySelector(".con-directory"),
             titleKey: "tourPublicChooseTitle", bodyKey: "tourPublicChooseBody",
             waitForNavigation: () => !!(document.querySelector("#nextConCard a") || document.querySelector("#conList a.btn")),
+            onNext: () => (document.querySelector("#nextConCard a") || document.querySelector("#conList a.btn"))?.click(),
           },
         ],
       },

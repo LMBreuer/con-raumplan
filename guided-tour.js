@@ -27,8 +27,20 @@
   const waitsForNavigation = step => typeof step?.waitForNavigation === "function"
     ? !!step.waitForNavigation()
     : !!step?.waitForNavigation;
-  const nextPaint = () => new Promise(resolve =>
-    requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const nextPaint = () => new Promise(resolve => {
+    let finished = false;
+    const finish = () => {
+      if (!finished) {
+        finished = true;
+        resolve();
+      }
+    };
+    const fallback = window.setTimeout(finish, 180);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      window.clearTimeout(fallback);
+      finish();
+    }));
+  });
 
   function safeSessionGet() {
     try { return JSON.parse(sessionStorage.getItem(ACTIVE_KEY) || "null"); }
@@ -152,8 +164,12 @@
       if (!active || event.target.matches("input, textarea, select")) return;
       if (event.key === "Escape") { event.preventDefault(); stop("dismissed"); }
       else if (event.key === "ArrowLeft") { event.preventDefault(); previous(); }
-      else if (event.key === "ArrowRight" && !waitsForNavigation(active.steps[active.index])) {
-        event.preventDefault(); next();
+      else if (event.key === "ArrowRight") {
+        const step = active.steps[active.index];
+        if (!waitsForNavigation(step) || typeof step.onNext === "function") {
+          event.preventDefault();
+          next();
+        }
       }
     });
     document.addEventListener("click", event => {
@@ -404,8 +420,8 @@
     back.textContent = text("tourBack");
     back.disabled = active.index === 0;
     const nextButton = layer.querySelector(".guided-tour-next");
-    nextButton.hidden = waiting;
-    nextButton.textContent = active.index === count - 1 ? text("tourFinish") : text("tourNext");
+    nextButton.hidden = waiting && typeof step.onNext !== "function";
+    nextButton.textContent = waiting || active.index < count - 1 ? text("tourNext") : text("tourFinish");
   }
 
   function schedulePosition() {
@@ -465,7 +481,12 @@
     back.disabled = true;
     nextButton.disabled = true;
     try {
-      await showStep(active.index + direction, direction);
+      const step = active.steps[active.index];
+      if (direction > 0 && waitsForNavigation(step) && typeof step.onNext === "function") {
+        await step.onNext();
+      } else {
+        await showStep(active.index + direction, direction);
+      }
     } finally {
       transitioning = false;
       if (active) {

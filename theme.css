@@ -1900,7 +1900,7 @@ summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 700; padding: v
 .print-free { font-size: .76rem; color: #999; font-style: italic; }
 
 /* ============================================================
-   Claude-Design-Fidelity-Layer
+   Design-Fidelity-Layer
    Die Export-Datei arbeitet mit einer 1400px breiten Bühne, 32px
    Seitenabstand und einer durchgehenden Kopfzeile. Diese Regeln bilden
    genau diese Geometrie nach; die bisherigen 1180px-Container waren der

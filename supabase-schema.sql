@@ -1,12 +1,8 @@
 -- ============================================================
--- Con-Raumplan v3: Mandantenfähiges Schema mit Rollen
--- Einspielen (NEUES Projekt): Supabase-Dashboard → SQL Editor → einfügen → Run.
--- Safe erneut auszuführen (idempotent).
---
--- Für ein BESTEHENDES Projekt, auf dem schon die v2-Version läuft:
--- NICHT diese Datei erneut ausführen (der TRUNCATE-Block würde eure
--- echten Daten löschen) — stattdessen nur supabase-migration-v3-roles.sql
--- einspielen, die ist additiv und nicht destruktiv.
+-- Con-Raumplan: vollständiges, mandantenfähiges Schema
+-- Supabase-Dashboard → SQL Editor → vollständig einfügen → Run.
+-- Für neue und bestehende aktuelle Installationen geeignet:
+-- Das Skript löscht keine Anwendungsdaten und kann erneut ausgeführt werden.
 -- ============================================================
 
 -- ---------- Bestehende Tabellen (falls schon vorhanden) ----------
@@ -17,7 +13,8 @@ create table if not exists rooms (
   features jsonb not null default '{}',
   notes text,
   sort int not null default 0,
-  marker text check (marker is null or marker in ('circle', 'triangle', 'square', 'diamond', 'plus', 'cross', 'hexagon', 'star', 'sparkle', 'sun', 'moon', 'cloud', 'flower', 'tree', 'heart', 'flag', 'key', 'book', 'music', 'bulb', 'letter', 'dice', 'invader', 'wc', 'kitchen', 'door', 'coat', 'toy'))
+  color text,
+  marker text
 );
 
 create table if not exists tables (
@@ -130,11 +127,37 @@ create table if not exists games (
   updated_at timestamptz not null default now()
 );
 
--- ============================================================
--- TESTDATEN VERWERFEN — nur bei einer frischen/absichtlich zurückgesetzten
--- Datenbank ausführen. Auf einem bestehenden v2-Projekt NICHT ausführen!
--- ============================================================
-truncate table assignments, tables, rooms, requests;
+-- ---------- Bestehende Installationen auf den aktuellen Stand bringen ----------
+alter table cons add column if not exists listed boolean not null default true;
+
+alter table con_members add column if not exists role text;
+alter table con_members add column if not exists status text;
+update con_members set role = coalesce(role, 'admin'), status = coalesce(status, 'accepted');
+alter table con_members alter column role set default 'editor';
+alter table con_members alter column status set default 'pending';
+alter table con_members alter column role set not null;
+alter table con_members alter column status set not null;
+alter table con_members drop constraint if exists con_members_role_check;
+alter table con_members add constraint con_members_role_check check (role in ('admin','editor'));
+alter table con_members drop constraint if exists con_members_status_check;
+alter table con_members add constraint con_members_status_check check (status in ('pending','accepted'));
+
+alter table rooms add column if not exists color text;
+alter table rooms drop constraint if exists rooms_color_hex_check;
+alter table rooms add constraint rooms_color_hex_check
+  check (color is null or color ~ '^#[0-9A-Fa-f]{6}$');
+comment on column rooms.color is
+  'Optional six-digit room base colour, e.g. #4F86F7.';
+
+alter table rooms drop constraint if exists rooms_color_mode_check;
+alter table rooms drop column if exists color_mode;
+
+alter table rooms add column if not exists marker text;
+alter table rooms drop constraint if exists rooms_marker_check;
+alter table rooms add constraint rooms_marker_check
+  check (marker is null or marker in ('circle', 'triangle', 'square', 'diamond', 'plus', 'cross', 'hexagon', 'star', 'sparkle', 'sun', 'moon', 'cloud', 'flower', 'tree', 'heart', 'flag', 'key', 'book', 'music', 'bulb', 'letter', 'dice', 'invader', 'wc', 'kitchen', 'door', 'coat', 'toy'));
+comment on column rooms.marker is
+  'Optional fixed symbol for the contrast colour-vision aid; NULL uses the automatic room-order symbol.';
 
 -- ---------- con_id-Spalten hinzufügen ----------
 alter table rooms       add column if not exists con_id uuid references cons(id) on delete cascade;
@@ -444,19 +467,46 @@ $$;
 revoke all on function public.ensure_slots_for_days(uuid, date[]) from public;
 grant execute on function public.ensure_slots_for_days(uuid, date[]) to authenticated;
 
--- ---------- Grants (explizit, unabhängig von Projekt-Defaults) ----------
-grant select on cons to anon, authenticated;
-grant insert, update on cons to authenticated;
-grant select, insert, update, delete on con_members to authenticated;
-grant select on slot_buckets, slots to anon, authenticated;
-grant insert, update, delete on slot_buckets, slots to authenticated;
-grant select on feature_tags to anon, authenticated;
-grant select on room_feature_tags to anon, authenticated;
-grant insert, delete on room_feature_tags to authenticated;
-grant select on games to anon, authenticated;
-grant insert, update, delete on games to authenticated;
-grant select on game_required_tags to anon, authenticated;
-grant insert, delete on game_required_tags to authenticated;
+-- ---------- Grants (Least Privilege, unabhängig von Projekt-Defaults) ----------
+-- Supabase-Projekte können über Default Privileges bereits weiter gehende
+-- Rechte besitzen. Deshalb zuerst alles für die API-Rollen entziehen und
+-- anschließend nur die tatsächlich benötigten Operationen freigeben.
+revoke all on table
+  public.cons, public.con_members, public.rooms, public.tables,
+  public.assignments, public.requests, public.slot_buckets, public.slots,
+  public.feature_tags, public.room_feature_tags, public.games,
+  public.game_required_tags, public.superadmins
+from public, anon, authenticated;
+
+grant select on table
+  public.cons, public.rooms, public.tables, public.assignments,
+  public.slot_buckets, public.slots, public.feature_tags,
+  public.room_feature_tags, public.games, public.game_required_tags
+to anon, authenticated;
+
+grant insert on table public.requests to anon, authenticated;
+
+grant insert, update, delete on table public.cons to authenticated;
+grant select, insert, update, delete on table
+  public.con_members, public.rooms, public.tables, public.assignments,
+  public.requests, public.slot_buckets, public.slots, public.games
+to authenticated;
+grant insert, delete on table
+  public.room_feature_tags, public.game_required_tags
+to authenticated;
+
+-- Die RPCs arbeiten mit auth.uid() und sind ausschließlich für echte
+-- Supabase-Sitzungen bestimmt. Explizites REVOKE ergänzt das REVOKE von
+-- PUBLIC an den Definitionen und bereinigt auch ältere Live-Installationen.
+revoke execute on function public.is_superadmin() from anon;
+revoke execute on function public.is_con_member(uuid) from anon;
+revoke execute on function public.is_con_admin(uuid) from anon;
+revoke execute on function public.invite_member_to_con(uuid, text, text) from anon;
+revoke execute on function public.accept_invite(uuid) from anon;
+revoke execute on function public.decline_invite(uuid) from anon;
+revoke execute on function public.list_my_invites() from anon;
+revoke execute on function public.list_con_members(uuid) from anon;
+revoke execute on function public.ensure_slots_for_days(uuid, date[]) from anon;
 
 -- ---------- Policies: cons ----------
 drop policy if exists "public read cons" on cons;
@@ -488,8 +538,8 @@ create policy "admins or self remove" on con_members for delete to authenticated
   using (is_con_admin(con_id) or user_id = auth.uid());
 drop policy if exists "admins update roles" on con_members;
 create policy "admins update roles" on con_members for update to authenticated
-  using (is_con_admin(con_id) or user_id = auth.uid())
-  with check (is_con_admin(con_id) or user_id = auth.uid());
+  using (is_con_admin(con_id))
+  with check (is_con_admin(con_id));
 
 -- ---------- Policies: rooms / tables / assignments ----------
 drop policy if exists "public read rooms" on rooms;
@@ -515,7 +565,7 @@ create policy "members write assignments" on assignments for all to authenticate
 
 -- ---------- Policies: requests (kein anonymes Lesen — nur einreichen) ----------
 drop policy if exists "anon insert requests" on requests;
-create policy "anon insert requests" on requests for insert
+create policy "anon insert requests" on requests for insert to anon, authenticated
   with check (status = 'offen' and orga_notiz is null and char_length(message) between 10 and 2000);
 drop policy if exists "orga read requests" on requests;
 drop policy if exists "public read requests" on requests;
