@@ -122,10 +122,10 @@
           <label for="roomColorHex"><span data-i18n="roomColorHex">Hex-Code</span><input type="text" id="roomColorHex" value="#5B8DEF" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text"></label>
         </div>
         <div class="room-color-palette" id="roomColorPalette" role="group" data-i18n-aria-label="roomColorPaletteAria">
-          <section><h3 data-i18n="roomColorCool">Kühle Farben</h3><div class="room-color-row"><button type="button" data-room-color="#2563eb" aria-label="Königsblau"></button><button type="button" data-room-color="#0ea5e9" aria-label="Himmelblau"></button><button type="button" data-room-color="#0891b2" aria-label="Türkis"></button><button type="button" data-room-color="#0f766e" aria-label="Petrol"></button></div></section>
-          <section><h3 data-i18n="roomColorNature">Grün &amp; Gelb</h3><div class="room-color-row"><button type="button" data-room-color="#16a34a" aria-label="Grün"></button><button type="button" data-room-color="#65a30d" aria-label="Lindgrün"></button><button type="button" data-room-color="#ca8a04" aria-label="Gold"></button><button type="button" data-room-color="#ea580c" aria-label="Orange"></button></div></section>
-          <section><h3 data-i18n="roomColorWarm">Warme Farben</h3><div class="room-color-row"><button type="button" data-room-color="#dc2626" aria-label="Rot"></button><button type="button" data-room-color="#e11d48" aria-label="Himbeerrot"></button><button type="button" data-room-color="#db2777" aria-label="Pink"></button><button type="button" data-room-color="#c2410c" aria-label="Terrakotta"></button></div></section>
-          <section><h3 data-i18n="roomColorViolet">Violett &amp; Neutral</h3><div class="room-color-row"><button type="button" data-room-color="#7c3aed" aria-label="Violett"></button><button type="button" data-room-color="#9333ea" aria-label="Lila"></button><button type="button" data-room-color="#4f46e5" aria-label="Indigo"></button><button type="button" data-room-color="#64748b" aria-label="Schiefergrau"></button></div></section>
+          <section><h3 data-i18n="roomColorDistinct">Gut unterscheidbar</h3><div class="room-color-row"><button type="button" data-room-color="#0072b2" data-i18n-aria-label="paletteOceanBlue"></button><button type="button" data-room-color="#56b4e9" data-i18n-aria-label="paletteSkyBlue"></button><button type="button" data-room-color="#009e73" data-i18n-aria-label="paletteTeal"></button><button type="button" data-room-color="#e69f00" data-i18n-aria-label="paletteOrange"></button><button type="button" data-room-color="#d55e00" data-i18n-aria-label="paletteVermilion"></button><button type="button" data-room-color="#cc79a7" data-i18n-aria-label="palettePlum"></button></div></section>
+          <section><h3 data-i18n="roomColorBold">Kräftige Akzente</h3><div class="room-color-row"><button type="button" data-room-color="#dc2626" data-i18n-aria-label="paletteRed"></button><button type="button" data-room-color="#ea580c" data-i18n-aria-label="paletteTangerine"></button><button type="button" data-room-color="#ca8a04" data-i18n-aria-label="paletteGold"></button><button type="button" data-room-color="#16a34a" data-i18n-aria-label="paletteGreen"></button><button type="button" data-room-color="#0ea5e9" data-i18n-aria-label="paletteAzure"></button><button type="button" data-room-color="#7c3aed" data-i18n-aria-label="palettePurple"></button></div></section>
+          <section><h3 data-i18n="roomColorMuted">Ruhige Farben</h3><div class="room-color-row"><button type="button" data-room-color="#5271a9" data-i18n-aria-label="paletteMutedBlue"></button><button type="button" data-room-color="#4f8a7a" data-i18n-aria-label="paletteMutedTeal"></button><button type="button" data-room-color="#a26f4e" data-i18n-aria-label="paletteMutedTerracotta"></button><button type="button" data-room-color="#a06a8b" data-i18n-aria-label="paletteMutedRose"></button><button type="button" data-room-color="#73815f" data-i18n-aria-label="paletteMutedOlive"></button><button type="button" data-room-color="#7b728e" data-i18n-aria-label="paletteMutedLilac"></button></div></section>
+          <section><h3 data-i18n="roomColorSubtle">Zurückhaltende Töne</h3><div class="room-color-row"><button type="button" data-room-color="#64748b" data-i18n-aria-label="paletteSlate"></button><button type="button" data-room-color="#78716c" data-i18n-aria-label="paletteWarmGrey"></button><button type="button" data-room-color="#a16207" data-i18n-aria-label="paletteSand"></button><button type="button" data-room-color="#667085" data-i18n-aria-label="paletteMoss"></button><button type="button" data-room-color="#8b6f47" data-i18n-aria-label="paletteBrown"></button><button type="button" data-room-color="#475569" data-i18n-aria-label="paletteCharcoal"></button></div></section>
         </div>
       </div>
     </fieldset>
@@ -492,6 +492,18 @@ const ROOM_ACCENTS = ["var(--accent)", "var(--good)", "var(--warn)", "var(--text
 // the contrast theme's white surface, while shapes provide the second cue.
 const ROOM_ACCENTS_HIGH_CONTRAST = ["#005a9c", "#9a4f00", "#006b54", "#7a2d8e", "#b33c00", "#006f88", "#706000", "#4a4a4a"];
 const validRoomColor = color => /^#[0-9a-f]{6}$/i.test(color || "");
+function automaticRoomBaseColor(room) {
+  const index = room ? S.rooms.indexOf(room) : S.rooms.length;
+  return ROOM_ACCENTS[Math.max(0, index) % ROOM_ACCENTS.length];
+}
+function automaticRoomColorHex(room) {
+  const probe = document.createElement("span");
+  probe.style.cssText = `position:fixed;visibility:hidden;color:${automaticRoomBaseColor(room)}`;
+  document.body.appendChild(probe);
+  const channels = getComputedStyle(probe).color.match(/\d+/g)?.map(Number) || [];
+  probe.remove();
+  return channels.length >= 3 ? `#${channels.slice(0, 3).map(value => value.toString(16).padStart(2, "0")).join("")}` : "#5b8def";
+}
 const colorVisionAidEnabled = () => document.documentElement.hasAttribute("data-color-aid");
 const roomMarkerClass = room => colorVisionAidEnabled() ? ` room-marker-pattern-${Math.max(0, S.rooms.indexOf(room)) % ROOM_ACCENTS_HIGH_CONTRAST.length}` : "";
 const roomAccentVar = room => {
@@ -2233,7 +2245,9 @@ function openRoomDlg(room) {
   document.getElementById("roomSort").value = room?.sort || 0;
   document.getElementById("roomNotes").value = room?.notes || "";
   document.querySelector(`input[name="roomColorMode"][value="${validRoomColor(room?.color) ? "custom" : "standard"}"]`).checked = true;
-  document.getElementById("roomColor").value = validRoomColor(room?.color) ? room.color : "#5b8def";
+  // Beim ersten Wechsel zu einer eigenen Farbe startet der Picker mit genau
+  // jener automatischen Grundfarbe, die dieser Raum aktuell verwenden würde.
+  document.getElementById("roomColor").value = validRoomColor(room?.color) ? room.color : automaticRoomColorHex(room);
   updateRoomColorControls();
   openTagPicker("roomFeatures", room ? roomTagIds(room) : []);
   document.getElementById("roomDlg").showModal();
