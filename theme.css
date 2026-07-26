@@ -1199,6 +1199,143 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
 .room-more[open] summary::before { content: "▾ "; }
 .room-more .room-notes { font-size: var(--fs-xs); color: var(--text-secondary); margin-top: var(--sp-1); }
 
+/* ============================================================
+   Guided Tour: bewusst außerhalb des vollen Headers. Der einmalige
+   Teaser und die Tourkarte nutzen dieselben Theme-Variablen wie die App,
+   bleiben aber klein genug, um die echte Oberfläche sichtbar zu lassen.
+   ============================================================ */
+.tour-footer-link {
+  appearance: none; margin: 0; padding: 0; border: 0; background: none;
+  color: inherit; font: inherit; text-decoration: underline;
+  text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer;
+}
+.tour-footer-link:hover { color: var(--accent); }
+.guided-tour-chooser {
+  width: min(520px, calc(100vw - 28px)); padding: var(--sp-5);
+  border: var(--chrome-border-w) solid var(--border); border-radius: var(--r-xl);
+  background: var(--surface-1); color: var(--text-primary);
+  box-shadow: var(--chrome-shadow), 0 28px 80px -30px rgba(0,0,0,.7);
+}
+.guided-tour-chooser::backdrop { background: rgba(5,8,12,.56); backdrop-filter: blur(3px); }
+.guided-tour-chooser-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
+.guided-tour-chooser h2 { margin: 3px 0 0; font: 800 var(--fs-xl)/1.12 var(--font-display); }
+.guided-tour-kicker {
+  display: block; color: var(--accent); font: 800 .68rem/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: .12em; text-transform: uppercase;
+}
+.guided-tour-chooser-intro { margin: var(--sp-3) 0 var(--sp-4); color: var(--text-secondary); font-size: var(--fs-sm); line-height: 1.55; }
+.guided-tour-choices { display: grid; gap: var(--sp-2); }
+.guided-tour-choice {
+  display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: var(--sp-3);
+  width: 100%; padding: var(--sp-3); border: var(--border-w) solid var(--border);
+  border-radius: var(--r-lg); background: var(--surface-2); color: var(--text-primary);
+  text-align: left; cursor: pointer;
+}
+.guided-tour-choice:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow-card); }
+.guided-tour-choice-icon {
+  display: grid; place-items: center; width: 42px; height: 42px;
+  border-radius: var(--r-md); background: var(--accent-soft); color: var(--accent);
+  font-size: 1.25rem; font-weight: 900;
+}
+.guided-tour-choice strong, .guided-tour-choice small { display: block; }
+.guided-tour-choice strong { margin-bottom: 3px; font-size: var(--fs-sm); }
+.guided-tour-choice small { color: var(--text-secondary); font-size: var(--fs-xs); line-height: 1.4; }
+.guided-tour-choice-state { color: var(--accent); font-size: var(--fs-xs); font-weight: 800; }
+.guided-tour-chooser-foot {
+  display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-4);
+  padding-top: var(--sp-3); border-top: var(--border-w) solid var(--grid);
+}
+.guided-tour-reset-status { color: var(--good); font-size: var(--fs-xs); }
+.guided-tour-teaser,
+.guided-tour-followup {
+  position: fixed; z-index: 10010; right: 20px; bottom: 20px;
+  width: min(350px, calc(100vw - 32px)); padding: var(--sp-4);
+  border: var(--chrome-border-w) solid var(--border); border-radius: var(--r-xl);
+  background:
+    radial-gradient(circle at 100% 0, var(--accent-soft), transparent 48%),
+    var(--surface-1);
+  color: var(--text-primary); box-shadow: var(--chrome-shadow), 0 22px 58px -26px rgba(0,0,0,.72);
+  opacity: 0; transform: translateY(12px) scale(.98);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.guided-tour-teaser.is-visible,
+.guided-tour-followup.is-visible { opacity: 1; transform: none; }
+.guided-tour-teaser-close,
+.guided-tour-followup-close { position: absolute; top: var(--sp-2); right: var(--sp-2); }
+.guided-tour-teaser h2,
+.guided-tour-followup h2 { margin: 7px 30px 4px 0; font: 800 var(--fs-lg)/1.15 var(--font-display); }
+.guided-tour-followup h2:focus { outline: none; }
+.guided-tour-teaser p,
+.guided-tour-followup p { margin: 0; color: var(--text-secondary); font-size: var(--fs-sm); line-height: 1.5; }
+.guided-tour-teaser-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-3); }
+.guided-tour-layer { position: fixed; inset: 0; z-index: 10030; pointer-events: none; }
+.guided-tour-spotlight {
+  position: fixed; border: 3px solid var(--accent); border-radius: calc(var(--r-lg) + 3px);
+  box-shadow: 0 0 0 9999px rgba(3,7,12,.64), 0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent);
+  transition: left .2s ease, top .2s ease, width .2s ease, height .2s ease;
+}
+.guided-tour-card {
+  position: fixed; width: min(390px, calc(100vw - 24px)); padding: var(--sp-4);
+  border: var(--chrome-border-w) solid var(--border); border-radius: var(--r-xl);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-1) 94%, var(--accent) 6%), var(--surface-1));
+  color: var(--text-primary); box-shadow: var(--chrome-shadow), 0 24px 68px -26px rgba(0,0,0,.78);
+  pointer-events: auto;
+}
+.guided-tour-card.is-centered { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.guided-tour-card-top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.guided-tour-progress-copy { color: var(--text-muted); font-size: var(--fs-xs); font-weight: 700; }
+.guided-tour-progress {
+  height: 4px; margin: 7px 0 var(--sp-4); overflow: hidden;
+  border-radius: var(--r-pill); background: var(--surface-3);
+}
+.guided-tour-progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .2s ease; }
+.guided-tour-card h2 { margin: 7px 0 var(--sp-2); font: 800 var(--fs-xl)/1.12 var(--font-display); }
+.guided-tour-card h2:focus { outline: none; }
+.guided-tour-card #guidedTourBody { margin: 0; color: var(--text-secondary); font-size: var(--fs-sm); line-height: 1.58; }
+.guided-tour-card.is-waiting { pointer-events: none; }
+.guided-tour-card.is-waiting button { pointer-events: auto; }
+.guided-tour-interaction {
+  margin: var(--sp-3) 0 0; padding: var(--sp-2) var(--sp-3);
+  border-left: 3px solid var(--accent); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--accent-soft); color: var(--text-primary); font-size: var(--fs-xs); font-weight: 700;
+}
+.guided-tour-actions { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-4); }
+.guided-tour-action-spacer { flex: 1; }
+.guided-tour-actions button { min-height: 34px; }
+.guided-tour-complete-toast {
+  position: fixed; z-index: 10040; left: 50%; bottom: 22px; transform: translate(-50%, 10px);
+  padding: 10px 16px; border: var(--border-w) solid var(--border); border-radius: var(--r-pill);
+  background: var(--surface-1); color: var(--text-primary); box-shadow: var(--chrome-shadow);
+  font-size: var(--fs-sm); font-weight: 800; opacity: 0; transition: .18s ease;
+}
+.guided-tour-complete-toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+:root[data-theme="contrast"] .guided-tour-spotlight { border-width: 4px; box-shadow: 0 0 0 9999px rgba(255,255,255,.82), 0 0 0 8px #000; }
+:root[data-theme="contrast"] .guided-tour-card,
+:root[data-theme="contrast"] .guided-tour-teaser,
+:root[data-theme="contrast"] .guided-tour-followup,
+:root[data-theme="contrast"] .guided-tour-chooser { border-width: 3px; box-shadow: 8px 8px 0 #000; }
+:root[data-theme="terminal"] .guided-tour-card,
+:root[data-theme="terminal"] .guided-tour-teaser,
+:root[data-theme="terminal"] .guided-tour-followup,
+:root[data-theme="terminal"] .guided-tour-chooser { border-radius: 2px; }
+:root[data-theme="punk"] .guided-tour-teaser,
+:root[data-theme="punk"] .guided-tour-followup,
+:root[data-theme="punk"] .guided-tour-chooser { transform: rotate(-.35deg); }
+:root[data-theme="punk"] .guided-tour-card:not(.is-centered) { transform: rotate(-.35deg); }
+@media (max-width: 640px) {
+  .guided-tour-teaser, .guided-tour-followup { right: 12px; bottom: 12px; }
+  .guided-tour-card { left: 12px !important; width: calc(100vw - 24px); max-height: min(430px, calc(100vh - 24px)); overflow: auto; }
+  .guided-tour-card.is-centered { right: 12px; transform: translateY(-50%); }
+  .guided-tour-choice { grid-template-columns: 36px 1fr; }
+  .guided-tour-choice-icon { width: 36px; height: 36px; }
+  .guided-tour-choice-state { grid-column: 2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guided-tour-teaser, .guided-tour-followup, .guided-tour-spotlight, .guided-tour-progress span,
+  .guided-tour-complete-toast, .guided-tour-choice { transition: none; }
+}
+
 /* 1:1 aus der Vorlage (manageRows/manageRowStyle): Räume verwalten startet
    als flache, scanbare Liste statt immer ausgeklappter Tisch-Karten. */
 .room-row {
@@ -2022,7 +2159,10 @@ dialog {
   font-size: .78rem;
   line-height: normal;
 }
-.landing-page .credits { display: none; }
+.landing-page .credits {
+  display: flex;
+  padding-bottom: var(--sp-2);
+}
 
 /* Plan: Titel und öffentliche Chrome entsprechen der flachen Referenz,
    statt als zusätzliche Bento-Karten oberhalb des eigentlichen Inhalts. */
