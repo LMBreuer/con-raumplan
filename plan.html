@@ -104,24 +104,30 @@
       <div class="frow"><label for="roomFloor" data-i18n="floorLocation">Stock / Lage</label><input type="text" id="roomFloor" maxlength="40" placeholder="z.B. EG, 1. Stock links" data-i18n-placeholder="floorLocationPlaceholder"></div>
       <div class="frow"><label for="roomSort" data-i18n="sortOrder100">Reihenfolge (1–100)</label><input type="number" id="roomSort" min="0" max="100" value="0"></div>
     </div>
-    <fieldset class="room-color-field"><legend>Raumfarbe</legend>
-      <div class="room-color-modes" role="radiogroup" aria-label="Farbmodus für den Raum">
-        <label class="toggle-row"><input type="radio" name="roomColorMode" value="standard" checked aria-controls="roomColor roomColorPalette"> Automatische Standardfarbe verwenden</label>
-        <label class="toggle-row"><input type="radio" name="roomColorMode" value="custom" aria-controls="roomColor roomColorPalette"> Eigene Grundfarbe wählen</label>
-        <button type="button" class="icon-btn info-tip-trigger" aria-label="Hinweis zu Raumfarben" data-info-text="Eigene Farben bleiben als Grundton erhalten. Spezial-Themes passen sie für Stil und Lesbarkeit an. Im Kontrastmodus kann zusätzlich eine persönliche Musterhilfe aktiviert werden.">i</button>
+    <fieldset class="room-color-field"><legend data-i18n="roomColorLabel">Raumfarbe</legend>
+      <div class="room-color-modes" role="radiogroup" data-i18n-aria-label="roomColorModeAria">
+        <label class="toggle-row"><input type="radio" name="roomColorMode" value="standard" checked aria-controls="roomColorTrigger"> <span data-i18n="roomColorAuto">Automatische Standardfarbe verwenden</span></label>
+        <div class="room-custom-choice">
+          <label class="toggle-row"><input type="radio" name="roomColorMode" value="custom" aria-controls="roomColorTrigger"> <span data-i18n="roomColorCustom">Eigene Grundfarbe wählen</span></label>
+          <button type="button" class="room-color-trigger" id="roomColorTrigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="roomColorPopover">
+            <span class="room-color-preview" id="roomColorPreview" aria-hidden="true"></span><span class="room-color-current" id="roomColorCurrentHex">#5B8DEF</span>
+          </button>
+        </div>
+        <button type="button" class="icon-btn info-tip-trigger" data-i18n-aria-label="roomColorHintAria" data-info-i18n="roomColorHint">i</button>
       </div>
-      <details class="room-color-picker" id="roomColorPicker">
-        <summary><span class="room-color-preview" id="roomColorPreview" aria-hidden="true"></span><span>Farbe auswählen</span></summary>
-        <div class="room-color-controls">
-        <label class="native-color-picker" for="roomColor"><span class="sr-only">Frei wählbare Farbe</span><input type="color" id="roomColor" value="#5b8def"></label>
-        <div class="room-color-palette" id="roomColorPalette" role="group" aria-label="Farbpalette für den Raum">
-          <div class="room-color-row" role="group" aria-label="Kühle Farben"><button type="button" data-room-color="#2563eb" aria-label="Königsblau"></button><button type="button" data-room-color="#0ea5e9" aria-label="Himmelblau"></button><button type="button" data-room-color="#0891b2" aria-label="Türkis"></button><button type="button" data-room-color="#0f766e" aria-label="Petrol"></button></div>
-          <div class="room-color-row" role="group" aria-label="Grüne und gelbe Farben"><button type="button" data-room-color="#16a34a" aria-label="Grün"></button><button type="button" data-room-color="#65a30d" aria-label="Lindgrün"></button><button type="button" data-room-color="#ca8a04" aria-label="Gold"></button><button type="button" data-room-color="#ea580c" aria-label="Orange"></button></div>
-          <div class="room-color-row" role="group" aria-label="Warme Farben"><button type="button" data-room-color="#dc2626" aria-label="Rot"></button><button type="button" data-room-color="#e11d48" aria-label="Himbeerrot"></button><button type="button" data-room-color="#db2777" aria-label="Pink"></button><button type="button" data-room-color="#c2410c" aria-label="Terrakotta"></button></div>
-          <div class="room-color-row" role="group" aria-label="Violette und neutrale Farben"><button type="button" data-room-color="#7c3aed" aria-label="Violett"></button><button type="button" data-room-color="#9333ea" aria-label="Lila"></button><button type="button" data-room-color="#4f46e5" aria-label="Indigo"></button><button type="button" data-room-color="#64748b" aria-label="Schiefergrau"></button></div>
+      <div class="room-color-popover" id="roomColorPopover" role="dialog" aria-modal="false" data-i18n-aria-label="roomColorDialog" hidden>
+        <div class="room-color-popover-head"><strong data-i18n="roomColorDialog">Eigene Grundfarbe</strong><button type="button" class="icon-btn" id="roomColorClose" data-i18n-aria-label="closeColorPicker">×</button></div>
+        <div class="room-color-manual">
+          <label class="native-color-picker" for="roomColor"><span data-i18n="roomColorFree">Frei wählen</span><input type="color" id="roomColor" value="#5b8def"></label>
+          <label for="roomColorHex"><span data-i18n="roomColorHex">Hex-Code</span><input type="text" id="roomColorHex" value="#5B8DEF" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text"></label>
         </div>
+        <div class="room-color-palette" id="roomColorPalette" role="group" data-i18n-aria-label="roomColorPaletteAria">
+          <section><h3 data-i18n="roomColorCool">Kühle Farben</h3><div class="room-color-row"><button type="button" data-room-color="#2563eb" aria-label="Königsblau"></button><button type="button" data-room-color="#0ea5e9" aria-label="Himmelblau"></button><button type="button" data-room-color="#0891b2" aria-label="Türkis"></button><button type="button" data-room-color="#0f766e" aria-label="Petrol"></button></div></section>
+          <section><h3 data-i18n="roomColorNature">Grün &amp; Gelb</h3><div class="room-color-row"><button type="button" data-room-color="#16a34a" aria-label="Grün"></button><button type="button" data-room-color="#65a30d" aria-label="Lindgrün"></button><button type="button" data-room-color="#ca8a04" aria-label="Gold"></button><button type="button" data-room-color="#ea580c" aria-label="Orange"></button></div></section>
+          <section><h3 data-i18n="roomColorWarm">Warme Farben</h3><div class="room-color-row"><button type="button" data-room-color="#dc2626" aria-label="Rot"></button><button type="button" data-room-color="#e11d48" aria-label="Himbeerrot"></button><button type="button" data-room-color="#db2777" aria-label="Pink"></button><button type="button" data-room-color="#c2410c" aria-label="Terrakotta"></button></div></section>
+          <section><h3 data-i18n="roomColorViolet">Violett &amp; Neutral</h3><div class="room-color-row"><button type="button" data-room-color="#7c3aed" aria-label="Violett"></button><button type="button" data-room-color="#9333ea" aria-label="Lila"></button><button type="button" data-room-color="#4f46e5" aria-label="Indigo"></button><button type="button" data-room-color="#64748b" aria-label="Schiefergrau"></button></div></section>
         </div>
-      </details>
+      </div>
     </fieldset>
     <fieldset style="border:none;margin-bottom:10px"><legend style="font-size:.78rem;color:var(--text-secondary);margin-bottom:4px" data-i18n="features">Eigenschaften</legend>
       <div class="filter-chips" id="roomFeatures"></div>
@@ -1131,6 +1137,7 @@ function raeumeVerwaltenHtml() {
   // erhalten, nur die Standardansicht wird kompakt wie im Design.
   const roomsHtml = S.rooms.map(room => {
     const tables = S.tables.filter(t => t.room_id === room.id);
+    const totalSeats = tables.reduce((sum, table) => sum + (Number(table.seats) || 0), 0);
     const expanded = S.expandedRoomIds.has(room.id);
     const tablesHtml = tables.map(t => `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span>${t.notes ? `<span class="seats">· ${esc(t.notes)}</span>` : ""}
       <span class="table-actions"><button type="button" class="small editTableBtn" data-id="${t.id}" aria-label="${esc(tr("editTableAriaLabel", { name: t.name }))}">✎</button><button type="button" class="small danger delTableBtn" data-id="${t.id}" aria-label="${esc(tr("deleteTableAriaLabel", { name: t.name }))}">🗑</button></span></div></div>`).join("");
@@ -1139,7 +1146,7 @@ function raeumeVerwaltenHtml() {
         <button type="button" class="room-row-toggle" data-room-toggle="${room.id}" aria-expanded="${String(expanded)}" aria-label="${esc(tr("expandRoomAriaLabel", { name: room.name }))}">
           <span class="dot${roomMarkerClass(room)}"></span>
           <span class="room-row-main"><span class="room-row-name">${esc(room.name)}${room.floor ? ` · ${esc(room.floor)}` : ""}</span>
-            <span class="room-row-meta"><span>${esc(tr("tableCountLabel", { n: tables.length }))}</span>${roomBadgesHtml(room)}</span>
+            <span class="room-row-meta"><span>${esc(tr("roomCapacitySummary", { tables: tr("tableCountLabel", { n: tables.length }), seats: totalSeats }))}</span>${roomBadgesHtml(room)}</span>
           </span>
         </button>
         <span class="room-actions">
@@ -1714,6 +1721,10 @@ function ensureInfoTipPopoverEl() {
 }
 function showInfoTip(trigger, text) {
   const el = ensureInfoTipPopoverEl();
+  // Ein Popover im <body> liegt hinter dem nativen Dialog-Top-Layer. Bei
+  // Formularhinweisen wird es deshalb in den offenen Dialog verschoben.
+  const host = trigger.closest("dialog[open]") || document.body;
+  if (el.parentElement !== host) host.appendChild(el);
   const r = trigger.getBoundingClientRect();
   el.style.top = `${r.bottom + 6}px`;
   el.style.left = `${Math.min(r.left, window.innerWidth - 246)}px`;
@@ -2156,13 +2167,17 @@ function openTagPicker(containerId, selectedIds) {
 function updateRoomColorControls() {
   const custom = document.querySelector('input[name="roomColorMode"]:checked').value === "custom";
   const picker = document.getElementById("roomColor");
-  const chooser = document.getElementById("roomColorPicker");
+  const popover = document.getElementById("roomColorPopover");
+  const trigger = document.getElementById("roomColorTrigger");
   const preview = document.getElementById("roomColorPreview");
+  const hex = document.getElementById("roomColorHex");
   picker.disabled = !custom;
-  chooser.classList.toggle("is-disabled", !custom);
-  chooser.querySelector("summary").setAttribute("aria-disabled", String(!custom));
-  if (!custom) chooser.open = false;
+  hex.disabled = !custom;
+  trigger.disabled = !custom;
+  if (!custom) { popover.hidden = true; trigger.setAttribute("aria-expanded", "false"); }
   preview.style.background = picker.value;
+  document.getElementById("roomColorCurrentHex").textContent = picker.value.toUpperCase();
+  if (document.activeElement !== hex) hex.value = picker.value.toUpperCase();
   document.querySelectorAll("[data-room-color]").forEach(button => {
     button.disabled = !custom;
     button.setAttribute("aria-pressed", String(custom && button.dataset.roomColor.toLowerCase() === picker.value.toLowerCase()));
@@ -2170,16 +2185,46 @@ function updateRoomColorControls() {
 }
 document.querySelectorAll('input[name="roomColorMode"]').forEach(input => input.addEventListener("change", updateRoomColorControls));
 document.getElementById("roomColor").addEventListener("input", updateRoomColorControls);
-document.querySelector("#roomColorPicker summary").addEventListener("click", event => {
-  if (document.getElementById("roomColor").disabled) event.preventDefault();
+document.getElementById("roomColorHex").addEventListener("input", event => {
+  const value = event.target.value.trim();
+  if (!/^#[0-9a-f]{6}$/i.test(value)) { event.target.setAttribute("aria-invalid", value ? "true" : "false"); return; }
+  event.target.setAttribute("aria-invalid", "false");
+  document.getElementById("roomColor").value = value;
+  updateRoomColorControls();
 });
+document.getElementById("roomColorHex").addEventListener("blur", event => {
+  if (!/^#[0-9a-f]{6}$/i.test(event.target.value.trim())) updateRoomColorControls();
+});
+function positionRoomColorPopover() {
+  const trigger = document.getElementById("roomColorTrigger");
+  const popover = document.getElementById("roomColorPopover");
+  const r = trigger.getBoundingClientRect();
+  popover.style.top = `${r.bottom + 8}px`;
+  popover.style.left = `${Math.max(12, Math.min(r.left, window.innerWidth - popover.offsetWidth - 12))}px`;
+}
+function closeRoomColorPopover() {
+  document.getElementById("roomColorPopover").hidden = true;
+  document.getElementById("roomColorTrigger").setAttribute("aria-expanded", "false");
+}
+document.getElementById("roomColorTrigger").addEventListener("click", () => {
+  const popover = document.getElementById("roomColorPopover");
+  if (!popover.hidden) return closeRoomColorPopover();
+  popover.hidden = false;
+  document.getElementById("roomColorTrigger").setAttribute("aria-expanded", "true");
+  positionRoomColorPopover();
+});
+document.getElementById("roomColorClose").addEventListener("click", closeRoomColorPopover);
 document.querySelector(".room-color-palette").addEventListener("click", event => {
   const button = event.target.closest("[data-room-color]");
   if (!button || button.disabled) return;
   document.getElementById("roomColor").value = button.dataset.roomColor;
   updateRoomColorControls();
-  document.getElementById("roomColorPicker").open = false;
 });
+document.addEventListener("click", event => {
+  if (event.target.closest("#roomColorTrigger, #roomColorPopover")) return;
+  closeRoomColorPopover();
+});
+document.getElementById("roomDlg").addEventListener("close", closeRoomColorPopover);
 
 function openRoomDlg(room) {
   document.getElementById("roomId").value = room?.id || "";

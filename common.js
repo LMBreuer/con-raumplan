@@ -441,6 +441,10 @@ const STRINGS = {
     selectedClickTable: "✓ ausgewählt — Tisch anklicken", selectBtn: "Auswählen", chooseTable: "– Tisch wählen –",
     assignTableFor: "Tisch zuweisen für {title}", removeFromTable: "{title} vom Tisch entfernen", deleteItemNamed: "{title} löschen",
     gamesLabel: "Spiele", roomsLabel: "Räume", tablesLabel: "Tische", slotsLabel: "Slots",
+    roomColorLabel: "Raumfarbe", roomColorModeAria: "Farbmodus für den Raum", roomColorAuto: "Automatische Standardfarbe verwenden", roomColorCustom: "Eigene Grundfarbe wählen",
+    roomColorHintAria: "Hinweis zu Raumfarben", roomColorHint: "Eigene Farben bleiben als Grundton erhalten. Spezial-Themes passen sie für Stil und Lesbarkeit an. Im Kontrastmodus kann zusätzlich eine persönliche Musterhilfe aktiviert werden.",
+    roomColorDialog: "Eigene Grundfarbe", closeColorPicker: "Farbauswahl schließen", roomColorFree: "Frei wählen", roomColorHex: "Hex-Code", roomColorPaletteAria: "Farbpalette für den Raum",
+    roomColorCool: "Kühle Farben", roomColorNature: "Grün & Gelb", roomColorWarm: "Warme Farben", roomColorViolet: "Violett & Neutral",
     legendColorRoom: "Farbe = Raum", legendDashedWorkshop: "gestrichelt = Workshop", legendOverCapacity: "über Kapazität (blockiert nichts)",
     legendInfoText: "Raumfarbe: jeder Raum hat eine feste Farbe (Raster, Tabelle, Räume-Ansicht). Spieltitel anklicken öffnet Playabl (falls verknüpft). ✎ (bei Hover) schlägt eine Änderung vor — für alle offen, kein Login nötig.",
     noSearchResults: "Keine Treffer für diese Suche.", noGamesYet: "Noch keine Spiele.",
@@ -529,7 +533,7 @@ const STRINGS = {
     playablGamesHint: "Live von Playabl geladen — hier nur zur Übersicht, bearbeitbar nur direkt auf Playabl.",
     noPlayablGamesYet: "Keine Spiele von Playabl geladen.", openOnPlayabl: "Auf Playabl öffnen ↗",
     addGameBtn: "+ Spiel", manualGamesTitle: "Manuelle Spiele", manualGamesHint: "Selbst angelegt — hier bearbeitbar, inkl. optionalem Slot.",
-    gameAssignedBadge: "zugeordnet", gameOpenBadge: "offen", tableCountLabel: "{n} Tische",
+    gameAssignedBadge: "zugeordnet", gameOpenBadge: "offen", tableCountLabel: "{n} Tische", roomCapacitySummary: "{tables} · {seats} Plätze gesamt",
     expandRoomAriaLabel: "Tische von {name} ein-/ausblenden",
     fromContact: "von {contact}", general: "Allgemein",
     statusOpen: "offen", statusDone: "erledigt", statusRejected: "abgelehnt",
@@ -648,6 +652,10 @@ const STRINGS = {
     selectedClickTable: "✓ selected — click a table", selectBtn: "Select", chooseTable: "– choose table –",
     assignTableFor: "Assign table for {title}", removeFromTable: "Remove {title} from table", deleteItemNamed: "Delete {title}",
     gamesLabel: "Games", roomsLabel: "Rooms", tablesLabel: "Tables", slotsLabel: "Slots",
+    roomColorLabel: "Room colour", roomColorModeAria: "Room colour mode", roomColorAuto: "Use automatic default colour", roomColorCustom: "Choose custom base colour",
+    roomColorHintAria: "About room colours", roomColorHint: "Custom colours remain the base hue. Special themes adjust them for style and readability. High contrast can additionally use personal shape markers.",
+    roomColorDialog: "Custom base colour", closeColorPicker: "Close colour picker", roomColorFree: "Choose freely", roomColorHex: "Hex code", roomColorPaletteAria: "Room colour palette",
+    roomColorCool: "Cool colours", roomColorNature: "Green & yellow", roomColorWarm: "Warm colours", roomColorViolet: "Violet & neutral",
     legendColorRoom: "Color = room", legendDashedWorkshop: "dashed = workshop", legendOverCapacity: "over capacity (blocks nothing)",
     legendInfoText: "Room color: every room has a fixed color (grid, table, rooms view). Clicking a game title opens Playabl (if linked). ✎ (on hover) proposes a change — open to everyone, no login needed.",
     noSearchResults: "No results for this search.", noGamesYet: "No games yet.",
@@ -736,7 +744,7 @@ const STRINGS = {
     playablGamesHint: "Loaded live from Playabl — overview only here, edit directly on Playabl.",
     noPlayablGamesYet: "No games loaded from Playabl.", openOnPlayabl: "Open on Playabl ↗",
     addGameBtn: "+ Game", manualGamesTitle: "Manual games", manualGamesHint: "Created here — editable here, including an optional slot.",
-    gameAssignedBadge: "assigned", gameOpenBadge: "open", tableCountLabel: "{n} tables",
+    gameAssignedBadge: "assigned", gameOpenBadge: "open", tableCountLabel: "{n} tables", roomCapacitySummary: "{tables} · {seats} total seats",
     expandRoomAriaLabel: "Show/hide tables of {name}",
     fromContact: "from {contact}", general: "General",
     statusOpen: "open", statusDone: "done", statusRejected: "rejected",
@@ -786,6 +794,7 @@ function translateStaticDom() {
   document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = tr(el.dataset.i18nPlaceholder); });
   document.querySelectorAll("[data-i18n-title]").forEach(el => { el.title = tr(el.dataset.i18nTitle); });
   document.querySelectorAll("[data-i18n-aria-label]").forEach(el => { el.setAttribute("aria-label", tr(el.dataset.i18nAriaLabel)); });
+  document.querySelectorAll("[data-info-i18n]").forEach(el => { el.dataset.infoText = tr(el.dataset.infoI18n); });
 }
 function applyLang(key) {
   LANG = key;
