@@ -16,7 +16,8 @@ create table if not exists rooms (
   floor text,
   features jsonb not null default '{}',
   notes text,
-  sort int not null default 0
+  sort int not null default 0,
+  marker text check (marker is null or marker in ('circle', 'triangle', 'square', 'diamond', 'plus', 'cross', 'hexagon', 'star', 'sparkle', 'sun', 'moon', 'cloud', 'flower', 'tree', 'heart', 'flag', 'key', 'book', 'music', 'bulb', 'letter', 'dice', 'invader', 'wc', 'kitchen', 'door', 'coat', 'toy'))
 );
 
 create table if not exists tables (

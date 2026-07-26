@@ -1140,20 +1140,57 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
 .room-color-manual label { display: grid; gap: 4px; color: var(--text-secondary); font-size: var(--fs-xs); font-weight: 700; }
 .room-color-manual input[type="color"] { width: 100%; height: 38px; padding: 2px; border: var(--border-w) solid var(--border); border-radius: var(--r-sm); background: var(--surface-2); cursor: pointer; }
 .room-color-manual input[type="text"] { min-width: 0; height: 38px; padding: 6px 8px; font-family: var(--font-mono, ui-monospace, monospace); text-transform: uppercase; }
-.room-color-palette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
-.room-color-palette section { min-width: 0; }
-.room-color-palette h3 { margin: 0 0 6px; color: var(--text-secondary); font-size: var(--fs-xs); font-weight: 800; }
-.room-color-row { display: grid; grid-template-columns: repeat(6, 24px); gap: 6px; }
+.room-color-palette { display: grid; gap: 0; }
+.room-color-palette section { display: grid; grid-template-columns: 72px auto; align-items: center; gap: var(--sp-2); min-width: 0; padding: var(--sp-2) 0; border-top: var(--border-w) solid var(--grid); }
+.room-color-palette section:first-child { padding-top: 0; border-top: 0; }
+.room-color-palette section:last-child { padding-bottom: 0; }
+.room-color-palette h3 { margin: 0; color: var(--text-secondary); font-size: var(--fs-xs); font-weight: 800; line-height: 1.2; }
+.room-color-row { display: grid; grid-template-columns: repeat(8, 24px); gap: 6px; }
 .room-color-palette button { width: 24px; height: 24px; padding: 0; border: 2px solid transparent; border-radius: 50%; background: var(--swatch); cursor: pointer; }
 .room-color-palette button:disabled { cursor: not-allowed; opacity: .42; }
 .room-color-palette button:focus-visible, .room-color-palette button[aria-pressed="true"] { outline: 2px solid var(--text-primary); outline-offset: 2px; }
-.room-color-palette button[data-room-color="#2563eb"] { --swatch:#2563eb; }.room-color-palette button[data-room-color="#0ea5e9"] { --swatch:#0ea5e9; }.room-color-palette button[data-room-color="#0891b2"] { --swatch:#0891b2; }.room-color-palette button[data-room-color="#0f766e"] { --swatch:#0f766e; }.room-color-palette button[data-room-color="#16a34a"] { --swatch:#16a34a; }.room-color-palette button[data-room-color="#65a30d"] { --swatch:#65a30d; }.room-color-palette button[data-room-color="#ca8a04"] { --swatch:#ca8a04; }.room-color-palette button[data-room-color="#ea580c"] { --swatch:#ea580c; }.room-color-palette button[data-room-color="#dc2626"] { --swatch:#dc2626; }.room-color-palette button[data-room-color="#e11d48"] { --swatch:#e11d48; }.room-color-palette button[data-room-color="#db2777"] { --swatch:#db2777; }.room-color-palette button[data-room-color="#c2410c"] { --swatch:#c2410c; }.room-color-palette button[data-room-color="#7c3aed"] { --swatch:#7c3aed; }.room-color-palette button[data-room-color="#9333ea"] { --swatch:#9333ea; }.room-color-palette button[data-room-color="#4f46e5"] { --swatch:#4f46e5; }.room-color-palette button[data-room-color="#64748b"] { --swatch:#64748b; }
+.room-marker-field { border: 0; margin: 0 0 var(--sp-3); padding: 0; }
+.room-marker-field legend { margin-bottom: 6px; color: var(--text-secondary); font-size: .78rem; }
+.room-marker-modes { position: relative; display: grid; align-items: start; gap: var(--sp-2); padding-right: 38px; }
+.room-marker-custom-choice { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.room-marker-modes .info-tip-trigger { position: absolute; top: 50%; right: 0; transform: translateY(-50%); }
+.room-marker-trigger { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 4px 9px; border: var(--border-w) solid var(--border); border-radius: var(--r-pill); background: var(--surface-2); color: var(--text-primary); font: inherit; font-size: var(--fs-xs); font-weight: 800; cursor: pointer; }
+.room-marker-trigger:hover:not(:disabled) { border-color: var(--accent); }
+.room-marker-trigger:disabled { opacity: .48; cursor: not-allowed; }
+.room-marker-preview { display: inline-grid; place-items: center; width: 16px; height: 16px; color: var(--text-primary); font-size: 1rem; line-height: 1; }
+.room-marker-current { white-space: nowrap; }
+.room-marker-popover { position: fixed; z-index: 10020; width: min(390px, calc(100vw - 24px)); padding: var(--sp-3); border: var(--chrome-border-w) solid var(--border); border-radius: var(--r-md); background: var(--surface-1); box-shadow: var(--chrome-shadow), 0 16px 44px -18px rgba(0,0,0,.5); }
+.room-marker-popover-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-3); color: var(--text-primary); font-size: var(--fs-sm); }
+.room-marker-popover-head .icon-btn { margin: -2px; }
+.room-marker-options { display: grid; gap: 0; }
+.room-marker-options section { display: grid; grid-template-columns: 92px auto; align-items: center; gap: var(--sp-2); min-width: 0; padding: var(--sp-2) 0; border-top: var(--border-w) solid var(--grid); }
+.room-marker-options section:first-child { padding-top: 0; border-top: 0; }
+.room-marker-options section:last-child { padding-bottom: 0; }
+.room-marker-options h3 { margin: 0; color: var(--text-secondary); font-size: var(--fs-xs); font-weight: 800; line-height: 1.2; }
+.room-marker-row { display: grid; grid-template-columns: repeat(7, 30px); gap: 6px; }
+.room-marker-option { display: inline-grid; place-items: center; width: 30px; height: 30px; min-width: 30px; padding: 0; border: var(--border-w) solid var(--border); border-radius: var(--r-sm); background: var(--surface-2); color: var(--text-primary); font: inherit; font-weight: 800; cursor: pointer; }
+.room-marker-option:hover:not(:disabled) { border-color: var(--accent); }
+.room-marker-option[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.room-marker-option:disabled { cursor: not-allowed; opacity: .48; }
+.room-marker-text { font-size: .68rem; font-weight: 900; letter-spacing: -.07em; }
+.room-book { display: block; width: 15px; height: 12px; box-sizing: border-box; border: 2px solid currentColor; border-radius: 2px 2px 3px 3px; background: linear-gradient(90deg, transparent 43%, currentColor 43% 57%, transparent 57%); }
+.room-meeple { display: block; width: 15px; height: 16px; background: currentColor; clip-path: polygon(50% 0, 71% 10%, 74% 27%, 89% 37%, 76% 51%, 84% 100%, 16% 100%, 24% 51%, 11% 37%, 26% 27%, 29% 10%); }
+.room-door { position: relative; display: block; width: 15px; height: 16px; box-sizing: border-box; border: 2px solid currentColor; border-bottom: 0; }
+.room-door::before { content: ""; position: absolute; left: 2px; bottom: 0; width: 8px; height: 12px; box-sizing: border-box; border: 2px solid currentColor; border-bottom: 0; background: var(--surface-2); transform: skewY(-10deg); transform-origin: bottom left; }
+.room-door::after { content: ""; position: absolute; right: 1px; top: 8px; width: 2px; height: 2px; border-radius: 50%; background: currentColor; }
+.room-invader { display: block; width: 15px; height: 15px; background: currentColor; clip-path: polygon(13% 0, 38% 0, 38% 19%, 63% 19%, 63% 0, 88% 0, 88% 19%, 100% 19%, 100% 63%, 82% 63%, 82% 100%, 63% 100%, 63% 76%, 38% 76%, 38% 100%, 19% 100%, 19% 63%, 0 63%, 0 19%, 13% 19%); }
+.room-tree { display: block; width: 15px; height: 15px; background: currentColor; clip-path: polygon(50% 0, 88% 56%, 69% 56%, 82% 76%, 61% 76%, 61% 100%, 39% 100%, 39% 76%, 18% 76%, 31% 56%, 12% 56%); }
 :root[data-theme="solarpunk"] .room, :root[data-theme="solarpunk"] .room-row, :root[data-theme="solarpunk"] .matrix-label { --room-accent: color-mix(in oklab, var(--room-base, var(--accent)) 72%, #8bbf65); }
 :root[data-theme="ukiyo"] .room, :root[data-theme="ukiyo"] .room-row, :root[data-theme="ukiyo"] .matrix-label { --room-accent: color-mix(in oklab, var(--room-base, var(--accent)) 62%, #d9b9a0); }
 :root[data-theme="cyberpunk"] .room, :root[data-theme="cyberpunk"] .room-row, :root[data-theme="cyberpunk"] .matrix-label { --room-accent: color-mix(in oklab, var(--room-base, var(--accent)) 65%, #00f0ff); }
 :root[data-theme="terminal"] .room, :root[data-theme="terminal"] .room-row, :root[data-theme="terminal"] .matrix-label { --room-accent: color-mix(in srgb, var(--room-base, var(--accent)) 45%, #3dff85); }
 .room-head { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-1); }
 .room-head h3 { margin: 0; font-size: var(--fs-md); text-transform: none; letter-spacing: 0; color: var(--text-primary); font-family: var(--font-display); }
+.room-name-marker { display: inline-grid; place-items: center; width: 18px; height: 18px; color: var(--text-primary); font-size: 1rem; line-height: 1; }
+.room-name-marker .room-marker-text { font-size: .62rem; }
+.room-name-marker .room-book { width: 14px; height: 11px; }
+.room-name-marker .room-meeple { width: 14px; height: 15px; }
+.room-name-marker .room-door { width: 14px; height: 15px; }
 .room-badges { display: flex; flex-wrap: wrap; gap: 5px; margin: var(--sp-1) 0 var(--sp-3); }
 .room-more { margin-bottom: var(--sp-2); }
 .room-more summary { font-size: var(--fs-xs); color: var(--text-muted); font-weight: 600; list-style: none; }
@@ -2298,8 +2335,28 @@ dialog {
 :root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-3::after { content: "◆"; }
 :root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-4::after { content: "✚"; }
 :root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-5::after { content: "✕"; }
-:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-6::after { content: "★"; }
-:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-7::after { content: "✦"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-6::after { content: "⬢"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-7::after { content: "★"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-8::after { content: "✦"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-9::after { content: "☀"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-10::after { content: "☾"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-11::after { content: "☁"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-12::after { content: "✿"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-13::after { content: ""; width: 13px; height: 13px; background: #000; clip-path: polygon(50% 0, 88% 56%, 69% 56%, 82% 76%, 61% 76%, 61% 100%, 39% 100%, 39% 76%, 18% 76%, 31% 56%, 12% 56%); }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-14::after { content: "♥"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-15::after { content: "⚑"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-16::after { content: "⚿"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-17::after { content: ""; width: 12px; height: 10px; box-sizing: border-box; border: 2px solid #000; border-radius: 1px 1px 2px 2px; background: linear-gradient(90deg, transparent 43%, #000 43% 57%, transparent 57%); }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-18::after { content: "♪"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-19::after { content: "☼"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-20::after { content: "✉"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-21::after { content: "⚄"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-22::after { content: ""; width: 13px; height: 13px; background: #000; clip-path: polygon(13% 0, 38% 0, 38% 19%, 63% 19%, 63% 0, 88% 0, 88% 19%, 100% 19%, 100% 63%, 82% 63%, 82% 100%, 63% 100%, 63% 76%, 38% 76%, 38% 100%, 19% 100%, 19% 63%, 0 63%, 0 19%, 13% 19%); }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-23::after { content: "WC"; font-size: 8px; letter-spacing: -.08em; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-24::after { content: "♨"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-25::after { content: ""; width: 11px; height: 13px; box-sizing: border-box; border: 2px solid #000; border-bottom: 0; box-shadow: inset 4px 1px 0 -2px #000; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-26::after { content: "♧"; }
+:root[data-theme="contrast"][data-color-aid] .plan-page .room-marker-pattern-27::after { content: ""; width: 13px; height: 14px; background: #000; clip-path: polygon(50% 0, 71% 10%, 74% 27%, 89% 37%, 76% 51%, 84% 100%, 16% 100%, 24% 51%, 11% 37%, 26% 27%, 29% 10%); }
 
 /* WCAG 2.2 target-size improvement stays deliberately inside the explicit
    contrast theme, so the default themes keep their compact visual language. */

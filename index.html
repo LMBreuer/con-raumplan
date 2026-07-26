@@ -194,7 +194,7 @@ async function renderNextConCard() {
   // (Badge / Name(+Crew-Badge) / Meta / "Zur Übersicht →") statt einer
   // horizontalen Name-links/Button-rechts-Zeile.
   const meta = `${esc(con.playabl_event_id ? conDisplayDate(con) : tr("createdOn", { date: conDisplayDate(con) }))}${con.playabl_event_id ? ` · ${esc(tr("playablEvent"))}` : ""}`;
-  el.innerHTML = `<a class="next-con-card" href="plan.html?con=${esc(con.slug || con.id)}">
+  el.innerHTML = `<a class="next-con-card" href="plan.html?con=${esc(con.slug || con.id)}&entry=plan">
     <div class="eyebrow">${esc(tr("nextConBadgeText", { countdown: formatCountdown(date) }))}</div>
     <div class="t">${esc(con.name)}${crewBadge}</div>
     <div class="m">${meta}</div>
@@ -209,7 +209,7 @@ function renderIndexPageTabs() {
   const next = computeNextCon();
   document.getElementById("pageTabs").innerHTML = `
     <a href="#" aria-pressed="true">${esc(tr("pageTabCons"))}</a>
-    ${next ? `<a href="plan.html?con=${esc(next.con.slug || next.con.id)}" aria-pressed="false">${esc(tr("pageTabPlan"))}</a>`
+    ${next ? `<a href="plan.html?con=${esc(next.con.slug || next.con.id)}&entry=plan" aria-pressed="false">${esc(tr("pageTabPlan"))}</a>`
            : `<span aria-disabled="true" style="opacity:.4;padding:var(--sp-2) var(--sp-3);font-size:var(--fs-xs);font-weight:700">${esc(tr("pageTabPlan"))}</span>`}
   `;
 }
@@ -238,7 +238,7 @@ function renderCons() {
       </div>
       <span style="display:flex;gap:8px;align-items:center">
         ${isSuperadmin ? `<button type="button" class="small danger delConBtn" data-id="${c.id}" data-name="${esc(c.name)}">🗑 ${esc(tr("delete"))}</button>` : ""}
-        <a class="btn" href="plan.html?con=${esc(c.slug || c.id)}">${esc(tr("openArrow"))}</a>
+        <a class="btn" href="plan.html?con=${esc(c.slug || c.id)}&entry=plan">${esc(tr("openArrow"))}</a>
       </span>
     </div>`).join("") || `<div class="empty-state"><span class="glyph">🗂️</span>${esc(tr("noConFound"))}</div>`;
 }
@@ -260,7 +260,7 @@ document.getElementById("directGo").addEventListener("click", () => {
   if (!raw) return;
   const m = raw.match(/[?&]con=([^&]+)/);
   const id = m ? decodeURIComponent(m[1]) : raw;
-  location.href = "plan.html?con=" + encodeURIComponent(id);
+  location.href = "plan.html?con=" + encodeURIComponent(id) + "&entry=plan";
 });
 document.getElementById("directInput").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("directGo").click(); });
 
@@ -322,7 +322,7 @@ document.getElementById("createConBtn").addEventListener("click", async () => {
       method: "POST", headers: supaHeaders(token, true),
       body: JSON.stringify({ name, slug, playabl_event_id: eventId, playabl_community_id: communityId, listed }),
     });
-    location.href = "plan.html?con=" + encodeURIComponent(rows[0].slug);
+    location.href = "plan.html?con=" + encodeURIComponent(rows[0].slug) + "&entry=plan";
   } catch (err) { msg.className = "msg err"; msg.textContent = tr("createConFailed", { err: err.message }); }
 });
 
