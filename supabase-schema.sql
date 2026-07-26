@@ -171,10 +171,26 @@ alter table assignments alter column con_id set not null;
 alter table requests    alter column con_id set not null;
 
 -- ---------- Cross-Tenant-Härtung: Tisch/Zuordnung muss zur selben Con gehören ----------
-alter table rooms  drop constraint if exists rooms_con_id_id_key;
-alter table rooms  add constraint rooms_con_id_id_key unique (con_id, id);
-alter table tables drop constraint if exists tables_con_id_id_key;
-alter table tables add constraint tables_con_id_id_key unique (con_id, id);
+-- Diese Unique-Constraints können bereits von Fremdschlüsseln verwendet
+-- werden. Daher niemals löschen, sondern bei älteren Installationen nur
+-- ergänzen, wenn sie noch fehlen.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.rooms'::regclass and conname = 'rooms_con_id_id_key'
+  ) then
+    alter table public.rooms add constraint rooms_con_id_id_key unique (con_id, id);
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.tables'::regclass and conname = 'tables_con_id_id_key'
+  ) then
+    alter table public.tables add constraint tables_con_id_id_key unique (con_id, id);
+  end if;
+end
+$$;
 
 alter table tables drop constraint if exists tables_room_id_fkey;
 alter table tables drop constraint if exists tables_room_same_con_fkey;
@@ -191,8 +207,16 @@ alter table assignments drop constraint if exists assignments_con_slot_session_k
 alter table assignments add constraint assignments_con_slot_session_key
   unique (con_id, slot_key, session_key);
 
-alter table slots drop constraint if exists slots_con_id_key_key;
-alter table slots add constraint slots_con_id_key_key unique (con_id, key);
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.slots'::regclass and conname = 'slots_con_id_key_key'
+  ) then
+    alter table public.slots add constraint slots_con_id_key_key unique (con_id, key);
+  end if;
+end
+$$;
 create index if not exists slots_con_sort_idx on slots (con_id, sort);
 create index if not exists slot_buckets_con_idx on slot_buckets (con_id, sort);
 
@@ -207,8 +231,16 @@ alter table room_feature_tags drop constraint if exists room_feature_tags_room_s
 alter table room_feature_tags add constraint room_feature_tags_room_same_con_fkey
   foreign key (con_id, room_id) references rooms (con_id, id) on delete cascade;
 
-alter table games drop constraint if exists games_con_id_id_key;
-alter table games add constraint games_con_id_id_key unique (con_id, id);
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.games'::regclass and conname = 'games_con_id_id_key'
+  ) then
+    alter table public.games add constraint games_con_id_id_key unique (con_id, id);
+  end if;
+end
+$$;
 
 alter table game_required_tags drop constraint if exists game_required_tags_game_same_con_fkey;
 alter table game_required_tags add constraint game_required_tags_game_same_con_fkey
