@@ -1,851 +1,4 @@
 /* ============================================================
-   Con-Raumplan — geteiltes Design-System (5 Themes)
-   Eingebunden von index.html und plan.html.
-   Umschaltbar per [data-theme] auf <html> (siehe common.js).
-   ============================================================ */
-
-/* ---------- Skala (themeunabhängig) ----------
-   Radius/Font-Defaults gelten für Dark/Light/Kontrastreich (kein eigenes
-   Override) — Terminal/Cyberpunk/Ukiyo-e/Solarpunk/Comic weichen bewusst ab,
-   siehe jeweiliger Block. */
-:root {
-  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
-  --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
-  --r-sm: 8px; --r-md: 10px; --r-lg: 24px; --r-pill: 999px;
-  --fs-xs: .76rem; --fs-sm: .86rem; --fs-base: 1rem; --fs-md: 1.05rem;
-  --fs-lg: 1.3rem; --fs-xl: 1.7rem; --fs-2xl: 2.1rem;
-  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Manrope", var(--font-body);
-  --shadow-card: none;
-  --border-w: 1px;
-  --card-border: 1px solid rgba(255,255,255,.06);
-  /* 1:1 aus der Vorlage (chromeShadow/chromeBorder): Header-Controls-Pille
-     und "Weitere Themes"-Popover haben ein EIGENES, von der Card-Optik
-     unabhängiges Schatten-/Rahmen-Token — per Default = Card-Werte,
-     Ukiyo/Comic/Solarpunk überschreiben es (siehe jeweiliger Theme-Block). */
-  --chrome-shadow: var(--shadow-card);
-  --chrome-border-w: var(--border-w);
-}
-
-/* ---------- Dark (Standard) ---------- */
-:root,
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --page:      #0b0d10;
-  --surface-1: #15181d;
-  --surface-2: #1c2027;
-  --text-primary:   #f3f4f2;
-  --text-secondary: #a9b0bb;
-  --text-muted:     #6b7280;
-  --grid:      #2a2e36;
-  --baseline:  #3a3f48;
-  --border:    rgba(255,255,255,0.07);
-  --accent:      #5b8def;
-  --accent-ink:  #ffffff;
-  --accent-soft: #223252;
-  --good:  #35c266;
-  --warn:  #ff8a80;
-  --band:  #1c2027;
-  --shadow-card: 0 1px 2px rgba(0,0,0,.35), 0 20px 44px -22px rgba(0,0,0,.6);
-  --room-a: #5b8def; --room-b: #d7a63a; --room-c: #4fb8a6; --room-d: #c47ad1; --room-e: #e0745c;
-}
-
-/* ---------- Light ---------- */
-:root[data-theme="light"] {
-  color-scheme: light;
-  --page:      #f5f4f0;
-  --surface-1: #ffffff;
-  --surface-2: #fbfaf7;
-  --text-primary:   #1c1d1f;
-  --text-secondary: #55575c;
-  --text-muted:     #8a8d93;
-  --grid:      #e7e5df;
-  --baseline:  #cfccc3;
-  --border:    rgba(20,20,20,0.07);
-  --accent:      #2a5fd6;
-  --accent-ink:  #ffffff;
-  --accent-soft: #e4ecfc;
-  --good:  #0f7a3d;
-  --warn:  #b3261e;
-  --band:  #f0eee8;
-  --shadow-card: 0 1px 2px rgba(30,20,0,.04), 0 18px 40px -20px rgba(30,20,0,.18);
-  --card-border: 1px solid rgba(20,20,20,.06);
-  --room-a: #2a5fd6; --room-b: #b3790a; --room-c: #1a8f7a; --room-d: #9a3fae; --room-e: #c94f34;
-}
-
-/* ---------- Kontrastreich (Barrierefreiheit) ---------- */
-:root[data-theme="contrast"] {
-  color-scheme: light;
-  --page:      #ffffff;
-  --surface-1: #ffffff;
-  --surface-2: #ffffff;
-  --text-primary:   #000000;
-  --text-secondary: #000000;
-  --text-muted:     #262626;
-  --grid:      #000000;
-  --baseline:  #000000;
-  --border:    #000000;
-  --accent:      #0000cc;
-  --accent-ink:  #ffffff;
-  --accent-soft: #e0e0ff;
-  --good:  #006600;
-  --warn:  #b30000;
-  --band:  #eeeeee;
-  --shadow-card: none;
-  --border-w: 2px;
-  --card-border: 2px solid #000;
-  --room-a: #0000cc; --room-b: #7a3d00; --room-c: #005a4d; --room-d: #6a006a; --room-e: #b30000;
-}
-
-/* ---------- Playabl (vormals "Bunt", Playabl-Farbanlehnung) ---------- */
-:root[data-theme="colorful"] {
-  color-scheme: light;
-  --page:      #f4f2fb;
-  --surface-1: #ffffff;
-  --surface-2: #f8f6ff;
-  --text-primary:   #211a3d;
-  --text-secondary: #4f4870;
-  --text-muted:     #8b84a8;
-  --grid:      #e6e1f7;
-  --baseline:  #cfc5ee;
-  --border:    rgba(70,34,184,0.10);
-  --accent:      #4622b8;
-  --accent-ink:  #ffffff;
-  --accent-soft: #ece5fc;
-  --good:  #16a34a;
-  --warn:  #dc2626;
-  --band:  #fdf0f2;
-  --shadow-card: 0 2px 4px rgba(70,34,184,.05), 0 20px 44px -20px rgba(70,34,184,.28);
-  --card-border: 1px solid rgba(70,34,184,.10);
-  --room-a: #4622b8; --room-b: #c0447a; --room-c: #1d8a99; --room-d: #d98a1e; --room-e: #2f6fd6;
-  --font-display: "Paytone One", var(--font-body);
-  --font-body: "Open Sans", system-ui, -apple-system, sans-serif;
-}
-
-/* ---------- Terminal (Fallout/Matrix-inspiriert) ---------- */
-:root[data-theme="terminal"] {
-  color-scheme: dark;
-  --page:      #050a05;
-  --surface-1: #0a140a;
-  --surface-2: #0e1c0e;
-  --text-primary:   #6dffa0;
-  --text-secondary: #3fcf74;
-  --text-muted:     #2a8a4e;
-  --grid:      #144024;
-  --baseline:  #1f5c34;
-  --border:    rgba(80,255,140,0.22);
-  --accent:      #3dff85;
-  --accent-ink:  #04150a;
-  --accent-soft: #0f2a18;
-  --good:  #7dffb0;
-  --warn:  #ffb648;
-  --band:  #0c1b0f;
-  /* 1:1 aus der Vorlage (cardBase: box-shadow:...,0 0 16px -6px ${t.accent}66) —
-     ein einzelner Glow-Layer, kein zusätzlicher Ring (der kommt schon über
-     die feste 3px/4px-Doppelkontur in der .card/.room/dialog-Regel unten). */
-  --shadow-card: 0 0 16px -6px rgba(61,255,133,.4);
-  --room-a: #3dff85; --room-b: #ffb648; --room-c: #58e0ff; --room-d: #b98bff; --room-e: #ff6ec9;
-  --font-body: "Share Tech Mono", "Courier New", monospace;
-  --font-display: "Share Tech Mono", "Courier New", monospace;
-  /* Terminal bleibt kantig/flach statt dem neuen rundlichen Standard. */
-  --r-sm: 2px; --r-md: 2px; --r-lg: 2px; --r-pill: 2px;
-  --card-border: 1px solid rgba(80,255,140,.22);
-}
-:root[data-theme="terminal"] body {
-  background-image: repeating-linear-gradient(180deg,
-    rgba(80,255,140,0.05) 0px, rgba(80,255,140,0.05) 1px, transparent 1px, transparent 3px);
-}
-/* 1:1 aus der Vorlage (cardBase: border:1px solid ${t.accent}) — voll
-   deckender Akzent-Rahmen statt des transluzenten Standard-Borders. */
-:root[data-theme="terminal"] .card,
-:root[data-theme="terminal"] .room,
-:root[data-theme="terminal"] dialog {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--page), 0 0 0 4px var(--border), var(--shadow-card);
-}
-:root[data-theme="terminal"] ::selection { background: var(--accent); color: var(--accent-ink); }
-/* 1:1 aus der Vorlage (eyebrowPrefix/cursorStyle): "> "-Prompt-Präfix +
-   blinkender "_"-Cursor am Markennamen, nur im Terminal-Theme. */
-.brand-eyebrow, .brand-cursor { display: none; }
-:root[data-theme="terminal"] .brand-eyebrow, :root[data-theme="terminal"] .brand-cursor { display: inline-block; }
-:root[data-theme="terminal"] .brand-cursor { color: var(--accent); margin-left: 2px; }
-@media (prefers-reduced-motion: no-preference) {
-  :root[data-theme="terminal"] .brand-cursor { animation: rp-cursor-blink 1s step-end infinite; }
-  @keyframes rp-cursor-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
-
-  :root[data-theme="terminal"] body::after {
-    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-    background: linear-gradient(180deg, transparent 0%, rgba(80,255,140,0.05) 50%, transparent 100%);
-    background-size: 100% 220px;
-    animation: rp-scan-sweep 9s linear infinite, rp-crt-flicker 6s linear infinite;
-  }
-  @keyframes rp-scan-sweep { from { background-position: 0 -100vh; } to { background-position: 0 100vh; } }
-  @keyframes rp-crt-flicker { 0%, 96%, 100% { opacity: 1; } 97% { opacity: .85; } 98% { opacity: 1; } 99% { opacity: .9; } }
-}
-.pixel-cat { width: 22px; height: 22px; vertical-align: -6px; }
-.pixel-cat rect { fill: currentColor; }
-
-/* ---------- Cyberpunk (Neon auf Fast-Schwarz, bewusst der einzige
-   deutlich glow-lastige Look — alle anderen Themes bleiben glow-frei) ---------- */
-:root[data-theme="cyberpunk"] {
-  color-scheme: dark;
-  --page:      #0a0612;
-  --surface-1: #140a24;
-  --surface-2: #1c0f30;
-  --text-primary:   #f2e9ff;
-  --text-secondary: #c9a8ff;
-  --text-muted:     #7a5ca3;
-  --grid:      #2a1642;
-  --baseline:  #3d2159;
-  --border:    rgba(255,60,220,0.25);
-  --accent:      #00f0ff;
-  --accent-ink:  #04030a;
-  --accent-soft: #123a42;
-  --good:  #39ff8f;
-  --warn:  #ffe83d;
-  --band:  #170b28;
-  --shadow-card: 0 0 0 1px rgba(0,240,255,.18), 0 0 34px -6px rgba(255,47,208,.4), 0 0 60px -18px rgba(0,240,255,.35);
-  --room-a: #00f0ff; --room-b: #ff2fd0; --room-c: #e8ff2f; --room-d: #7c4dff; --room-e: #ff5470;
-  --font-display: "Orbitron", var(--font-body);
-  /* Moderat gerundet, aber bewusst KEIN echter Pill — passt zum technischen
-     Look, ohne komplett kantig wie Terminal/Ukiyo-e zu wirken. */
-  --r-sm: 8px; --r-md: 8px; --r-lg: 10px; --r-pill: 8px;
-  --card-border: 1px solid rgba(0,240,255,.18);
-}
-:root[data-theme="cyberpunk"] .card,
-:root[data-theme="cyberpunk"] .room,
-:root[data-theme="cyberpunk"] dialog {
-  /* 1:1 aus der Vorlage (cardBase): eigener, gedämpfterer Glow (1 Magenta-
-     Layer, Blur 14px) statt des großen 3-Layer-Chrome-Glows, plus Cyan- statt
-     Magenta-Rahmen. */
-  border-color: rgba(0,240,255,.35);
-  box-shadow: 0 0 0 1px rgba(0,240,255,.18), 0 0 14px -4px rgba(255,47,208,.35);
-}
-:root[data-theme="cyberpunk"] ::selection { background: var(--accent); color: var(--accent-ink); }
-:root[data-theme="cyberpunk"] h1, :root[data-theme="cyberpunk"] h2 { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent); }
-/* Ruhiger Neon-Akzent statt wanderndem Lichtstreifen und Dauerpuls:
-   nur ausgewählte Navigation und wirklich hervorgehobene Elemente leuchten
-   statisch leicht. So bleibt Cyberpunk lebendig, ohne die Inhalte permanent
-   zu überblenden oder Aufmerksamkeit zu erzwingen. */
-:root[data-theme="cyberpunk"] .app-header .page-tabs [aria-pressed="true"],
-:root[data-theme="cyberpunk"] #viewTabs [aria-pressed="true"],
-:root[data-theme="cyberpunk"] .crew-nav [aria-pressed="true"] {
-  text-shadow: 0 0 8px rgba(0,240,255,.38);
-}
-:root[data-theme="cyberpunk"] .chip.ws,
-:root[data-theme="cyberpunk"] button.primary {
-  box-shadow: 0 0 0 1px rgba(0,240,255,.22), 0 0 14px -8px rgba(255,47,208,.55);
-}
-@media (hover: hover) {
-  :root[data-theme="cyberpunk"] button.primary:hover,
-  :root[data-theme="cyberpunk"] a.btn.primary:hover {
-    box-shadow: 0 0 0 1px rgba(0,240,255,.34), 0 0 18px -7px rgba(255,47,208,.68);
-  }
-}
-@media (prefers-reduced-motion: no-preference) {
-  /* 1:1 aus der Vorlage (h1Style: animation:glitchFlicker 4s steps(2,end)
-     infinite) — EINE durchlaufende Animation ohne Hover-Sonderfall. */
-  :root[data-theme="cyberpunk"] h1 {
-    animation: glitchFlicker 4s steps(2, end) infinite;
-  }
-  @keyframes glitchFlicker {
-    0%, 78%, 100% { text-shadow: 0 0 12px rgba(0,240,255,.5); transform: translate(0,0); }
-    80% { text-shadow: -3px 0 rgba(255,47,208,.9), 3px 0 rgba(0,240,255,.9); transform: translate(-3px,1px); }
-    84% { text-shadow: 3px 0 rgba(255,47,208,.9), -3px 0 rgba(0,240,255,.9); transform: translate(3px,-1px); }
-    88% { text-shadow: -2px 0 rgba(255,47,208,.9), 2px 0 rgba(0,240,255,.9); transform: translate(2px,0); }
-    92% { text-shadow: 0 0 12px rgba(0,240,255,.5); transform: translate(0,0); }
-  }
-}
-
-/* ---------- Ukiyo-e / Japanischer Minimalismus (ruhig, ein gedeckter
-   Akzent, jetzt mit einem sehr weichen Schatten statt komplett schattenfrei
-   — Verfeinerung aus dem Redesign) ---------- */
-:root[data-theme="ukiyo"] {
-  color-scheme: light;
-  --page:      #f7f1e6;
-  --surface-1: #fbf7ee;
-  --surface-2: #f1e9d8;
-  --text-primary:   #2b2620;
-  --text-secondary: #5a5044;
-  --text-muted:     #948a78;
-  --grid:      #e3d9c4;
-  --baseline:  #d8cbb0;
-  --border:    rgba(43,38,32,0.10);
-  --accent:      #8b2f3b;
-  --accent-ink:  #fdf6ec;
-  --accent-soft: #f3e1e0;
-  --good:  #4a6741;
-  --warn:  #a3671f;
-  --band:  #efe6d3;
-  --shadow-card: none;
-  --room-a: #8b2f3b; --room-b: #4a6741; --room-c: #2f5f8b; --room-d: #7a6a3a; --room-e: #5a4a6a;
-  --font-display: "Shippori Mincho", var(--font-body);
-  /* Ukiyo-e bleibt betont schlicht/kantig statt dem neuen rundlichen Standard. */
-  --r-sm: 2px; --r-md: 1px; --r-lg: 2px; --r-pill: 2px;
-  /* 1:1 aus der Vorlage (cardBase/chromeShadow): Ukiyo-e ist bewusst
-     komplett schattenfrei — Cards UND Chrome (Controls-Pille/Popover). */
-  --chrome-shadow: none;
-  --card-border: 1px solid rgba(43,38,32,.12);
-}
-:root[data-theme="ukiyo"] .card,
-:root[data-theme="ukiyo"] .room,
-:root[data-theme="ukiyo"] .chip,
-:root[data-theme="ukiyo"] .kpi-bar .kpi {
-  border-width: 1px;
-}
-:root[data-theme="ukiyo"] .room { border-top-width: 2px; }
-:root[data-theme="ukiyo"] ::selection { background: var(--accent-soft); color: var(--text-primary); }
-/* Hintergrundbild sehr dezent (~5%) durchscheinen lassen: eine fast
-   deckende Wash-Farbe aus dem Theme selbst liegt als erster Layer über
-   dem Bild, statt mit einem separaten opacity-Element zu arbeiten. */
-:root[data-theme="ukiyo"] body {
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--page) 95%, transparent), color-mix(in srgb, var(--page) 95%, transparent)),
-    var(--ukiyo-bg, none);
-  background-size: cover; background-position: center; background-repeat: no-repeat; background-attachment: fixed;
-}
-
-/* ---------- Solarpunk (organisch, warmes Grün/Terracotta) ---------- */
-:root[data-theme="solarpunk"] {
-  color-scheme: light;
-  --page:      #f3f1df;
-  --surface-1: #fffdf3;
-  --surface-2: #e8f0d7;
-  --text-primary:   #1d3525;
-  --text-secondary: #456341;
-  --text-muted:     #758b6d;
-  --grid:      #d3d9b8;
-  --baseline:  #bfc79f;
-  --border:    rgba(37,83,43,0.18);
-  --accent:      #28794a;
-  --accent-ink:  #ffffff;
-  --accent-soft: #cfe6c5;
-  --good:  #28794a;
-  --warn:  #c96538;
-  --band:  #e2e4c5;
-  --shadow-card: 0 2px 4px rgba(37,83,43,.06), 0 22px 46px -24px rgba(60,105,54,.36);
-  --room-a: #28794a; --room-b: #c96538; --room-c: #347c91; --room-d: #b58c25; --room-e: #75578a;
-  --font-display: "Space Grotesk", var(--font-body);
-  --font-body: "Nunito", system-ui, -apple-system, sans-serif;
-  /* Organisch-asymmetrische Ecke statt gleichmäßigem Radius. */
-  --r-sm: 14px; --r-md: 18px; --r-pill: 999px; --r-lg: 30px 14px 30px 14px;
-  /* 1:1 aus der Vorlage (chromeShadow): eigener, weicherer Grün-Glow statt
-     des zweilagigen Card-Schattens für Header-Controls/Popover. */
-  --chrome-shadow: 0 6px 16px -8px rgba(70,120,60,.4);
-  --card-border: 1.5px solid rgba(40,70,20,.18);
-}
-:root[data-theme="solarpunk"] body {
-  position: relative;
-  isolation: isolate;
-  background-image:
-    radial-gradient(circle at 96% -4%, rgba(244,190,72,.34) 0, rgba(244,190,72,.13) 12%, transparent 31%),
-    repeating-conic-gradient(from 205deg at 98% 0%, rgba(221,161,45,.045) 0deg 7deg, transparent 7deg 17deg),
-    radial-gradient(ellipse 34% 24% at 3% 18%, rgba(101,164,84,.20), transparent 72%),
-    radial-gradient(ellipse 28% 34% at 100% 88%, rgba(201,101,56,.12), transparent 70%),
-    repeating-linear-gradient(90deg, rgba(40,100,65,.026) 0 1px, transparent 1px 72px),
-    repeating-linear-gradient(0deg, rgba(40,100,65,.022) 0 1px, transparent 1px 72px);
-  background-attachment: fixed;
-}
-:root[data-theme="solarpunk"] body::before,
-:root[data-theme="solarpunk"] body::after {
-  content: "";
-  position: fixed;
-  z-index: 0;
-  left: -42vw;
-  width: clamp(420px, 42vw, 720px);
-  height: clamp(120px, 15vw, 220px);
-  pointer-events: none;
-  opacity: .44;
-  /* Große, überlappende Stops + weicher Blur statt der zuvor sichtbaren
-     konzentrischen Ringe: dadurch bleiben die Wolken bei der sehr langsamen
-     Skalierung glatt und papierartig statt pixelig. */
-  filter: blur(11px);
-  background:
-    radial-gradient(ellipse at 17% 67%, rgba(255,255,255,.92) 0 24%, rgba(195,226,228,.44) 43%, transparent 67%),
-    radial-gradient(ellipse at 34% 48%, rgba(255,255,255,.95) 0 31%, rgba(195,226,228,.46) 52%, transparent 75%),
-    radial-gradient(ellipse at 54% 58%, rgba(255,255,255,.95) 0 35%, rgba(195,226,228,.44) 56%, transparent 78%),
-    radial-gradient(ellipse at 73% 70%, rgba(255,255,255,.91) 0 27%, rgba(195,226,228,.40) 47%, transparent 70%);
-}
-:root[data-theme="solarpunk"] body > .wrap {
-  position: relative;
-  z-index: 1;
-}
-:root[data-theme="solarpunk"] body::before {
-  top: var(--solar-cloud-y-1, 18vh);
-  animation: rp-solar-cloud-1 var(--solar-cloud-duration-1, 230s) linear var(--solar-cloud-delay-1, -80s) infinite;
-}
-:root[data-theme="solarpunk"] body::after {
-  top: var(--solar-cloud-y-2, 54vh);
-  opacity: .27;
-  filter: blur(15px);
-  animation: rp-solar-cloud-2 var(--solar-cloud-duration-2, 300s) linear var(--solar-cloud-delay-2, -150s) infinite;
-}
-@keyframes rp-solar-cloud-1 {
-  from { transform: translate3d(0,0,0) scale(var(--solar-cloud-scale-1, .9)); }
-  to { transform: translate3d(170vw,0,0) scale(var(--solar-cloud-scale-1, .9)); }
-}
-@keyframes rp-solar-cloud-2 {
-  from { transform: translate3d(0,0,0) scale(var(--solar-cloud-scale-2, .72)); }
-  to { transform: translate3d(176vw,0,0) scale(var(--solar-cloud-scale-2, .72)); }
-}
-@media (prefers-reduced-motion: reduce) {
-  :root[data-theme="solarpunk"] body::before,
-  :root[data-theme="solarpunk"] body::after { display: none; }
-}
-:root[data-theme="solarpunk"] ::selection { background: #f4c75d; color: var(--text-primary); }
-:root[data-theme="solarpunk"] .card,
-:root[data-theme="solarpunk"] .room,
-:root[data-theme="solarpunk"] .kpi-bar .kpi,
-:root[data-theme="solarpunk"] dialog {
-  border-color: rgba(37,83,43,.22);
-  background-image: linear-gradient(145deg, rgba(255,255,255,.38), transparent 42%);
-}
-:root[data-theme="solarpunk"] .app-header .page-tabs [aria-pressed="true"] {
-  background: linear-gradient(135deg, var(--surface-1), color-mix(in srgb, var(--accent-soft) 72%, var(--surface-1)));
-}
-:root[data-theme="solarpunk"] .plan-page .public-toolbar {
-  background-color: color-mix(in srgb, var(--surface-1) 88%, var(--accent-soft));
-}
-:root[data-theme="solarpunk"] .plan-page .toolbar-label {
-  color: color-mix(in srgb, var(--accent) 78%, var(--text-muted));
-}
-:root[data-theme="solarpunk"] .plan-page .grid-cell {
-  background: color-mix(in srgb, var(--surface-2) 88%, var(--surface-1));
-  box-shadow: inset 0 0 0 1px rgba(40,100,65,.055);
-}
-:root[data-theme="solarpunk"] .plan-page .room-swatch {
-  width: 4px;
-  border-radius: 80% 18% 80% 18%;
-}
-:root[data-theme="solarpunk"] .plan-page #pageTitleCard h1::after,
-:root[data-theme="solarpunk"] .landing-page .hero-wrap h1::after {
-  content: "";
-  display: inline-block;
-  width: .52em;
-  height: .52em;
-  margin-left: .38em;
-  border-radius: 82% 14% 82% 14%;
-  background: linear-gradient(145deg, #78ad55, var(--accent));
-  box-shadow: 7px -6px 0 -3px rgba(244,190,72,.78);
-  transform: rotate(-23deg);
-  vertical-align: .04em;
-}
-:root[data-theme="solarpunk"] button.primary,
-:root[data-theme="solarpunk"] a.btn.primary {
-  background: linear-gradient(135deg, var(--accent), #3c8d55);
-  box-shadow: 0 8px 18px -12px rgba(40,100,65,.7);
-}
-
-/* ---------- Glassmorphism (Aurora, Frostglas, ruhige Lichttiefe) ---------- */
-:root[data-theme="glass"] {
-  color-scheme: dark;
-  --page:      #0a1020;
-  --surface-1: rgba(255,255,255,.115);
-  --surface-2: rgba(255,255,255,.075);
-  --text-primary:   #f7f9ff;
-  --text-secondary: #ced7ec;
-  --text-muted:     #93a1bf;
-  --grid:      rgba(255,255,255,.10);
-  --baseline:  rgba(255,255,255,.24);
-  --border:    rgba(255,255,255,.18);
-  --accent:      #8ee7ff;
-  --accent-ink:  #0a1422;
-  --accent-soft: rgba(142,231,255,.17);
-  --good:  #86efbd;
-  --warn:  #ff9fb9;
-  --band:  rgba(255,255,255,.10);
-  --shadow-card: 0 24px 60px -28px rgba(0,0,0,.68), inset 0 1px 0 rgba(255,255,255,.18);
-  --room-a: #82dcff; --room-b: #ffc782; --room-c: #7ce0c3; --room-d: #c6a3ff; --room-e: #ff9fb9;
-  --font-display: "Manrope", var(--font-body);
-  --r-sm: 14px; --r-md: 18px; --r-pill: 999px; --r-lg: 28px;
-  --chrome-shadow: 0 18px 42px -24px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.18);
-  --card-border: 1px solid rgba(255,255,255,.20);
-}
-:root[data-theme="glass"] body {
-  background-color: var(--page);
-  background-image:
-    radial-gradient(circle at 12% 8%, rgba(64,174,255,.42), transparent 31%),
-    radial-gradient(circle at 88% 12%, rgba(173,105,255,.35), transparent 32%),
-    radial-gradient(circle at 72% 88%, rgba(31,216,177,.23), transparent 38%),
-    linear-gradient(145deg, #091120 0%, #10162b 48%, #09101d 100%);
-  background-attachment: fixed;
-}
-:root[data-theme="glass"] .app-header {
-  background: rgba(10,16,32,.52);
-  border-bottom-color: rgba(255,255,255,.16);
-  -webkit-backdrop-filter: blur(24px) saturate(145%);
-  backdrop-filter: blur(24px) saturate(145%);
-}
-:root[data-theme="glass"] .card,
-:root[data-theme="glass"] .room,
-:root[data-theme="glass"] .kpi-bar .kpi,
-:root[data-theme="glass"] .controls,
-:root[data-theme="glass"] .controls-group,
-:root[data-theme="glass"] .next-con-card,
-:root[data-theme="glass"] dialog,
-:root[data-theme="glass"] .theme-more-popover {
-  background-color: var(--surface-1);
-  background-image: linear-gradient(145deg, rgba(255,255,255,.13), rgba(255,255,255,.025) 48%, rgba(255,255,255,.06));
-  border-color: rgba(255,255,255,.20);
-  -webkit-backdrop-filter: blur(22px) saturate(145%);
-  backdrop-filter: blur(22px) saturate(145%);
-}
-:root[data-theme="glass"] input,
-:root[data-theme="glass"] textarea,
-:root[data-theme="glass"] select {
-  background: rgba(6,12,25,.38);
-  border-color: rgba(255,255,255,.20);
-}
-:root[data-theme="glass"] .slot-tabs [aria-pressed="true"],
-:root[data-theme="glass"] .theme-more-row[aria-pressed="true"] {
-  background: rgba(255,255,255,.17);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 12px 26px -18px rgba(0,0,0,.8);
-}
-:root[data-theme="glass"] .plan-page .grid-cell {
-  background: rgba(255,255,255,.065);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-:root[data-theme="glass"] .plan-page .grid-cell .grid-chip,
-:root[data-theme="glass"] .plan-page #viewContent .room-public-chip {
-  background: rgba(8,15,31,.36);
-  border: 0;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 12px 26px -24px rgba(0,0,0,.82);
-}
-:root[data-theme="glass"] .plan-page #viewContent .tablebox {
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-:root[data-theme="glass"] .plan-page #viewContent .tablebox .free {
-  border-color: rgba(255,255,255,.12);
-  background: rgba(8,15,31,.22);
-}
-:root[data-theme="glass"] button.primary,
-:root[data-theme="glass"] a.btn.primary {
-  background: linear-gradient(135deg, rgba(181,239,255,.98), rgba(142,231,255,.78));
-  box-shadow: 0 12px 28px -15px rgba(110,220,255,.75), inset 0 1px 0 rgba(255,255,255,.72);
-}
-
-/* ---------- Punk (radikales Protestplakat, Überdruck, kontrolliertes Chaos) ---------- */
-:root[data-theme="punk"] {
-  color-scheme: light;
-  --page:      #d8d8d1;
-  --surface-1: #f5f4ed;
-  --surface-2: #c9c9c2;
-  --text-primary:   #0b0b0b;
-  --text-secondary: #252525;
-  --text-muted:     #55554f;
-  --grid:      #85857f;
-  --baseline:  #0b0b0b;
-  --border:    #0b0b0b;
-  --accent:      #ff3d00;
-  --accent-ink:  #ffffff;
-  --accent-soft: #c7ff00;
-  --good:  #008f51;
-  --warn:  #ff3d00;
-  --band:  #c7ff00;
-  --shadow-card: none;
-  --room-a: #ff3d00; --room-b: #008f51; --room-c: #0057ff; --room-d: #f1bd00; --room-e: #7a2cff;
-  --font-display: "Arial Black", Arial, Helvetica, sans-serif;
-  --font-body: "Arial Narrow", Arial, Helvetica, sans-serif;
-  --border-w: 3px;
-  --r-sm: 0; --r-md: 0; --r-pill: 0; --r-lg: 0;
-  --chrome-shadow: none;
-  --chrome-border-w: 3px;
-  --card-border: 3px solid #0b0b0b;
-}
-:root[data-theme="punk"] body {
-  position: relative;
-  isolation: isolate;
-  overflow-x: hidden;
-  background-color: var(--page);
-  background-image:
-    linear-gradient(104deg, transparent 0 61%, rgba(0,87,255,.22) 61% 79%, transparent 79%),
-    linear-gradient(-7deg, transparent 0 72%, rgba(255,61,0,.18) 72% 88%, transparent 88%),
-    repeating-linear-gradient(90deg, rgba(11,11,11,.12) 0 1px, transparent 1px 48px),
-    repeating-linear-gradient(0deg, rgba(11,11,11,.12) 0 1px, transparent 1px 48px);
-  background-attachment: fixed;
-}
-:root[data-theme="punk"] body::before {
-  content: "CON // RAUM // PLAN";
-  position: fixed;
-  z-index: 0;
-  top: 18vh;
-  left: -6vw;
-  width: 118vw;
-  pointer-events: none;
-  color: rgba(0,87,255,.17);
-  font-family: "Arial Black", Arial, sans-serif;
-  font-size: clamp(6rem, 17vw, 19rem);
-  font-weight: 1000;
-  line-height: .7;
-  letter-spacing: -.1em;
-  text-align: center;
-  text-transform: uppercase;
-  transform: rotate(-8deg);
-  white-space: nowrap;
-}
-:root[data-theme="punk"] body::after {
-  content: none;
-}
-.punk-zine-banner {
-  position: fixed;
-  z-index: 3;
-  right: -12vw;
-  bottom: 1.2rem;
-  width: 124vw;
-  padding: 7px 0 6px;
-  border-block: 3px solid #0b0b0b;
-  background: var(--accent-soft);
-  color: #0b0b0b;
-  font: 1000 clamp(.66rem, 1.05vw, .98rem)/1 "Arial Black", Arial, sans-serif;
-  letter-spacing: .03em;
-  text-align: center;
-  text-transform: uppercase;
-  transform: rotate(1.4deg);
-  white-space: nowrap;
-  overflow: hidden;
-}
-.punk-zine-banner a { color: inherit; text-decoration: none; }
-:root[data-theme="punk"] body > .wrap,
-:root[data-theme="punk"] .app-header {
-  position: relative;
-  z-index: 1;
-}
-:root[data-theme="punk"] .app-header {
-  background: #0b0b0b;
-  border-bottom: 12px solid #0057ff;
-  backdrop-filter: none;
-}
-:root[data-theme="punk"] .app-header .brand {
-  padding: 4px 9px;
-  background: var(--accent);
-  color: #fff;
-  transform: rotate(-2deg);
-}
-:root[data-theme="punk"] .app-header .page-tabs.slot-tabs { background: var(--accent-soft); }
-:root[data-theme="punk"] .card,
-:root[data-theme="punk"] .room,
-:root[data-theme="punk"] .kpi-bar .kpi,
-:root[data-theme="punk"] .next-con-card,
-:root[data-theme="punk"] dialog {
-  border-color: #0b0b0b;
-  box-shadow: none;
-}
-:root[data-theme="punk"] h1,
-:root[data-theme="punk"] h2,
-:root[data-theme="punk"] .brand {
-  letter-spacing: -.035em;
-  text-transform: uppercase;
-}
-:root[data-theme="punk"] h1 {
-  display: inline-block;
-  max-width: min(100%, 18ch);
-  padding: 7px 16px 9px;
-  background: #0b0b0b;
-  color: #fff;
-  box-shadow: 18px 0 0 var(--accent), -9px 9px 0 #0057ff;
-  font-size: clamp(2.3rem, 7vw, 6.8rem) !important;
-  line-height: .82 !important;
-  text-shadow: none;
-  transform: rotate(-1.5deg) skewX(-4deg);
-}
-:root[data-theme="punk"] h2 {
-  display: inline;
-  background: var(--accent-soft);
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  padding: 1px 5px;
-  color: #0b0b0b;
-  font-weight: 1000;
-  text-transform: uppercase;
-}
-:root[data-theme="punk"] .sub {
-  display: table;
-  margin-top: 14px;
-  padding: 5px 8px;
-  background: #0057ff;
-  color: #fff;
-  font-weight: 900;
-  transform: rotate(.7deg);
-}
-:root[data-theme="punk"] .app-header .page-tabs [aria-pressed="true"] {
-  background: #111;
-  color: var(--accent-soft);
-  box-shadow: none;
-  transform: none;
-}
-:root[data-theme="punk"] .plan-page .public-view-tabs button[aria-pressed="true"],
-:root[data-theme="punk"] .crew-nav button[aria-pressed="true"] {
-  border-bottom-color: #0b0b0b;
-  background: var(--accent);
-  color: #fff;
-}
-:root[data-theme="punk"] .plan-page .public-view-tabs {
-  border-bottom: 4px solid #0b0b0b;
-  gap: 10px;
-  transform: rotate(-.35deg);
-}
-:root[data-theme="punk"] .plan-page .public-view-tabs button {
-  padding-inline: 12px;
-  text-transform: uppercase;
-}
-:root[data-theme="punk"] .plan-page .public-toolbar {
-  border-top: 12px solid #0057ff;
-  border-bottom: 5px solid #0b0b0b;
-  transform: rotate(.35deg);
-}
-:root[data-theme="punk"] .landing-page .next-con-card {
-  border-left: 18px solid #0057ff;
-  transform: rotate(-.55deg);
-}
-:root[data-theme="punk"] .landing-page .con-directory {
-  border-top: 12px solid var(--accent);
-  transform: rotate(.4deg);
-}
-:root[data-theme="punk"] .landing-page .con-directory .card:nth-child(odd),
-:root[data-theme="punk"] .plan-page #viewContent .room:nth-child(odd) {
-  transform: rotate(-.35deg);
-}
-:root[data-theme="punk"] .landing-page .con-directory .card:nth-child(even),
-:root[data-theme="punk"] .plan-page #viewContent .room:nth-child(even) {
-  transform: rotate(.35deg);
-}
-:root[data-theme="punk"] .plan-page .matrix-label,
-:root[data-theme="punk"] .badge {
-  border: 2px solid #0b0b0b;
-  border-radius: 0;
-  background: #0b0b0b;
-  color: #fff;
-  text-transform: uppercase;
-}
-:root[data-theme="punk"] .plan-page .grid-cell {
-  border-radius: 0;
-  background: #bdbdb6;
-  box-shadow: inset 0 0 0 2px #0b0b0b;
-}
-:root[data-theme="punk"] .plan-page .grid-cell .grid-chip {
-  border: 2px solid #0b0b0b;
-  border-left: 8px solid #0057ff;
-  border-radius: 0;
-  background: #f5f4ed;
-  transition: transform .12s steps(2,end), background-color .12s linear, box-shadow .12s linear;
-}
-:root[data-theme="punk"] .plan-page .room-swatch {
-  width: 6px;
-  border-radius: 0;
-}
-:root[data-theme="punk"] .plan-page #axisSwitch button[aria-pressed="true"],
-:root[data-theme="punk"] .plan-page #detailSwitch button[aria-pressed="true"] {
-  border-bottom: 4px solid var(--accent);
-}
-:root[data-theme="punk"] .toolbar-label {
-  color: #0b0b0b;
-  font-weight: 900;
-}
-:root[data-theme="punk"] button.primary,
-:root[data-theme="punk"] a.btn.primary {
-  border-color: #0b0b0b;
-  background: var(--accent);
-  box-shadow: 6px 6px 0 #0b0b0b;
-  font-weight: 1000;
-  text-transform: uppercase;
-}
-:root[data-theme="punk"] button.primary:hover,
-:root[data-theme="punk"] a.btn.primary:hover,
-:root[data-theme="punk"] .plan-page .grid-cell .grid-chip:hover {
-  background: var(--accent-soft);
-  color: #0b0b0b;
-  box-shadow: 9px 9px 0 #0057ff;
-  transform: translate(-3px,-3px) rotate(-1deg);
-}
-:root[data-theme="punk"] button.primary:active,
-:root[data-theme="punk"] a.btn.primary:active {
-  transform: translate(1px,1px);
-  box-shadow: 2px 2px 0 #0b0b0b;
-}
-:root[data-theme="punk"] ::selection {
-  background: var(--accent-soft);
-  color: #0b0b0b;
-}
-@media (prefers-reduced-motion: no-preference) {
-  :root[data-theme="punk"] body::before {
-    animation: rp-punk-poster-drift 22s steps(7,end) infinite alternate;
-  }
-  :root[data-theme="punk"] body::after {
-    animation: rp-punk-tape-shove 16s steps(4,end) infinite alternate;
-  }
-  :root[data-theme="punk"] h1 {
-    animation: rp-punk-title-jolt 8s steps(1,end) infinite;
-  }
-}
-@keyframes rp-punk-poster-drift {
-  0% { transform: translate3d(-3vw,-2vh,0) rotate(-8deg); }
-  48% { transform: translate3d(4vw,5vh,0) rotate(-5deg); }
-  100% { transform: translate3d(-1vw,11vh,0) rotate(-10deg); }
-}
-@keyframes rp-punk-tape-shove {
-  0%, 67% { transform: translate3d(0,0,0) rotate(1.4deg); }
-  68%, 83% { transform: translate3d(-4vw,-5px,0) rotate(-1.2deg); }
-  84%, 100% { transform: translate3d(3vw,2px,0) rotate(2deg); }
-}
-@keyframes rp-punk-title-jolt {
-  0%, 76%, 80%, 100% { transform: rotate(-1.5deg) skewX(-4deg); }
-  77% { transform: translate(-5px,2px) rotate(1deg) skewX(3deg); }
-  79% { transform: translate(4px,-2px) rotate(-3deg) skewX(-7deg); }
-}
-
-/* ---------- Comic (kräftige Outlines, harter Versatz-Schatten) ---------- */
-:root[data-theme="comic"] {
-  color-scheme: light;
-  --page:      #fff3da;
-  --surface-1: #ffffff;
-  --surface-2: #ffe8ae;
-  --text-primary:   #181418;
-  --text-secondary: #3b3440;
-  --text-muted:     #6d6675;
-  --grid:      #f0d9a0;
-  --baseline:  #181418;
-  --border:    #181418;
-  --accent:      #e8283c;
-  --accent-ink:  #ffffff;
-  --accent-soft: #ffe15c;
-  --good:  #1ea672;
-  --warn:  #ff8a00;
-  --band:  #ffe15c;
-  --shadow-card: 6px 6px 0 #181418;
-  --room-a: #e8283c; --room-b: #1ea672; --room-c: #2b6cb0; --room-d: #ff8a00; --room-e: #8b3fd1;
-  --font-display: "Bangers", cursive;
-  --font-body: "Poppins", system-ui, -apple-system, sans-serif;
-  --border-w: 3px;
-  --r-sm: 6px; --r-md: 8px; --r-pill: 999px; --r-lg: 14px;
-  /* 1:1 aus der Vorlage (chromeShadow/chromeBorder): Header-Controls/Popover
-     bekommen einen kleineren Versatz-Schatten (3px statt 6px) und einen
-     dünneren Rahmen (2px statt 3px) als normale Cards — leichter wirkend. */
-  --chrome-shadow: 3px 3px 0 var(--text-primary);
-  --chrome-border-w: 2px;
-  --card-border: 3px solid #181418;
-}
-/* Ben-Day-Dots-Raster ÜBER einem seiten-festen Comic-Cover (--comic-bg,
-   siehe pickComicBackground() in common.js) — 1:1 aus der Vorlage
-   (radial-gradient + luminosity-blend), vorher fehlte das Cover komplett. */
-:root[data-theme="comic"] body {
-  background-image:
-    radial-gradient(circle, rgba(24,20,24,.14) 1.7px, transparent 1.7px),
-    linear-gradient(color-mix(in srgb, var(--page) 94%, transparent), color-mix(in srgb, var(--page) 94%, transparent)),
-    var(--comic-bg, none);
-  background-size: 16px 16px, cover, cover;
-  background-position: 0 0, center, center;
-  background-repeat: repeat, no-repeat, no-repeat;
-  background-attachment: fixed, fixed, fixed;
-  background-blend-mode: normal, normal, luminosity;
-}
-
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-
-/* ============================================================
    Basis
    ============================================================ */
 * { box-sizing: border-box; }
@@ -889,9 +42,7 @@ input[type="text"], input[type="number"], input[type="email"], input[type="passw
 }
 label { font-size: var(--fs-xs); color: var(--text-secondary); }
 
-/* Platzanzahl-Stepper: große –/+-Buttons statt der winzigen nativen
-   Zahlenfeld-Pfeile. Zahl selbst bleibt schmal + zentriert, Pfeile am
-   Rand ausgeblendet (das Feld ist trotzdem tippbar, nur ohne Spinner). */
+/* Platzanzahl-Stepper */
 .stepper { display: inline-flex; align-items: stretch; gap: 0; }
 .stepper input[type="number"] {
   width: 3em; text-align: center; border-radius: 0; border-left: none; border-right: none;
@@ -905,9 +56,6 @@ label { font-size: var(--fs-xs); color: var(--text-secondary); }
 .stepper-btn:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
 .stepper-btn:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
 
-/* 1:1 aus der Vorlage (stepperStyle/stepperBtnStyle/stepperValStyle): reiner
-   Anzeige-Stepper (kein Zahlenfeld) für den Mindestplätze-Filter — Pill-
-   Hintergrund umschließt zwei quadratische Buttons + Text. */
 .min-seats-stepper { display: inline-flex; align-items: center; gap: var(--sp-2); background: var(--band); border-radius: var(--r-pill); padding: 5px 8px; }
 .min-seats-btn { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-1); border: none; border-radius: 6px; width: 22px; height: 22px; font-weight: 700; cursor: pointer; padding: 0; }
 .min-seats-val { font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; }
@@ -961,9 +109,6 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
 .slot-tabs button[aria-pressed="true"], .slot-tabs a[aria-pressed="true"] { background: var(--surface-1); color: var(--text-primary); box-shadow: var(--shadow-card); }
 .slot-tabs.crew { outline: 1.5px dashed var(--accent); outline-offset: 3px; }
 
-/* Kopfzeile: eine Leiste mit Cons/Raumplan/🔒Crew mittig + Controls rechts —
-   1:1 aus der Design-Vorlage (headerBarStyle/headerInnerStyle), siehe
-   Phase-10-Plan Abschnitt A. */
 .app-header {
   position: sticky; top: 0; z-index: 40;
   background: color-mix(in srgb, var(--page) 90%, transparent); backdrop-filter: blur(10px);
@@ -977,8 +122,7 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
 .nav-groups { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: center; margin: var(--sp-3) 0; }
 .nav-groups .label { font-size: var(--fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-right: var(--sp-1); }
 
-/* Kennzahlen-Leiste — Bento-Kacheln: einzeln umrandete Compartments statt
-   einer durchlaufenden Leiste. */
+/* Kennzahlen */
 .kpi-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--sp-3); margin: var(--sp-4) 0; }
 .kpi-bar .kpi {
   background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-lg);
@@ -1010,12 +154,10 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
 .role-badge.editor { background: var(--band); color: var(--text-secondary); border: var(--border-w) solid var(--border); }
 .role-badge.pending { background: transparent; border: 1.5px dashed var(--warn); color: var(--warn); }
 
-/* Login-Button wird zum Avatar-Kreis, sobald eingeloggt (siehe mountAuthUI). */
 button.has-avatar { padding: 0; border-radius: 50%; background: transparent; border-color: transparent; }
-/* 1:1 aus der Vorlage (loginBtnStyle: box-shadow im Comic-Theme). */
+
 :root[data-theme="comic"] #authBtn:not(.has-avatar) { box-shadow: 2px 2px 0 var(--text-primary); }
-/* 1:1 aus der Vorlage (avatarWrapStyle): dezentes accentSoft-Badge mit
-   akzentfarbener Schrift + eigenem Rand statt vollflächigem Akzent-Kreis. */
+
 .auth-avatar {
   position: relative; display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
@@ -1029,13 +171,7 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
 
 .icon { width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; fill: currentColor; flex: none; }
 
-/* ============================================================
-   Dark Kinetic Minimalism — ein gemeinsames, zurückhaltendes
-   Bewegungsvokabular für ALLE Themes (nicht nur Terminal/Cyberpunk):
-   Hover-Lift + Schatten-Zunahme auf den "schwebenden" Bausteinen, ein
-   kurzes Einblenden beim (Neu-)Rendern. Immer hinter
-   prefers-reduced-motion, damit reduce wirklich jede Bewegung abschaltet.
-   ============================================================ */
+/* Bewegung */
 @media (prefers-reduced-motion: no-preference) {
   .card, .room, .chip, .kpi-bar .kpi, .con-card, .tablebox, .req, .assign-queue, .filter-chips {
     transition: transform .16s ease, box-shadow .16s ease;
@@ -1043,14 +179,11 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
   .card:hover, .kpi-bar .kpi:hover, .con-card:hover, .req:hover {
     transform: translateY(-2px);
   }
-  /* 1:1 aus der Vorlage (room.cardStyle: style-hover="transform:translateY(-3px)")
-     — Raum-Karten heben stärker ab als normale Cards. */
+
   .room:hover { transform: translateY(-3px); }
   .chip:not(.dragging):hover { transform: translateY(-1px); }
 
-  /* 1:1 aus der Vorlage (style-hover-Attribute, bislang komplett übersehen):
-     größere Buttons/Trigger heben leicht ab oder skalieren beim Hover,
-     kleine Icon-/Aktions-Buttons (.small/.icon-btn) bleiben bewusst ruhig. */
+
   button:not(.small):not(.icon-btn), a.btn:not(.small) { transition: transform .15s ease; }
   button:not(.small):not(.icon-btn):hover, a.btn:not(.small):hover { transform: translateY(-2px); }
   .theme-switch button, .lang-switch-flat button, .theme-more-trigger, button.has-avatar {
@@ -1062,16 +195,11 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
   .next-con-card { transition: transform .16s ease; }
   .next-con-card:hover { transform: translateY(-3px); }
 
-  /* 1:1 aus der Vorlage (cardBase: animation:fadeUp .5s ease-out both) —
-     chipBase() hat KEINE animation-Property, Chips poppen im Design also
-     nicht beim Rendern ein (bewusst auf .card/.room/.kpi/.req beschränkt). */
+
   .card, .room, .kpi-bar .kpi, .req {
     animation: rp-fadein .5s ease-out both;
   }
-  /* Live-Suchen ersetzen ihren Ergebnisbereich bei jedem Tastendruck.
-     Dabei darf die normale Seiten-Eingangsanimation nicht erneut starten:
-     wiederholtes Ab-/Aufblenden wirkt wie Flackern und ist besonders für
-     bewegungs- bzw. lichtempfindliche Menschen unangenehm. */
+  /* Live-Suchen unterdrücken wiederholte Eingangsanimationen. */
   .suppress-enter-animation .card,
   .suppress-enter-animation .room,
   .suppress-enter-animation .kpi-bar .kpi,
@@ -1079,8 +207,6 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
     animation: none;
   }
 
-  /* Ruhiges, statisches Feedback auf der Zielkarte. Kein Pulsieren/Fading:
-     assign() entfernt die Klasse nach kurzer Zeit wieder. */
   .tablebox.just-assigned { box-shadow: 0 0 0 2px var(--accent); }
 }
 @keyframes rp-fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -1089,20 +215,11 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
    Räume, Tische, Spiel-Chips — Spiel ist die primäre Information,
    Raum/Tisch ein sekundäres, farbig markiertes Label.
    ============================================================ */
-/* Bento-Tray: Räume sind Kacheln unterschiedlichen Gewichts — ein Raum mit
-   vielen Tischen (.wide, JS-seitig ab 4 Tischen vergeben) bekommt mehr
-   Fläche statt gleich große Boxen wie ein Raum mit einem einzigen Tisch. */
-/* 1:1 aus der Vorlage (roomGridStyle): feste 2 Spalten statt responsivem
-   Auto-Fill — Räume mit 4+ Tischen (.wide) spannen beide Spalten. */
 #board { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-6); align-items: start; }
 .room.wide { grid-column: span 2; }
 @media (max-width: 900px) { #board { grid-template-columns: 1fr; } .room.wide { grid-column: span 1; } }
-/* Setup-"Räume verwalten" nutzt dieselbe #board-ID für seine flache
-   .room-row-Liste (kein Kartenraster) — bleibt unabhängig von der
-   Spaltenzahl immer einspaltig. */
 .room-row { grid-column: 1 / -1; }
-/* 1:1 aus der Vorlage (roomsColStyle): im Zuordnen-Modus scrollt das
-   Räume-Grid unabhängig von der Warteschlange in fixer Höhe. */
+
 .assign-layout #board { max-height: 82vh; overflow-y: auto; padding-right: var(--sp-1); }
 .room {
   position: relative;
@@ -1336,8 +453,6 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
   .guided-tour-complete-toast, .guided-tour-choice { transition: none; }
 }
 
-/* 1:1 aus der Vorlage (manageRows/manageRowStyle): Räume verwalten startet
-   als flache, scanbare Liste statt immer ausgeklappter Tisch-Karten. */
 .room-row {
   background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-lg);
   padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-2); box-shadow: var(--shadow-card);
@@ -1363,9 +478,7 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
 }
 .tablebox.dragover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
 .tablebox.req-mismatch { border-color: var(--warn); box-shadow: 0 0 0 1.5px var(--warn) inset; }
-/* Zieltisch-Scoring fürs aktuell gewählte Spiel im Auswahl-Modus — solide
-   Outline (Plätze+Anforderungen passen), gestrichelt (nur Plätze), gedimmt
-   (passt gar nicht). */
+/* Passung des Zieltischs im Auswahlmodus */
 .tablebox.gm-full { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tablebox.gm-partial { outline: 2px dashed var(--warn); outline-offset: 2px; }
 .tablebox.gm-none { opacity: .45; }
@@ -1383,8 +496,6 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
   padding: var(--sp-2) var(--sp-3); font-size: var(--fs-sm); max-width: 100%;
 }
 .chip.ws { border-style: dashed; }
-/* Öffentliche Raumkarten nutzen chipBase() aus der Vorlage. Crew-Chips
-   verwenden dagegen r1 und ändern ihre Form in Comic/Solarpunk ebenfalls. */
 .public-chip { border: 0; border-radius: 8px; }
 :root[data-theme="terminal"] .public-chip,
 :root[data-theme="ukiyo"] .public-chip {
@@ -1409,8 +520,6 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
 .chip.flat { flex-direction: row; align-items: center; flex-wrap: wrap; }
 .chip-grip { cursor: grab; opacity: .5; margin-right: 2px; }
 
-/* Pulse-Highlight fürs "Zum Spiel →" aus Änderungswünschen — global reduced-
-   motion-Regel (siehe unten) schaltet das ohnehin ab, keine eigene Gate nötig. */
 @keyframes highlightPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent); } 50% { box-shadow: 0 0 0 4px var(--accent); } }
 .pulse-highlight { animation: highlightPulse .9s ease-in-out 3; }
 
@@ -1420,23 +529,19 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
   padding: var(--sp-3); margin-bottom: var(--sp-3); font-size: var(--fs-sm);
 }
 
-/* Detailgrad "minimal": wirklich eine Zeile — gekürzter Titel + Plätze +
-   ggf. Warn-Icon, Rest steckt im aria-label/title des Chips selbst. */
+/* Minimaler Detailgrad */
 .chip.minimal { padding: 3px var(--sp-2); gap: 0; }
 .chip .title-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .chip .title-short { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
 .chip .seats-short { font-size: var(--fs-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; flex: none; }
 
-/* Kompaktes Icon-only-Button (Kommentar/Änderung vorschlagen, Info-Bubble) —
-   aria-label trägt den vollen Text, hier bleibt bewusst nur das Symbol. */
+/* Symbol-Buttons */
 .icon-btn {
   padding: 2px 5px; font-size: var(--fs-sm); line-height: 1; min-width: 0;
   background: transparent; border-color: transparent;
 }
 .icon-btn:hover { border-color: var(--accent); background: var(--surface-1); }
-/* Änderung-vorschlagen-Icon: Hover-Reveal statt dauerhaft sichtbar, damit die
-   öffentliche Ansicht ruhiger wirkt — :focus-within/:focus halten es beim
-   Tastatur-Fokus trotzdem erreichbar. */
+/* Änderungsvorschlag bei Hover und Tastaturfokus */
 .icon-btn.requestBtn { opacity: 0; transition: opacity .15s; }
 .chip:hover .icon-btn.requestBtn, .chip:focus-within .icon-btn.requestBtn,
 .public-table-card tr:hover .icon-btn.requestBtn,
@@ -1453,8 +558,6 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
 .badge.accent { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 .badge.muted { color: var(--text-secondary); border-color: var(--border); background: transparent; }
 
-/* 1:1 aus der Vorlage (requestContextStyle): zeigt Raum·Tisch·Slot direkt im
-   Wunsch, ohne dass die Crew erst zur Zuordnen-Ansicht springen muss. */
 .req-context { font-size: var(--fs-xs); font-weight: 700; color: var(--accent); margin-top: var(--sp-1); }
 
 #unassigned .chipbar { padding: var(--sp-2); border: 1.5px dashed var(--baseline); border-radius: var(--r-md); }
@@ -1474,9 +577,6 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
 .queue-title-row h2 { margin: 0; }
 .queue-actions { display: flex; align-items: center; gap: var(--sp-2); margin-left: auto; }
 
-/* Zuordnen-Toolbar: eine Karte, 4 Gruppen durch vertikale Divider getrennt —
-   1:1 aus der Vorlage (toolbarCrewCardStyle), auch fürs Druck-Steuerung
-   wiederverwendet (siehe .toolbar-card in der Druckseite). */
 .toolbar-card { display: flex; align-items: flex-start; gap: var(--sp-4); flex-wrap: wrap; }
 .toolbar-group { display: flex; flex-direction: column; gap: var(--sp-2); }
 .toolbar-label { font-size: var(--fs-xs); font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
@@ -1488,9 +588,6 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
 }
 .details-toggle.is-active { color: var(--accent); background: var(--accent-soft); }
 
-/* Crew-Hauptnav: Underline-Tabs statt Pills — 1:1 aus der Vorlage
-   (crewViews/crewNavWrapStyle); Setup-Unternav (setupSubTabs) bleibt Pill-
-   Style, siehe .slot-tabs weiter oben. */
 .crew-nav { display: flex; gap: var(--sp-5); border-bottom: var(--border-w) solid var(--border); margin-bottom: var(--sp-4); flex-wrap: wrap; }
 .crew-nav button {
   background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary);
@@ -1500,8 +597,7 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
 
 /* Info-Tooltip: geteiltes Hover/Klick-Popover statt Dialoge — Portal in
    <body>, gleiches Muster wie .theme-more-popover. */
-/* 1:1 aus der Vorlage (infoIconStyle): eigener runder 16×16px-Badge statt
-   der generischen transparenten Icon-Btn-Optik. */
+
 .icon-btn.info-tip-trigger {
   cursor: help; display: inline-flex; align-items: center; justify-content: center;
   width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--band);
@@ -1526,9 +622,7 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
    Add-Dropdown darunter (Raum-Eigenschaften, später auch Spiel-Anforderungen). */
 .tag-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--sp-2); min-height: 1.6em; }
 .tag-pill { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 600; padding: 3px 4px 3px var(--sp-3); border-radius: var(--r-pill); background: var(--accent); color: var(--accent-ink); }
-/* 1:1 aus der Vorlage (tagFilterChips): "aktiver Filter" ist visuell weicher
-   als eine "zugewiesene Eigenschaft" (Raum-Editor nutzt weiterhin .tag-pill
-   solide). */
+
 .tag-pill.filter-pill {
   gap: 6px;
   padding: 6px 8px 6px 11px;
@@ -1667,8 +761,7 @@ dialog .msg.err { color: var(--warn); }
 }
 .req .rmeta { color: var(--text-muted); font-size: var(--fs-xs); }
 .req .rmsg { margin: 3px 0; white-space: pre-wrap; }
-/* 1:1 aus der Vorlage (requestContactStyle): eigene Kontakt-Zeile mit
-   "—"-Fallback statt inline in der Datumszeile. */
+
 .req .rcontact { color: var(--text-muted); font-size: var(--fs-xs); margin-top: 2px; }
 .req .ractions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: var(--sp-1); }
 .req .rdate { color: var(--text-muted); font-size: var(--fs-xs); margin-left: auto; }
@@ -1677,7 +770,7 @@ dialog .msg.err { color: var(--warn); }
 /* ============================================================
    Con-Picker (index.html)
    ============================================================ */
-/* Landing-Hero: zentriert, 1:1 aus der Design-Vorlage (heroWrapStyle). */
+
 .hero-wrap { max-width: 1180px; margin: 0 auto var(--sp-5); text-align: center; padding: var(--sp-2) 0 var(--sp-1); }
 .hero-wrap h1 { font-size: 2.2rem; }
 .hero-wrap .sub { color: var(--text-secondary); font-size: var(--fs-base); margin: var(--sp-2) auto 0; max-width: 560px; }
@@ -1694,11 +787,7 @@ dialog .msg.err { color: var(--warn); }
 .cons-toolbar input[type="search"], .cons-toolbar input[type="text"] { flex: 1; min-width: 200px; }
 
 /* Hervorgehobene "nächste Con"-Karte über der Con-Liste. */
-/* 1:1 aus der Vorlage (nextConCardStyle): vier gestapelte Zeilen statt
-   horizontaler Name-links/Button-rechts-Anordnung, Rahmen/Schatten wie eine
-   normale Card (nicht akzentfarben umrandet) — nur Kontrastreich erzwingt
-   laut Vorlage explizit einen 2px-Schwarz-Rand + weißen statt akzentfarbenen
-   Hintergrund (accent-soft ist dort zu blass für echten Kontrast). */
+
 .next-con-card {
   display: block; text-decoration: none; color: inherit;
   background: var(--accent-soft); border: var(--border-w) solid var(--border); border-radius: var(--r-lg);
@@ -1715,10 +804,7 @@ dialog .msg.err { color: var(--warn); }
 /* ============================================================
    Theme-Switcher
    ============================================================ */
-/* Kopfzeilen-Controls-Cluster: Sprache + Core-Themes + "Weitere Themes" teilen
-   sich EIN Pill-Gehäuse mit Dividern zwischen den Gruppen statt je einem
-   eigenen Innen-Hintergrund — 1:1 aus der Design-Vorlage (controlsGroupStyle),
-   siehe Phase-10-Plan Abschnitt A. */
+
 .controls-group { position: relative; display: flex; align-items: center; gap: 6px; background: var(--surface-1); padding: 4px; border-radius: var(--r-pill); box-shadow: var(--chrome-shadow); border: var(--chrome-border-w) solid var(--border); }
 .controls-divider { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
 .lang-switch-flat { display: flex; gap: 2px; }
@@ -1732,9 +818,7 @@ dialog .msg.err { color: var(--warn); }
 }
 .theme-switch button[aria-pressed="true"] { background: var(--accent-soft); }
 
-/* Eigenständige Bedienhilfe: bewusst außerhalb der Sprach-/Theme-Pill, damit
-   sie nicht wie ein weiteres Farbschema wirkt. Sie erscheint nur im
-   Kontrastmodus (JS setzt [hidden]) und verhält sich semantisch als Switch. */
+/* Formenhilfe im Kontrastmodus */
 .contrast-aid-slot {
   display: flex; align-items: center; padding: 3px;
   border: var(--chrome-border-w) solid var(--border); border-radius: var(--r-pill);
@@ -1754,8 +838,7 @@ dialog .msg.err { color: var(--warn); }
   min-width: 22px; font-size: .72rem; letter-spacing: -1px; color: currentColor;
 }
 
-/* "Weitere Themes"-Popover: Trigger zeigt das aktive Special-Theme (oder ✨),
-   Popover listet die restlichen Themes mit ✓ beim aktiven. */
+/* Weitere Themes */
 .theme-more-wrap { position: relative; }
 .theme-more-trigger {
   display: inline-flex; align-items: center; gap: 4px; padding: var(--sp-1) var(--sp-2);
@@ -1763,8 +846,6 @@ dialog .msg.err { color: var(--warn); }
 }
 .theme-more-trigger.is-active { background: var(--accent-soft); color: var(--accent); }
 .theme-more-chevron { font-size: .7em; opacity: .7; }
-/* position:fixed + top/left werden per JS gesetzt (renderThemeSwitch) —
-   das Popover lebt als Portal direkt in <body>, siehe dortiger Kommentar. */
 .theme-more-popover {
   position: fixed; z-index: 9000; width: 190px;
   background: var(--surface-1); border: var(--chrome-border-w) solid var(--border); border-radius: var(--r-md);
@@ -1805,12 +886,6 @@ summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 700; padding: v
   .header-right { justify-self: start; flex-wrap: wrap; }
 }
 
-/* ============================================================
-   Druckseite (S.mode==="print") — eigene Vollseite mit A4-Simulation
-   (.doc-page) und fest kodierten Hex-Werten statt Theme-Variablen, damit
-   der Ausdruck unabhängig vom aktiven Theme immer weiß/schwarz/lesbar
-   bleibt. 1:1 aus der Vorlage (printTableStyle/printRoomHeadStyle/etc.).
-   ============================================================ */
 .plan-page.print-mode {
   min-height: 100vh;
   padding: 0;
@@ -1852,8 +927,6 @@ summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 700; padding: v
 }
 .link-btn { background: none; border: none; padding: 0; color: var(--accent); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; text-decoration: none; }
 
-/* Attributions-Bildunterschrift für Ukiyo/Comic-Hintergrundbilder — 1:1 aus
-   der Vorlage (ukiyoCaptionStyle), fehlte bisher komplett. */
 .art-caption { position: fixed; bottom: 14px; right: 16px; font-size: var(--fs-xs); color: var(--text-muted); opacity: .55; z-index: 1; }
 .art-caption a { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
 .doc-page-stage {
@@ -1899,13 +972,6 @@ summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 700; padding: v
 .print-game-meta { font-size: .68rem; color: #777; }
 .print-free { font-size: .76rem; color: #999; font-style: italic; }
 
-/* ============================================================
-   Design-Fidelity-Layer
-   Die Export-Datei arbeitet mit einer 1400px breiten Bühne, 32px
-   Seitenabstand und einer durchgehenden Kopfzeile. Diese Regeln bilden
-   genau diese Geometrie nach; die bisherigen 1180px-Container waren der
-   Hauptgrund dafür, dass die Live-Seite deutlich anders wirkte.
-   ============================================================ */
 body {
   padding: 40px 32px 64px;
   min-height: 100vh;
@@ -1926,8 +992,6 @@ dialog {
   border: var(--card-border);
 }
 
-/* Header-Geometrie aus der Designvorlage. Die vorhandenen generischen
-   .slot-tabs- und Button-Regeln waren sichtbar kompakter als das Mock-up. */
 .app-header .page-tabs.slot-tabs {
   gap: 2px;
   padding: 4px;
@@ -1942,10 +1006,7 @@ dialog {
   font-size: .85rem;
   line-height: normal;
 }
-/* Die obere Seitennavigation ist ein eigenes zusammengesetztes Element:
-   Außenhülle und Innentabs müssen dieselbe Formensprache sprechen. Die
-   pauschalen 14px der Design-Fidelity-Schicht ließen besonders Terminal,
-   Cyberpunk und Solarpunk wie gemischte Themes aussehen. */
+/* Theme-spezifische Geometrie der Seitennavigation */
 :root[data-theme="terminal"] .app-header .page-tabs.slot-tabs,
 :root[data-theme="terminal"] .app-header .page-tabs.slot-tabs a,
 :root[data-theme="terminal"] .app-header .page-tabs.slot-tabs button {
@@ -2164,8 +1225,7 @@ dialog {
   padding-bottom: var(--sp-2);
 }
 
-/* Plan: Titel und öffentliche Chrome entsprechen der flachen Referenz,
-   statt als zusätzliche Bento-Karten oberhalb des eigentlichen Inhalts. */
+/* Flacher Titelbereich */
 .plan-page #pageTitleCard {
   margin: 0 0 24px !important;
   padding: 0;
@@ -2716,11 +1776,34 @@ dialog {
   margin-bottom: 24px;
 }
 .plan-page #crewContent .crew-nav button {
-  display: block;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   padding: 12px 2px;
   border-radius: 0;
   font-family: Arial, sans-serif;
   font-size: .92rem;
+}
+.plan-page #crewContent .crew-request-count {
+  position: absolute;
+  top: 4px;
+  right: -13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--page);
+  color: var(--text-primary);
+  font-size: .62rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 1;
 }
 .plan-page #crewContent .toolbar-card {
   align-items: flex-start;
@@ -3292,9 +2375,6 @@ dialog {
   padding-bottom: var(--sp-2);
 }
 
-/* Der Export simuliert Login nur als Zustandswechsel. Der echte Dialog bleibt
-   funktional, übernimmt aber dieselben Oberflächen-, Radius- und Chrome-
-   Proportionen wie die restliche Referenz. */
 #authDlg { max-width: min(480px, calc(100vw - 28px)); padding: 26px; }
 #authDlg h2 { font-size: var(--fs-lg); margin-bottom: 12px; }
 #authDlg .slot-tabs { margin-bottom: 14px !important; }

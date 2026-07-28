@@ -1,0 +1,253 @@
+renderThemeSwitch(document.getElementById("themeSwitch"));
+pickUkiyoBackground(); pickComicBackground();
+renderLangSwitch(document.getElementById("langSwitch"));
+translateStaticDom();
+function syncCreateConVisibility() {
+  document.getElementById("openCreateConBtn").hidden = !Auth.session();
+}
+const authUI = mountAuthUI({
+  buttonId: "authBtn",
+  onChange: async () => {
+    renderPendingInvites(document.getElementById("inviteBanner"), () => location.reload());
+    await refreshSuperadmin();
+    await reloadCons();
+    renderNextConCard();
+    renderIndexPageTabs();
+    syncCreateConVisibility();
+  },
+});
+renderPendingInvites(document.getElementById("inviteBanner"));
+syncCreateConVisibility();
+// Dynamisch gerenderte Bereiche nach einem Sprachwechsel aktualisieren.
+window.__authUIRefreshers = window.__authUIRefreshers || [];
+window.__authUIRefreshers.push(() => { renderCons(); renderNextConCard(); renderIndexPageTabs(); });
+document.getElementById("openCreateConBtn").addEventListener("click", () => document.getElementById("createConDlg").showModal());
+
+async function refreshSuperadmin() {
+  const token = await Auth.accessToken();
+  if (!token) { isSuperadmin = false; return; }
+  isSuperadmin = await supaRpc("is_superadmin", {}, token).catch(() => false);
+}
+async function reloadCons() {
+  const fields = "id,name,slug,playabl_event_id,created_at,listed";
+  const q = isSuperadmin ? `cons?select=${fields}&order=created_at.desc` : `cons?select=${fields}&listed=eq.true&order=created_at.desc`;
+  allCons = await supaFetch(q).catch(() => []);
+  renderCons();
+}
+
+/* ---------- Hervorgehobene "nächste Con"-Karte ---------- */
+// Für die nächste Con zählt der Start des verknüpften Playabl-Events.
+function computeNextCon() {
+  const now = new Date();
+  const candidates = allCons.map(c => {
+    const ev = c.playabl_event_id ? allEvents.find(e => String(e.id) === String(c.playabl_event_id)) : null;
+    if (!ev?.start_time) return null;
+    const date = new Date(ev.start_time);
+    return date >= now ? { con: c, date } : null;
+  }).filter(Boolean);
+  candidates.sort((a, b) => a.date - b.date);
+  return candidates[0] || null;
+}
+function formatCountdown(date) {
+  const days = Math.ceil((date - new Date()) / 86400000);
+  if (days <= 0) return tr("nextConToday");
+  if (days === 1) return tr("nextConTomorrow");
+  return tr("nextConInDays", { n: days });
+}
+function conDisplayDate(con) {
+  const ev = con.playabl_event_id ? allEvents.find(e => String(e.id) === String(con.playabl_event_id)) : null;
+  const date = ev?.start_time ? new Date(ev.start_time) : new Date(con.created_at);
+  return date.toLocaleDateString(LANG === "en" ? "en-GB" : "de-AT", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+  });
+}
+async function renderNextConCard() {
+  const el = document.getElementById("nextConCard");
+  const next = computeNextCon();
+  if (!next) { el.innerHTML = ""; return; }
+  const { con, date } = next;
+  let crewBadge = "";
+  const token = await Auth.accessToken();
+  if (token) {
+    // RLS liefert nur die eigene Mitgliedschaft; bei Fehlern bleibt das Badge aus.
+    try {
+      const rows = await supaFetch(`con_members?con_id=eq.${con.id}&select=role`, { headers: supaHeaders(token) });
+      if (rows?.length) crewBadge = `<span class="crew-badge"><span class="dot"></span>${esc(tr("nextConCrewBadge"))}</span>`;
+    } catch {}
+  }
+  const meta = `${esc(con.playabl_event_id ? conDisplayDate(con) : tr("createdOn", { date: conDisplayDate(con) }))}${con.playabl_event_id ? ` · ${esc(tr("playablEvent"))}` : ""}`;
+  el.innerHTML = `<a class="next-con-card" href="plan.html?con=${esc(con.slug || con.id)}&entry=plan">
+    <div class="eyebrow">${esc(tr("nextConBadgeText", { countdown: formatCountdown(date) }))}</div>
+    <div class="t">${esc(con.name)}${crewBadge}</div>
+    <div class="m">${meta}</div>
+    <div class="open">${esc(tr("goToOverview"))}</div>
+  </a>`;
+}
+
+function renderIndexPageTabs() {
+  const next = computeNextCon();
+  document.getElementById("pageTabs").innerHTML = `
+    <a href="#" aria-pressed="true">${esc(tr("pageTabCons"))}</a>
+    ${next ? `<a href="plan.html?con=${esc(next.con.slug || next.con.id)}&entry=plan" aria-pressed="false">${esc(tr("pageTabPlan"))}</a>`
+           : `<span aria-disabled="true" style="opacity:.4;padding:var(--sp-2) var(--sp-3);font-size:var(--fs-xs);font-weight:700">${esc(tr("pageTabPlan"))}</span>`}
+  `;
+}
+
+document.getElementById("credits").innerHTML = `
+  <span>Con-Raumplan</span> ·
+  <a href="https://playabl.io" target="_blank" rel="noopener">Playabl</a> ·
+  <a href="https://www.3w6-podcast.com/" target="_blank" rel="noopener">3W6-Community</a> ·
+  <a href="https://lmbreuer.github.io/playabl-dashboard/" target="_blank" rel="noopener">Slot-Dashboard</a> ·
+  <a href="impressum.html"><span data-i18n="imprint">${esc(tr("imprint"))}</span></a> <span id="themeCatSlot"></span>`;
+updateCatEasterEgg();
+
+/* ---------- Cons laden & anzeigen ---------- */
+let allCons = [];
+let isSuperadmin = false;
+function renderCons() {
+  const q = document.getElementById("conSearch").value.trim().toLowerCase();
+  const next = computeNextCon();
+  const nextId = next?.con?.id;
+  const list = allCons.filter(c => c.id !== nextId && (!q || c.name.toLowerCase().includes(q)));
+  document.getElementById("conList").innerHTML = list.map(c => `
+    <div class="con-card">
+      <div>
+        <div class="t">${esc(c.name)}${isSuperadmin && !c.listed ? ` <span class="badge">${esc(tr("unlisted"))}</span>` : ""}</div>
+        <div class="m">${c.playabl_event_id ? esc(conDisplayDate(c)) : esc(tr("createdOn", { date: conDisplayDate(c) }))}${c.playabl_event_id ? ` · <a href="https://app.playabl.io/events/${esc(c.playabl_event_id)}/overview" target="_blank" rel="noopener">${esc(tr("playablEvent"))}</a>` : ""}</div>
+      </div>
+      <span style="display:flex;gap:8px;align-items:center">
+        ${isSuperadmin ? `<button type="button" class="small danger delConBtn" data-id="${c.id}" data-name="${esc(c.name)}">🗑 ${esc(tr("delete"))}</button>` : ""}
+        <a class="btn" href="plan.html?con=${esc(c.slug || c.id)}&entry=plan">${esc(tr("openArrow"))}</a>
+      </span>
+    </div>`).join("") || `<div class="empty-state"><span class="glyph">🗂️</span>${esc(tr("noConFound"))}</div>`;
+}
+document.getElementById("conSearch").addEventListener("input", renderCons);
+document.getElementById("conList").addEventListener("click", async e => {
+  const btn = e.target.closest(".delConBtn");
+  if (!btn) return;
+  if (!confirm(tr("confirmDeleteCon", { name: btn.dataset.name }))) return;
+  try {
+    const token = await Auth.accessToken();
+    await supaFetch(`cons?id=eq.${btn.dataset.id}`, { method: "DELETE", headers: supaHeaders(token) });
+    allCons = allCons.filter(c => c.id !== btn.dataset.id);
+    renderCons();
+  } catch (err) { alert(tr("deleteFailed", { err: err.message })); }
+});
+
+document.getElementById("directGo").addEventListener("click", () => {
+  const raw = document.getElementById("directInput").value.trim();
+  if (!raw) return;
+  const m = raw.match(/[?&]con=([^&]+)/);
+  const id = m ? decodeURIComponent(m[1]) : raw;
+  location.href = "plan.html?con=" + encodeURIComponent(id) + "&entry=plan";
+});
+document.getElementById("directInput").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("directGo").click(); });
+
+/* ---------- Con anlegen: Community/Event-Auswahl (wie im playabl-dashboard) ---------- */
+let allEvents = [];
+function fillEventsList(events) {
+  allEvents = events;
+  const csel = document.getElementById("communitySelect");
+  const communities = new Map();
+  for (const e of events) { const c = e.community_id; if (c?.id) communities.set(c.id, c.name || "?"); }
+  csel.innerHTML = '<option value="">– alle –</option>' +
+    [...communities.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => `<option value="${id}">${esc(name)}</option>`).join("");
+  fillEventOptions();
+}
+function fillEventOptions() {
+  const cid = document.getElementById("communitySelect").value;
+  const sel = document.getElementById("eventSelect");
+  const dFmt = new Intl.DateTimeFormat("de-AT", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  const list = cid ? allEvents.filter(e => String(e.community_id?.id) === cid) : allEvents;
+  sel.innerHTML = '<option value="">– Event wählen –</option>' +
+    list.map(e => `<option value="${e.id}" data-title="${esc(e.title)}">${esc(e.title)}${e.start_time ? " (" + dFmt.format(new Date(e.start_time)) + ")" : ""}</option>`).join("");
+}
+document.getElementById("communitySelect").addEventListener("change", fillEventOptions);
+document.getElementById("eventSelect").addEventListener("change", e => {
+  const opt = e.target.selectedOptions[0];
+  if (opt?.dataset.title && !document.getElementById("conName").value) document.getElementById("conName").value = opt.dataset.title;
+  document.getElementById("eventIdInput").value = "";
+});
+
+/* ---------- Con-Typ: mit Playabl-Event vs. rein manuell ---------- */
+let conType = "playabl";
+document.getElementById("conTypeTabs").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-contype]");
+  if (!btn) return;
+  conType = btn.dataset.contype;
+  document.querySelectorAll("#conTypeTabs button").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+  document.getElementById("playablFields").hidden = conType === "manual";
+  document.getElementById("manualHint").hidden = conType === "playabl";
+  // Playabl-Cons sind standardmäßig gelistet, manuelle Cons nicht.
+  document.getElementById("conListed").checked = conType === "playabl";
+  if (conType === "manual") { document.getElementById("eventIdInput").value = ""; document.getElementById("eventSelect").value = ""; }
+});
+
+document.getElementById("createConBtn").addEventListener("click", async () => {
+  const msg = document.getElementById("createMsg");
+  msg.className = "msg";
+  const session = Auth.session();
+  if (!session) { msg.className = "msg err"; msg.textContent = tr("pleaseLoginFirst"); authUI.requireLogin(); return; }
+  const name = document.getElementById("conName").value.trim();
+  if (!name) { msg.className = "msg err"; msg.textContent = tr("pleaseEnterConName"); return; }
+  const eventId = conType === "manual" ? null : (document.getElementById("eventIdInput").value.trim() || document.getElementById("eventSelect").value || null);
+  const communityId = conType === "manual" ? null : (document.getElementById("communitySelect").value || null);
+  const listed = document.getElementById("conListed").checked;
+  const slug = slugify(name);
+  try {
+    const token = await Auth.accessToken();
+    const rows = await supaFetch("cons", {
+      method: "POST", headers: supaHeaders(token, true),
+      body: JSON.stringify({ name, slug, playabl_event_id: eventId, playabl_community_id: communityId, listed }),
+    });
+    location.href = "plan.html?con=" + encodeURIComponent(rows[0].slug) + "&entry=plan";
+  } catch (err) { msg.className = "msg err"; msg.textContent = tr("createConFailed", { err: err.message }); }
+});
+
+/* ---------- Start ---------- */
+function configureIndexTour() {
+  GuidedTour.configure({
+    page: "index",
+    showTeaser: true,
+    canCrew: () => false,
+    tours: {
+      public: {
+        steps: [
+          { target: ".hero-wrap", titleKey: "tourPublicWelcomeTitle", bodyKey: "tourPublicWelcomeBody" },
+          { target: ".con-directory", titleKey: "tourPublicConsTitle", bodyKey: "tourPublicConsBody" },
+          {
+            target: () => {
+              const createButton = document.getElementById("openCreateConBtn");
+              return createButton && !createButton.hidden ? createButton : document.getElementById("authBtn");
+            },
+            titleKey: "tourPublicCreateTitle", bodyKey: "tourPublicCreateBody",
+          },
+          {
+            target: () => document.querySelector("#nextConCard a") || document.querySelector("#conList a.btn") || document.querySelector(".con-directory"),
+            titleKey: "tourPublicChooseTitle", bodyKey: "tourPublicChooseBody",
+            waitForNavigation: () => !!(document.querySelector("#nextConCard a") || document.querySelector("#conList a.btn")),
+            onNext: () => (document.querySelector("#nextConCard a") || document.querySelector("#conList a.btn"))?.click(),
+          },
+        ],
+      },
+    },
+  });
+}
+
+(async () => {
+  try {
+    await refreshSuperadmin();
+    const [, events] = await Promise.all([reloadCons(), loadPlayablEventsList()]);
+    fillEventsList(events);
+    renderNextConCard();
+    renderCons();
+    renderIndexPageTabs();
+    authUI.refresh();
+    document.getElementById("status").textContent =
+      tr("asOf", { date: new Intl.DateTimeFormat(LANG === "en" ? "en-GB" : "de-AT", { dateStyle: "full", timeStyle: "short" }).format(new Date()) });
+    document.body.classList.add("is-ready");
+    configureIndexTour();
+  } catch (err) {
+    document.getElementById("status").innerHTML = `<span class="err">${esc(tr("dataLoadFailed", { err: err.message }))}</span>`;
+  }
+})();

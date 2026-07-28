@@ -13,9 +13,29 @@ unabhängige Cons verwalten, jede mit eigener Crew und eigenem Datenbestand.
 - **`plan.html`** — der eigentliche Raumplan einer Con (`plan.html?con=<slug>`): öffentliche
   Ansicht + Crew-Modus (Räume/Tische, Auto-Zuordnung, Drag&Drop/Dropdown, Änderungswünsche,
   Crew-Verwaltung, Druckansicht).
-- **`theme.css`** — alle Farbschemata und Layoutstile, umschaltbar im Header.
-- **`common.js`** — geteilte Konfiguration, Auth, Supabase- und Playabl-Helfer.
+- **`theme-tokens.css`** — gemeinsame Theme-Grundwerte für Raumplan und Playabl-Dashboard.
+- **`theme-effects.css`** — dekorative und bewegte Theme-Effekte.
+- **`app.css`** — gemeinsame Komponenten sowie Landing- und Raumplan-Layouts.
+- **`app-config.js`** / **`utils.js`** — Konfiguration und kleine Hilfsfunktionen.
+- **`themes.js`** / **`i18n.js`** — Theme-Verhalten und Übersetzungen.
+- **`supabase-api.js`** / **`auth.js`** / **`playabl-api.js`** — Datenzugriff und Authentifizierung.
+- **`landing.js`** — Logik der Con-Übersicht.
+- **`plan-core.js`** — Con-Auflösung, Store, Zustand und fachliche Helfer.
+- **`plan-render-public.js`** / **`plan-render-crew.js`** — HTML-Erzeugung für öffentliche
+  Ansichten beziehungsweise Crew-Werkzeuge.
+- **`plan-print.js`** — Druckansichten und Druckoptionen.
+- **`plan-commands.js`** — speichernde Raumplan-Aktionen.
+- **`plan-interactions.js`** / **`plan-dialogs.js`** — Bedienereignisse, Drag-and-drop,
+  Tooltips und Dialoge.
+- **`plan-start.js`** — Initialisierung, Auth-Rollen und geführte Rundgänge.
 - **`supabase-schema.sql`** — komplettes Datenbankschema inkl. Zugriffsregeln.
+
+## Gemeinsame Themes
+
+`theme-tokens.css` ist die zentrale Quelle für Farben, Typografie, Radien und Schatten beider
+Schwesterprojekte. Änderungen an einem Theme erfolgen dort einmal und werden vom Playabl-Dashboard
+über GitHub Pages übernommen. Komponentenregeln bleiben in `app.css` beziehungsweise
+`dashboard.css`, damit Änderungen an Raumplan und Dashboard nicht gegenseitig ihr Layout brechen.
 
 ## Wie eine Con funktioniert
 
@@ -36,7 +56,7 @@ eingeladen (die Person muss vorher bereits ein eigenes Konto registriert haben).
      allein gibt keine Rechte, siehe oben).
    - **„Confirm email"** → **aus** empfohlen (nimmt Reibung raus, da Rechte ohnehin erst durch
      Con-Mitgliedschaft entstehen).
-4. **Project Settings → API:** `Project URL` und `anon public`/`publishable` Key in `common.js`
+4. **Project Settings → API:** `Project URL` und `anon public`/`publishable` Key in `app-config.js`
    (`CONFIG.supabase`) eintragen.
 5. Hosten: Repo auf GitHub, **Settings → Pages → Deploy from a branch → main**.
 
