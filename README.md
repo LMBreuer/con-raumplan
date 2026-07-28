@@ -13,7 +13,7 @@ unabhängige Cons verwalten, jede mit eigener Crew und eigenem Datenbestand.
 - **`plan.html`** — der eigentliche Raumplan einer Con (`plan.html?con=<slug>`): öffentliche
   Ansicht + Crew-Modus (Räume/Tische, Auto-Zuordnung, Drag&Drop/Dropdown, Änderungswünsche,
   Crew-Verwaltung, Druckansicht).
-- **`theme-tokens.css`** — gemeinsame Theme-Grundwerte für Raumplan und Playabl-Dashboard.
+- **`themes.css`** — gemeinsame Theme-Grundwerte für Raumplan und Playabl-Dashboard.
 - **`theme-effects.css`** — dekorative und bewegte Theme-Effekte.
 - **`app.css`** — gemeinsame Komponenten sowie Landing- und Raumplan-Layouts.
 - **`app-config.js`** / **`utils.js`** — Konfiguration und kleine Hilfsfunktionen.
@@ -32,7 +32,7 @@ unabhängige Cons verwalten, jede mit eigener Crew und eigenem Datenbestand.
 
 ## Gemeinsame Themes
 
-`theme-tokens.css` ist die zentrale Quelle für Farben, Typografie, Radien und Schatten beider
+`themes.css` ist die zentrale Quelle für Farben, Typografie, Radien und Schatten beider
 Schwesterprojekte. Änderungen an einem Theme erfolgen dort einmal und werden vom Playabl-Dashboard
 über GitHub Pages übernommen. Komponentenregeln bleiben in `app.css` beziehungsweise
 `dashboard.css`, damit Änderungen an Raumplan und Dashboard nicht gegenseitig ihr Layout brechen.

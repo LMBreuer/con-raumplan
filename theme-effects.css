@@ -1,4 +1,4 @@
-@import url("theme-tokens.css");
+@import url("themes.css");
 
 :root[data-theme="terminal"] body {
   background-image: repeating-linear-gradient(180deg,
