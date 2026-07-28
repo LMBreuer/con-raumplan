@@ -1,4 +1,4 @@
-@import url("themes.css");
+@import url("themes.css?v=20260728-2");
 
 :root[data-theme="terminal"] body {
   background-image: repeating-linear-gradient(180deg,
@@ -490,6 +490,221 @@
   0%, 76%, 80%, 100% { transform: rotate(-1.5deg) skewX(-4deg); }
   77% { transform: translate(-5px,2px) rotate(1deg) skewX(3deg); }
   79% { transform: translate(4px,-2px) rotate(-3deg) skewX(-7deg); }
+}
+
+:root[data-theme="vienna"] body {
+  background-color: var(--page);
+  background-image:
+    radial-gradient(circle at 42px 42px, transparent 0 31px, rgba(176,138,53,.075) 31.5px 32.5px, transparent 33px),
+    radial-gradient(circle at 0 0, rgba(36,84,67,.045) 0 2px, transparent 2.5px),
+    linear-gradient(115deg, rgba(255,250,240,.78), rgba(240,234,220,.9));
+  background-size: 84px 84px, 42px 42px, auto;
+  background-attachment: fixed;
+}
+:root[data-theme="vienna"] .app-header {
+  overflow: visible;
+  border-bottom: 4px double var(--vienna-gold);
+  background: color-mix(in srgb, var(--surface-1) 97%, transparent);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-theme="vienna"] .app-header::after {
+  content: "";
+  position: absolute;
+  right: 24px;
+  bottom: -8px;
+  left: 24px;
+  height: 12px;
+  background:
+    radial-gradient(circle, var(--vienna-gold) 0 2px, transparent 2.5px) center / 12px 12px repeat-x;
+  pointer-events: none;
+}
+:root[data-theme="vienna"] .card,
+:root[data-theme="vienna"] .room,
+:root[data-theme="vienna"] .kpi-bar .kpi,
+:root[data-theme="vienna"] .controls,
+:root[data-theme="vienna"] .controls-group,
+:root[data-theme="vienna"] .next-con-card,
+:root[data-theme="vienna"] dialog {
+  border: 1px solid var(--vienna-gold);
+  background-color: var(--surface-1);
+  border-radius: 22px 22px 5px 5px;
+  box-shadow:
+    inset 0 0 0 4px var(--surface-1),
+    inset 0 0 0 5px color-mix(in srgb, var(--vienna-gold) 58%, transparent),
+    0 12px 32px rgba(50,43,29,.08);
+}
+:root[data-theme="vienna"] .landing-page .hero-wrap,
+:root[data-theme="vienna"] .plan-page #pageTitleCard {
+  position: relative;
+  isolation: isolate;
+  min-height: 220px;
+  padding: clamp(28px, 5vw, 58px) clamp(36px, 7vw, 88px);
+  overflow: hidden;
+  border: 1px solid var(--vienna-gold);
+  border-radius: clamp(56px, 11vw, 140px) clamp(56px, 11vw, 140px) 8px 8px;
+  background: var(--surface-1);
+  box-shadow:
+    inset 0 0 0 6px var(--surface-1),
+    inset 0 0 0 7px color-mix(in srgb, var(--vienna-gold) 64%, transparent);
+}
+:root[data-theme="vienna"] .landing-page .hero-wrap::after,
+:root[data-theme="vienna"] .plan-page #pageTitleCard::after {
+  content: "";
+  position: absolute;
+  top: clamp(48px, 24%, 86px);
+  bottom: 9px;
+  left: 8px;
+  width: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 96%, black);
+  pointer-events: none;
+}
+:root[data-theme="vienna"] .landing-page .hero-wrap::before,
+:root[data-theme="vienna"] .plan-page #pageTitleCard::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  right: clamp(18px, 5vw, 70px);
+  width: clamp(130px, 22vw, 260px);
+  aspect-ratio: 1;
+  color: var(--vienna-gold);
+  background: currentColor;
+  opacity: .14;
+  -webkit-mask: var(--vienna-rosette-mask) center / contain no-repeat;
+  mask: var(--vienna-rosette-mask) center / contain no-repeat;
+  transform: translateY(-50%);
+}
+:root[data-theme="vienna"] .landing-page .hero-wrap h1,
+:root[data-theme="vienna"] .plan-page #pageTitleCard h1 {
+  position: relative;
+  max-width: 12ch;
+  padding-left: .08em;
+  font-size: clamp(3.4rem, 8vw, 7rem);
+  line-height: .83;
+}
+:root[data-theme="vienna"] .landing-page .hero-wrap h1::after,
+:root[data-theme="vienna"] .plan-page #pageTitleCard h1::after {
+  content: "";
+  display: inline-block;
+  width: .19em;
+  height: .19em;
+  margin-left: .16em;
+  border: .04em solid var(--surface-1);
+  outline: .02em solid var(--vienna-gold);
+  border-radius: 50%;
+  background: var(--vienna-gold);
+  vertical-align: .13em;
+}
+:root[data-theme="vienna"] .app-header .page-tabs.slot-tabs {
+  padding: 4px;
+  border: 1px solid var(--vienna-gold);
+  border-radius: 999px;
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 2px var(--surface-1), inset 0 0 0 3px color-mix(in srgb, var(--vienna-gold) 48%, transparent);
+}
+:root[data-theme="vienna"] .app-header .page-tabs.slot-tabs a,
+:root[data-theme="vienna"] .app-header .page-tabs.slot-tabs button {
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: .055em;
+}
+:root[data-theme="vienna"] .app-header .page-tabs [aria-pressed="true"],
+:root[data-theme="vienna"] .public-view-tabs button[aria-pressed="true"],
+:root[data-theme="vienna"] .crew-nav button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: none;
+}
+:root[data-theme="vienna"] .landing-page .next-con-card {
+  background:
+    radial-gradient(circle at 88% 18%, rgba(176,138,53,.16) 0 52px, transparent 53px),
+    var(--surface-1);
+}
+:root[data-theme="vienna"] .landing-page .con-directory {
+  border-top: 4px double var(--vienna-gold);
+}
+:root[data-theme="vienna"] .plan-page .public-toolbar {
+  position: relative;
+  border: 1px solid var(--vienna-gold);
+  border-radius: 28px 28px 5px 5px;
+  background:
+    radial-gradient(circle at 16px 16px, rgba(176,138,53,.09) 0 9px, transparent 9.5px) 0 0 / 32px 32px,
+    var(--surface-1);
+  box-shadow: inset 0 0 0 4px var(--surface-1), inset 0 0 0 5px rgba(176,138,53,.4);
+}
+:root[data-theme="vienna"] .toolbar-label {
+  color: var(--accent);
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+:root[data-theme="vienna"] .plan-page .grid-cell {
+  border-radius: 16px 16px 3px 3px;
+  background:
+    radial-gradient(circle at 50% 100%, transparent 0 15px, rgba(176,138,53,.07) 15.5px 16.5px, transparent 17px) 0 0 / 44px 22px,
+    color-mix(in srgb, var(--surface-2) 74%, var(--surface-1));
+  box-shadow: inset 0 0 0 1px rgba(176,138,53,.28);
+}
+:root[data-theme="vienna"] .plan-page .grid-cell .grid-chip,
+:root[data-theme="vienna"] .plan-page #viewContent .room-public-chip {
+  border: 1px solid color-mix(in srgb, var(--room-accent, var(--accent)) 80%, var(--text-primary));
+  border-left: 3px solid var(--room-accent, var(--accent));
+  border-radius: 12px 12px 3px 3px;
+  background: var(--surface-1);
+  box-shadow: 0 4px 12px rgba(50,43,29,.08);
+}
+:root[data-theme="vienna"] .plan-page .room-swatch {
+  width: 7px;
+  border-radius: 999px 999px 2px 2px;
+}
+:root[data-theme="vienna"] input,
+:root[data-theme="vienna"] textarea,
+:root[data-theme="vienna"] select,
+:root[data-theme="vienna"] button,
+:root[data-theme="vienna"] a.btn {
+  border-radius: 999px;
+}
+:root[data-theme="vienna"] button.primary,
+:root[data-theme="vienna"] a.btn.primary {
+  border: 1px solid var(--vienna-gold);
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 0 3px rgba(255,250,240,.64);
+}
+:root[data-theme="vienna"] .badge,
+:root[data-theme="vienna"] .matrix-label {
+  border-radius: 999px;
+}
+:root[data-theme="vienna"] ::selection {
+  background: var(--band);
+  color: var(--text-primary);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :root[data-theme="vienna"] .card,
+  :root[data-theme="vienna"] .room,
+  :root[data-theme="vienna"] .grid-chip,
+  :root[data-theme="vienna"] button.primary,
+  :root[data-theme="vienna"] a.btn.primary {
+    transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease;
+  }
+  :root[data-theme="vienna"] .card:hover,
+  :root[data-theme="vienna"] .room:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 0 0 4px var(--surface-1),
+      inset 0 0 0 5px color-mix(in srgb, var(--vienna-gold) 70%, transparent),
+      0 16px 38px rgba(50,43,29,.13);
+  }
+  :root[data-theme="vienna"] .grid-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(50,43,29,.13);
+  }
+}
+:root[data-zen][data-theme="vienna"] .card:hover,
+:root[data-zen][data-theme="vienna"] .room:hover,
+:root[data-zen][data-theme="vienna"] .grid-chip:hover {
+  transform: none !important;
 }
 
 :root[data-theme="comic"] body {

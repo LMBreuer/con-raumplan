@@ -1,4 +1,5 @@
 /* ---------- Theme-Umschalter ---------- */
+const VIENNA_ROSETTE_MARKUP = `<span class="vienna-rosette" aria-hidden="true"></span>`;
 const THEMES = [
   { key: "dark", label: "🌙", nameKey: "themeDark" },
   { key: "light", label: "☀️", nameKey: "themeLight" },
@@ -11,6 +12,7 @@ const THEMES = [
   { key: "cyberpunk", label: "⚡", nameKey: "themeCyberpunk" },
   { key: "comic", label: "💥", nameKey: "themeComic" },
   { key: "punk", label: "✖", nameKey: "themePunk" },
+  { key: "vienna", label: VIENNA_ROSETTE_MARKUP, nameKey: "themeVienna" },
 ];
 // Core-3 bleiben als flache Buttons im Header sichtbar, der Rest wandert in
 // ein "Weitere Themes"-Popover — siehe renderThemeSwitch().
@@ -192,6 +194,59 @@ function setZenMode(enabled) {
   document.querySelectorAll(".theme-switch-group").forEach(renderThemeSwitch);
   window.dispatchEvent(new CustomEvent("raumplan-zen-change", { detail: { enabled } }));
 }
+function closeViennaSources() {
+  const dock = document.getElementById("viennaSources");
+  if (!dock) return;
+  dock.querySelector("[data-vienna-sources-panel]")?.setAttribute("hidden", "");
+  dock.querySelector("[data-vienna-sources-open]")?.setAttribute("aria-expanded", "false");
+}
+function renderViennaSources() {
+  let dock = document.getElementById("viennaSources");
+  if (!dock) {
+    dock = document.createElement("aside");
+    dock.id = "viennaSources";
+    dock.className = "vienna-sources-dock no-print";
+    document.body.appendChild(dock);
+  }
+  const visible = document.documentElement.getAttribute("data-theme") === "vienna";
+  dock.hidden = !visible;
+  if (!visible) {
+    dock.replaceChildren();
+    return;
+  }
+  dock.innerHTML = `
+    <button type="button" class="vienna-sources-trigger" data-vienna-sources-open aria-expanded="false" aria-controls="viennaSourcesPanel">
+      ${VIENNA_ROSETTE_MARKUP}<span>${esc(tr("viennaSourcesButton"))}</span>
+    </button>
+    <section id="viennaSourcesPanel" class="vienna-sources-panel" data-vienna-sources-panel aria-labelledby="viennaSourcesTitle" hidden>
+      <div class="vienna-sources-head">
+        <div><span class="vienna-sources-kicker">Vienna Nouveau</span><h2 id="viennaSourcesTitle">${esc(tr("viennaSourcesTitle"))}</h2></div>
+        <button type="button" class="vienna-sources-close" data-vienna-sources-close aria-label="${esc(tr("viennaSourcesClose"))}">×</button>
+      </div>
+      <p>${esc(tr("viennaSourcesIntro"))}</p>
+      <ul>
+        <li><a href="https://letterformarchive.org/news/die-flache-facsimile-and-the-vienna-secession/" target="_blank" rel="noopener">Die Fläche · Letterform Archive</a><span>${esc(tr("viennaSourceHistory"))}</span></li>
+        <li><a href="https://www.awwwards.com/sites/viennese-modernism-2018" target="_blank" rel="noopener">Viennese Modernism 2018</a><span>${esc(tr("viennaSourceDigital"))}</span></li>
+        <li><a href="https://github.com/google/fonts/tree/main/ofl/wireone" target="_blank" rel="noopener">Wire One · Google Fonts</a><span>${esc(tr("viennaSourceFont"))}</span></li>
+        <li><a href="https://github.com/google/fonts/tree/main/ofl/jost" target="_blank" rel="noopener">Jost · Google Fonts</a><span>${esc(tr("viennaSourceBodyFont"))}</span></li>
+      </ul>
+      <p class="vienna-sources-note">${esc(tr("viennaSourcesNote"))}</p>
+    </section>`;
+  const trigger = dock.querySelector("[data-vienna-sources-open]");
+  trigger.addEventListener("click", () => {
+    const panel = dock.querySelector("[data-vienna-sources-panel]");
+    const willOpen = panel.hidden;
+    closeViennaSources();
+    if (willOpen) {
+      panel.hidden = false;
+      trigger.setAttribute("aria-expanded", "true");
+    }
+  });
+  dock.querySelector("[data-vienna-sources-close]").addEventListener("click", () => {
+    closeViennaSources();
+    trigger.focus();
+  });
+}
 function applyTheme(key) {
   document.documentElement.setAttribute("data-theme", key);
   try { localStorage.setItem("raumplan-theme", key); } catch {}
@@ -205,6 +260,7 @@ function applyTheme(key) {
     if (key === "solarpunk") randomizeSolarClouds(true);
     renderArtCaption();
   }
+  renderViennaSources();
   window.dispatchEvent(new CustomEvent("raumplan-theme-change", { detail: { key } }));
 }
 
@@ -282,6 +338,7 @@ function renderThemeSwitch(container) {
         <span aria-hidden="true">☯</span>
       </button>
     </div>`;
+  renderViennaSources();
   ensureThemeMorePopoverEl();
   if (!container.dataset.wired) {
     container.dataset.wired = "1";
@@ -325,4 +382,11 @@ document.addEventListener("keydown", event => {
   const trigger = document.querySelector(".theme-more-trigger[aria-expanded='true']");
   closeThemeMorePopover();
   trigger?.focus();
+  const sourceTrigger = document.querySelector("[data-vienna-sources-open][aria-expanded='true']");
+  closeViennaSources();
+  sourceTrigger?.focus();
+});
+document.addEventListener("click", event => {
+  if (event.target.closest("#viennaSources")) return;
+  closeViennaSources();
 });

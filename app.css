@@ -699,6 +699,19 @@ dialog .dactions { display: flex; gap: var(--sp-2); justify-content: flex-end; m
 dialog .msg { font-size: var(--fs-sm); margin-top: var(--sp-2); }
 dialog .msg.ok { color: var(--good); }
 dialog .msg.err { color: var(--warn); }
+#createConDlg { overflow-x: hidden; }
+#createConDlg #playablFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+#createConDlg .field,
+#createConDlg select,
+#createConDlg input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
 .danger-confirm-panel {
   padding: var(--sp-3);
   border: var(--border-w) solid var(--warn);
