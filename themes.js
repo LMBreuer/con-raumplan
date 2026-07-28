@@ -15,6 +15,7 @@ const THEMES = [
 // Core-3 bleiben als flache Buttons im Header sichtbar, der Rest wandert in
 // ein "Weitere Themes"-Popover — siehe renderThemeSwitch().
 const CORE_THEME_KEYS = ["dark", "light", "contrast"];
+const ZEN_MODE_KEY = "raumplan-zen-mode";
 
 const PIXEL_CAT_SVG = `<svg class="pixel-cat" viewBox="0 0 16 16" role="img" aria-label="Eine kleine Pixel-Katze hat sich hier versteckt" xmlns="http://www.w3.org/2000/svg">
   <rect x="2" y="6" width="2" height="2"/><rect x="12" y="6" width="2" height="2"/>
@@ -177,6 +178,20 @@ function setColorVisionAid(enabled) {
   updateColorVisionAidAttribute();
   window.dispatchEvent(new CustomEvent("raumplan-theme-change", { detail: { key: document.documentElement.getAttribute("data-theme"), colorVisionAid: enabled } }));
 }
+function zenModeIsOn() {
+  try { return localStorage.getItem(ZEN_MODE_KEY) === "1"; } catch { return false; }
+}
+function updateZenModeAttribute() {
+  const enabled = zenModeIsOn();
+  document.documentElement.toggleAttribute("data-zen", enabled);
+  return enabled;
+}
+function setZenMode(enabled) {
+  try { localStorage.setItem(ZEN_MODE_KEY, enabled ? "1" : "0"); } catch {}
+  updateZenModeAttribute();
+  document.querySelectorAll(".theme-switch-group").forEach(renderThemeSwitch);
+  window.dispatchEvent(new CustomEvent("raumplan-zen-change", { detail: { enabled } }));
+}
 function applyTheme(key) {
   document.documentElement.setAttribute("data-theme", key);
   try { localStorage.setItem("raumplan-theme", key); } catch {}
@@ -247,6 +262,7 @@ function renderThemeSwitch(container) {
   const core = THEMES.filter(t => CORE_THEME_KEYS.includes(t.key));
   const specials = THEMES.filter(t => !CORE_THEME_KEYS.includes(t.key));
   const activeSpecial = specials.find(t => t.key === current);
+  const zenEnabled = updateZenModeAttribute();
   const coreHtml = core.map(th => `<button type="button" data-theme-key="${th.key}" aria-pressed="${String(th.key === current)}" title="${esc(tr(th.nameKey))}" aria-label="${esc(tr(th.nameKey))}">${th.label}</button>`).join("");
   renderContrastAidSwitch();
   container.className = "theme-switch-group";
@@ -260,6 +276,11 @@ function renderThemeSwitch(container) {
       <button type="button" class="theme-more-trigger${activeSpecial ? " is-active" : ""}" aria-haspopup="true" aria-expanded="false" title="${esc(tr("moreThemes"))}" aria-label="${esc(tr("moreThemes"))}">
         <span>${activeSpecial ? activeSpecial.label : "✨"}</span><span class="theme-more-chevron">⌄</span>
       </button>
+    </div>
+    <div class="zen-mode-wrap">
+      <button type="button" class="zen-mode-toggle" data-zen-mode role="switch" aria-checked="${String(zenEnabled)}" title="${esc(tr("zenMode"))}" aria-label="${esc(tr("zenMode"))}">
+        <span aria-hidden="true">☯</span>
+      </button>
     </div>`;
   ensureThemeMorePopoverEl();
   if (!container.dataset.wired) {
@@ -271,7 +292,11 @@ function renderThemeSwitch(container) {
       const themeBtn = e.target.closest("button[data-theme-key]");
       if (themeBtn) { applyTheme(themeBtn.dataset.themeKey); closeThemeMorePopover(); renderThemeSwitch(container); return; }
       const trigger = e.target.closest(".theme-more-trigger");
-      if (!trigger) return;
+      if (!trigger) {
+        const zenToggle = e.target.closest("[data-zen-mode]");
+        if (zenToggle) setZenMode(zenToggle.getAttribute("aria-checked") !== "true");
+        return;
+      }
       e.stopPropagation();
       const popover = ensureThemeMorePopoverEl();
       const willOpen = popover.hidden;
@@ -293,3 +318,11 @@ function renderThemeSwitch(container) {
     });
   }
 }
+window.addEventListener("scroll", closeThemeMorePopover, { capture: true, passive: true });
+window.addEventListener("resize", closeThemeMorePopover);
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+  const trigger = document.querySelector(".theme-more-trigger[aria-expanded='true']");
+  closeThemeMorePopover();
+  trigger?.focus();
+});

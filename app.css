@@ -1045,7 +1045,7 @@ dialog {
   font-size: .78rem;
   line-height: normal;
 }
-.theme-switch button {
+.theme-switch button, .zen-mode-toggle {
   padding: 6px 9px;
   font-size: .9rem;
   line-height: normal;
@@ -1061,6 +1061,33 @@ dialog {
   height: 18px;
   background: var(--border);
   flex-shrink: 0;
+}
+.zen-mode-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.zen-mode-wrap::before {
+  content: "";
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.zen-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.zen-mode-toggle[aria-checked="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 .theme-more-trigger {
   gap: 6px;

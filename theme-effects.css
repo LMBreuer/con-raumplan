@@ -505,3 +505,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+:root[data-zen] *, :root[data-zen] *::before, :root[data-zen] *::after {
+  animation: none !important;
+  scroll-behavior: auto !important;
+  transition: none !important;
+}
+:root[data-zen][data-theme="solarpunk"] body::before,
+:root[data-zen][data-theme="solarpunk"] body::after,
+:root[data-zen][data-theme="terminal"] body::after { display: none !important; }
