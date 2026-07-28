@@ -725,6 +725,23 @@
   scroll-behavior: auto !important;
   transition: none !important;
 }
+:root[data-zen] .card:hover,
+:root[data-zen] .room:hover,
+:root[data-zen] .chip:not(.dragging):hover,
+:root[data-zen] .kpi-bar .kpi:hover,
+:root[data-zen] .con-card:hover,
+:root[data-zen] .req:hover,
+:root[data-zen] .next-con-card:hover,
+:root[data-zen] .grid-chip:hover,
+:root[data-zen] .guided-tour-choice:hover,
+:root[data-zen] button:not(.small):not(.icon-btn):hover,
+:root[data-zen] a.btn:not(.small):hover,
+:root[data-zen] .theme-switch button:hover,
+:root[data-zen] .lang-switch-flat button:hover,
+:root[data-zen] .theme-more-trigger:hover,
+:root[data-zen] button.has-avatar:hover {
+  transform: none !important;
+}
 :root[data-zen][data-theme="solarpunk"] body::before,
 :root[data-zen][data-theme="solarpunk"] body::after,
 :root[data-zen][data-theme="terminal"] body::after { display: none !important; }
