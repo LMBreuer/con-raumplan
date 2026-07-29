@@ -197,7 +197,7 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
 
 
   .card, .room, .kpi-bar .kpi, .req {
-    animation: rp-fadein .5s ease-out both;
+    animation: rp-fadein .5s ease-out;
   }
   /* Live-Suchen unterdrücken wiederholte Eingangsanimationen. */
   .suppress-enter-animation .card,

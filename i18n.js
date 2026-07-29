@@ -19,7 +19,7 @@ const STRINGS = {
     // Theme-/Sprach-Switcher, Login
     themeDark: "Dunkel", themeLight: "Hell", themeContrast: "Kontrastreich", themeColorful: "Playabl",
     themeTerminal: "Terminal", themeCyberpunk: "Cyberpunk", themeUkiyo: "Ukiyo-e",
-    themeSolarpunk: "Solarpunk", themeGlass: "Glassmorphism", themePunk: "Punk", themeComic: "Comic", themeVienna: "Vienna Nouveau", moreThemes: "Weitere Themes",
+    themeSolarpunk: "Solarpunk", themeGlass: "Glassmorphism", themePunk: "Punk", themeComic: "Comic", themeVienna: "Vienna Nouveau", themeCosmic: "Dark Cosmic", moreThemes: "Weitere Themes",
     zenMode: "Zen-Modus – Bewegung und visuelle Effekte reduzieren",
     viennaSourcesButton: "Inspiration & Quellen", viennaSourcesTitle: "Inspiration & Quellen",
     viennaSourcesClose: "Inspirationsquellen schließen",
@@ -303,7 +303,7 @@ const STRINGS = {
   en: {
     themeDark: "Dark", themeLight: "Light", themeContrast: "High contrast", themeColorful: "Playabl",
     themeTerminal: "Terminal", themeCyberpunk: "Cyberpunk", themeUkiyo: "Ukiyo-e",
-    themeSolarpunk: "Solarpunk", themeGlass: "Glassmorphism", themePunk: "Punk", themeComic: "Comic", themeVienna: "Vienna Nouveau", moreThemes: "More themes",
+    themeSolarpunk: "Solarpunk", themeGlass: "Glassmorphism", themePunk: "Punk", themeComic: "Comic", themeVienna: "Vienna Nouveau", themeCosmic: "Dark Cosmic", moreThemes: "More themes",
     zenMode: "Zen mode – reduce motion and visual effects",
     viennaSourcesButton: "Inspiration & sources", viennaSourcesTitle: "Inspiration & sources",
     viennaSourcesClose: "Close inspiration sources",

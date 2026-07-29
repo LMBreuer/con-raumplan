@@ -64,6 +64,40 @@
   --room-a: #2a5fd6; --room-b: #b3790a; --room-c: #1a8f7a; --room-d: #9a3fae; --room-e: #c94f34;
 }
 
+:root[data-theme="cosmic"] {
+  color-scheme: dark;
+  --page:      #010207;
+  --surface-1: #060812;
+  --surface-2: #0a0e1d;
+  --text-primary:   #f0f2ff;
+  --text-secondary: #aab1ce;
+  --text-muted:     #737b9c;
+  --grid:      #11182e;
+  --baseline:  #2a3456;
+  --border:    rgba(157,177,232,.16);
+  --accent:      #97b7ff;
+  --accent-ink:  #03050d;
+  --accent-soft: #151c36;
+  --good:  #74dfb2;
+  --warn:  #ff9a7d;
+  --band:  #090c18;
+  --shadow-card: inset 0 1px 0 rgba(205,216,255,.06), 0 30px 72px -38px rgba(0,0,0,.98);
+  --card-border: 1px solid rgba(157,177,232,.15);
+  --chrome-shadow: inset 0 1px 0 rgba(205,216,255,.06), 0 22px 52px -34px rgba(0,0,0,.96);
+  --room-a: #91b3ff; --room-b: #d9b876; --room-c: #64cfca; --room-d: #a992ff; --room-e: #d97578;
+  --font-display: "Syne", "Instrument Sans", sans-serif;
+  --font-body: "Instrument Sans", Inter, system-ui, sans-serif;
+  --cosmic-blue: #97b7ff;
+  --cosmic-violet: #7769c9;
+  --cosmic-dust: #d9b876;
+  --cosmic-void: #010207;
+  --cosmic-nebula-blue: #5269bd;
+  --cosmic-nebula-rose: #8a3f78;
+  --cosmic-nebula-teal: #216d76;
+  --cosmic-nebula-ember: #a46d4a;
+  --r-sm: 8px; --r-md: 10px; --r-lg: 16px; --r-xl: 16px; --r-pill: 999px;
+}
+
 :root[data-theme="contrast"] {
   color-scheme: light;
   --page:      #ffffff;

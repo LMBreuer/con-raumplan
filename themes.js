@@ -6,6 +6,7 @@ const THEMES = [
   { key: "contrast", label: "◐", nameKey: "themeContrast" },
   { key: "colorful", label: "🎨", nameKey: "themeColorful" },
   { key: "glass", label: "🫧", nameKey: "themeGlass" },
+  { key: "cosmic", label: "✦", nameKey: "themeCosmic" },
   { key: "ukiyo", label: "🌸", nameKey: "themeUkiyo" },
   { key: "solarpunk", label: "🌱", nameKey: "themeSolarpunk" },
   { key: "terminal", label: "▚", nameKey: "themeTerminal" },
