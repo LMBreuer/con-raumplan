@@ -147,15 +147,37 @@ function renderNav() {
   const detailGroup = document.getElementById("detailGroup");
   const detailDivider = document.getElementById("detailDivider");
   const isTableView = S.view === "tabelle";
+  const personalGroup = document.getElementById("personalGroup");
+  const personalDivider = document.getElementById("personalDivider");
+  const hasPlayablEvent = !!S.con?.playabl_event_id;
+  personalGroup.hidden = !hasPlayablEvent;
+  personalDivider.hidden = !hasPlayablEvent;
+  if (hasPlayablEvent) {
+    const personalToggle = document.getElementById("myGamesFilter");
+    const personalProfileButton = document.getElementById("personalGamesProfile");
+    personalToggle.textContent = tr("myGames");
+    personalToggle.setAttribute("aria-pressed", String(S.personalFilterActive));
+    personalToggle.setAttribute("aria-label", S.personalProfile
+      ? tr("myGamesFilterAria", { name: S.personalProfile.username })
+      : tr("myGamesSetupAria"));
+    personalProfileButton.hidden = !S.personalProfile;
+    if (S.personalProfile) {
+      personalProfileButton.textContent = S.personalProfile.username;
+      personalProfileButton.title = tr("changePersonalProfile");
+      personalProfileButton.setAttribute("aria-label", tr("changePersonalProfileFor", { name: S.personalProfile.username }));
+    }
+  }
   contextGroup.hidden = isTableView;
   contextDivider.hidden = isTableView;
   detailGroup.hidden = isTableView;
   detailDivider.hidden = isTableView;
   if (S.view === "raeume") {
+    const visibleSlots = personalVisibleSlots();
+    if (!visibleSlots.some(slot => slot.key === S.activeSlot)) S.activeSlot = visibleSlots[0]?.key || null;
     contextLabel.textContent = tr("slotLabel");
     axisSwitch.classList.add("local-slot-tabs");
     axisSwitch.setAttribute("aria-label", tr("chooseSlotAriaLabel"));
-    axisSwitch.innerHTML = S.slots.map(s =>
+    axisSwitch.innerHTML = visibleSlots.map(s =>
       `<button type="button" data-slot="${esc(s.key)}" aria-pressed="${String(s.key === S.activeSlot)}">${esc(s.label)}</button>`
     ).join("");
   } else {
@@ -191,9 +213,23 @@ function sortGames(list, sort) {
   };
   return [...list].sort((a, b) => { const va = val(a), vb = val(b); return (va < vb ? -1 : va > vb ? 1 : 0) * sort.dir; });
 }
+function personalEmptyMessage({ roomAssignment = false } = {}) {
+  const key = !personalGames().length
+    ? "noPersonalGames"
+    : roomAssignment && S.games.some(matchesPublicFilters)
+      ? "noPersonalRoomAssignments"
+      : S.search
+      ? "noPersonalSearchResults"
+      : roomAssignment
+        ? "noPersonalRoomAssignments"
+        : "noPersonalSearchResults";
+  return tr(key, { name: S.personalProfile?.username || "" });
+}
 function tabelleHtml() {
-  const rows = sortGames(S.games.filter(matchesSearchG), S.tableSort);
-  if (!rows.length) return emptyState(S.games.length ? tr("noSearchResults") : tr("noGamesYet"));
+  const rows = sortGames(S.games.filter(matchesPublicFilters), S.tableSort);
+  if (!rows.length) return emptyState(S.personalFilterActive
+    ? personalEmptyMessage()
+    : (S.games.length ? tr("noSearchResults") : tr("noGamesYet")));
   const arrow = k => S.tableSort.key === k ? (S.tableSort.dir === 1 ? " ▲" : " ▼") : "";
   const trs = rows.map(g => {
     const a = asgFor(g); const table = a && S.tables.find(t => t.id === a.table_id); const room = table && roomOfTable(table.id);
@@ -223,8 +259,13 @@ function tabelleHtml() {
 function rasterHtml() {
   if (!S.rooms.length) return emptyState(tr("noRoomsYet"));
   if (!S.slots.length) return emptyState(tr("noSlotsYet"));
-  const rows = S.rasterAxis === "slots" ? S.slots : S.rooms;
-  const cols = S.rasterAxis === "slots" ? S.rooms : S.slots;
+  const visibleRooms = personalVisibleRooms();
+  const visibleSlots = personalVisibleSlots();
+  if (S.personalFilterActive && (!visibleRooms.length || !visibleSlots.length)) {
+    return emptyState(personalEmptyMessage({ roomAssignment: true }));
+  }
+  const rows = S.rasterAxis === "slots" ? visibleSlots : visibleRooms;
+  const cols = S.rasterAxis === "slots" ? visibleRooms : visibleSlots;
   const headHtml = cols.map(c => {
     const room = S.rasterAxis === "slots" ? c : null;
     return `<th scope="col"><span class="matrix-label">${room ? `<span class="room-swatch${roomMarkerClass(room)}" aria-hidden="true" style="--room-accent:${roomAccentVar(room)}"></span>` : ""}<span class="matrix-label-text">${esc(room ? room.name : c.label)}</span></span></th>`;
@@ -235,7 +276,7 @@ function rasterHtml() {
     const cellsHtml = cols.map(c => {
       const room = S.rasterAxis === "slots" ? c : r;
       const slot = S.rasterAxis === "slots" ? r : c;
-      const gamesHere = S.games.filter(g => g.slotKey === slot.key && matchesSearchG(g)).filter(g => { const a = asgFor(g); const t = a && S.tables.find(x => x.id === a.table_id); return t && t.room_id === room.id; });
+      const gamesHere = S.games.filter(g => g.slotKey === slot.key && matchesPublicFilters(g)).filter(g => { const a = asgFor(g); const t = a && S.tables.find(x => x.id === a.table_id); return t && t.room_id === room.id; });
       const fillClass = gamesHere.length === 0 ? "fill-0" : gamesHere.length === 1 ? "fill-low" : gamesHere.length === 2 ? "fill-mid" : "fill-high";
       const inner = gamesHere.length ? gamesHere.map(g => chipHtml(g, { crew: false, inGrid: true })).join("") : "·";
       return `<td class="grid-cell ${fillClass}${!gamesHere.length ? " empty" : ""}"${gamesHere.length ? "" : ` aria-label="${esc(tr("noGames"))}"`}>${inner}</td>`;
@@ -285,10 +326,19 @@ window.addEventListener("resize", updateCrewSlotScrollControls);
 /* ---------------- Ansicht: Räume (öffentlich, lesend) ---------------- */
 function raeumeReadHtml() {
   if (!S.slots.length) return emptyState(tr("noSlotsYet"));
-  const boardHtml = S.rooms.map(room => {
-    const tables = S.tables.filter(t => t.room_id === room.id);
+  if (S.personalFilterActive && !S.activeSlot) return emptyState(personalEmptyMessage({ roomAssignment: true }));
+  const visibleRooms = personalVisibleRooms().filter(room => !S.personalFilterActive || S.games.some(g => {
+    const assignment = asgFor(g);
+    const table = assignment && S.tables.find(item => item.id === assignment.table_id);
+    return g.slotKey === S.activeSlot && matchesPublicFilters(g) && table?.room_id === room.id;
+  }));
+  const boardHtml = visibleRooms.map(room => {
+    const tables = S.tables.filter(t => t.room_id === room.id).filter(t => !S.personalFilterActive || S.games.some(g => {
+      const assignment = asgFor(g);
+      return g.slotKey === S.activeSlot && matchesPublicFilters(g) && assignment?.table_id === t.id;
+    }));
     const tablesHtml = tables.map(t => {
-      const games = S.games.filter(g => g.slotKey === S.activeSlot && matchesSearchG(g)).filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
+      const games = S.games.filter(g => g.slotKey === S.activeSlot && matchesPublicFilters(g)).filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
       return `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span></div>${games.map(g => chipHtml(g, { crew: false, inRoom: true })).join("") || `<div class="free room-public-free detail-${S.detailLevel}">${esc(tr("freeLabel"))}</div>`}</div>`;
     }).join("");
     return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
@@ -296,6 +346,8 @@ function raeumeReadHtml() {
       <div class="room-badges">${roomBadgesHtml(room)}</div>
       ${tablesHtml || `<p class="hint">${esc(tr("noTablesYet"))}</p>`}
     </div>`;
-  }).join("") || emptyState(tr("noRoomsYet"));
+  }).join("") || emptyState(S.personalFilterActive
+    ? personalEmptyMessage({ roomAssignment: true })
+    : tr("noRoomsYet"));
   return `<div id="board">${boardHtml}</div>`;
 }

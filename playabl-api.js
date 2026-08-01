@@ -6,3 +6,9 @@ async function playablApi(path) {
 }
 const loadPlayablEventsList = () =>
   playablApi(`community_events?select=id,title,start_time,community_id(id,name)&draft_state=eq.PUBLISHED&deleted_at=is.null&order=start_time.desc&limit=150`).catch(() => []);
+
+const escapePlayablLike = value => String(value).replace(/[\\%_]/g, match => `\\${match}`);
+const loadPlayablProfileByIdentity = identity => {
+  const field = identity.includes("@") ? "email" : "username";
+  return playablApi(`profiles?select=id,username&${field}=ilike.${encodeURIComponent(escapePlayablLike(identity))}&limit=2`);
+};

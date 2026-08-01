@@ -18,6 +18,76 @@ document.getElementById("detailSwitch").addEventListener("click", e => {
   renderActive();
 });
 
+const personalGamesDialog = document.getElementById("personalGamesDlg");
+const personalGamesForm = document.getElementById("personalGamesForm");
+const personalGamesInput = document.getElementById("personalGamesIdentity");
+const personalGamesMessage = document.getElementById("personalGamesMsg");
+function openPersonalGamesDialog() {
+  personalGamesMessage.className = "msg";
+  personalGamesMessage.textContent = "";
+  personalGamesInput.value = S.personalProfile?.username || "";
+  document.getElementById("personalGamesReset").hidden = !S.personalProfile;
+  personalGamesDialog.showModal();
+  requestAnimationFrame(() => personalGamesInput.focus());
+}
+function closePersonalGamesDialog() {
+  if (personalGamesDialog.open) personalGamesDialog.close();
+}
+document.getElementById("myGamesFilter").addEventListener("click", () => {
+  if (!S.personalProfile) return openPersonalGamesDialog();
+  S.personalFilterActive = !S.personalFilterActive;
+  if (S.personalFilterActive) S.activeSlot = personalVisibleSlots()[0]?.key || null;
+  renderActive();
+});
+document.getElementById("personalGamesProfile").addEventListener("click", openPersonalGamesDialog);
+document.getElementById("personalGamesCancel").addEventListener("click", closePersonalGamesDialog);
+document.getElementById("personalGamesReset").addEventListener("click", () => {
+  localStorage.removeItem(PERSONAL_PROFILE_KEY);
+  localStorage.removeItem(LEGACY_PERSONAL_PROFILE_KEY);
+  S.personalProfile = null;
+  S.personalFilterActive = false;
+  closePersonalGamesDialog();
+  renderActive();
+});
+personalGamesForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const identity = personalGamesInput.value.trim();
+  if (!identity) return personalGamesInput.focus();
+  const saveButton = document.getElementById("personalGamesSave");
+  saveButton.disabled = true;
+  personalGamesMessage.className = "msg";
+  personalGamesMessage.textContent = tr("lookingUpProfile");
+  try {
+    const profiles = await loadPlayablProfileByIdentity(identity);
+    const profile = identity.includes("@")
+      ? profiles[0]
+      : profiles.find(row => String(row.username).localeCompare(identity, undefined, { sensitivity: "accent" }) === 0) || profiles[0];
+    if (!profile) {
+      personalGamesMessage.className = "msg err";
+      personalGamesMessage.textContent = tr("personalProfileNotFound");
+      return;
+    }
+    S.personalProfile = { id: String(profile.id), username: String(profile.username) };
+    localStorage.setItem(PERSONAL_PROFILE_KEY, JSON.stringify(S.personalProfile));
+    localStorage.removeItem(LEGACY_PERSONAL_PROFILE_KEY);
+    S.personalFilterActive = true;
+    S.activeSlot = personalVisibleSlots()[0]?.key || null;
+    closePersonalGamesDialog();
+    renderActive();
+  } catch {
+    personalGamesMessage.className = "msg err";
+    personalGamesMessage.textContent = tr("personalProfileLoadFailed");
+  } finally {
+    saveButton.disabled = false;
+  }
+});
+window.addEventListener("storage", event => {
+  if (![PERSONAL_PROFILE_KEY, LEGACY_PERSONAL_PROFILE_KEY].includes(event.key)) return;
+  S.personalProfile = loadStoredPersonalProfile();
+  if (!S.personalProfile) S.personalFilterActive = false;
+  if (S.con) renderActive({ animate: false });
+});
+
 /* ---------------- Start ---------------- */
 renderThemeSwitch(document.getElementById("themeSwitch"));
 pickUkiyoBackground(); pickComicBackground();

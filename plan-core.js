@@ -30,7 +30,7 @@ async function loadCon(idOrSlug) {
 // Sessions außerhalb der Zeitabschnitte landen in „Unsortiert“, ohne Abschnitte in „Tag“.
 async function loadPlayabl(eventId, buckets) {
   if (!eventId) return [];
-  const sessions = await playablApi(`sessions?select=id,start_time,end_time,participant_count,game_id!inner(id,title,system,event_id,description,creator_id)&deleted_at=is.null&game_id.event_id=eq.${eventId}&order=start_time.asc`);
+  const sessions = await playablApi(`sessions?select=id,start_time,end_time,participant_count,rsvps,game_id!inner(id,title,system,event_id,description,creator_id)&deleted_at=is.null&game_id.event_id=eq.${eventId}&order=start_time.asc`);
   // Anbieterprofile separat laden; die Person hängt in Playabl am Spiel.
   const creatorIds = [...new Set(sessions.map(s => s.game_id.creator_id).filter(Boolean))];
   const profiles = creatorIds.length
@@ -48,6 +48,8 @@ async function loadPlayabl(eventId, buckets) {
       url: "https://app.playabl.io/games/" + s.game_id.id,
       seats: s.participant_count + 1,
       provider: providerById.get(s.game_id.creator_id) || "",
+      facilitatorId: String(s.game_id.creator_id || ""),
+      rsvpIds: (s.rsvps || []).map(String),
       ws: WS_RE.test((s.game_id.system || "") + " " + s.game_id.title),
       slotKey: date + "|" + part,
       slotLabel: `${fmtDay.format(new Date(s.start_time)).split(",")[0]} ${part}`,
@@ -180,12 +182,26 @@ function makeStore(conId) {
 }
 
 /* ---------------- State ---------------- */
+const PERSONAL_PROFILE_KEY = "playabl-personal-profile";
+const LEGACY_PERSONAL_PROFILE_KEY = "playabl-dashboard-personal-profile";
+function loadStoredPersonalProfile() {
+  try {
+    const raw = localStorage.getItem(PERSONAL_PROFILE_KEY) || localStorage.getItem(LEGACY_PERSONAL_PROFILE_KEY);
+    const profile = JSON.parse(raw || "null");
+    if (!profile?.id || !profile?.username) return null;
+    const normalized = { id: String(profile.id), username: String(profile.username) };
+    if (!localStorage.getItem(PERSONAL_PROFILE_KEY)) localStorage.setItem(PERSONAL_PROFILE_KEY, JSON.stringify(normalized));
+    localStorage.removeItem(LEGACY_PERSONAL_PROFILE_KEY);
+    return normalized;
+  } catch { return null; }
+}
 const S = {
   con: null, store: null,
   games: [], dbGames: [], slots: [], slotBuckets: [], activeSlot: null,
   featureTags: [], roomFeatureTags: [], gameRequiredTags: [],
   rooms: [], tables: [], assignments: [], requests: [],
   role: null, superadmin: false, search: "",
+  personalProfile: loadStoredPersonalProfile(), personalFilterActive: false,
   mode: "view", view: "raster", crewView: "zuordnen", setupTab: "raeume",
   rasterAxis: "rooms", tableSort: { key: "when", dir: 1 },
   showDoneRequests: false, minSeats: 0,
@@ -369,6 +385,33 @@ function matchesSearchG(g) {
   }
   return false;
 }
+function personalGameState(g) {
+  if (!S.personalProfile || g.manual) return null;
+  if (g.facilitatorId === S.personalProfile.id) return "facilitator";
+  const index = (g.rsvpIds || []).indexOf(S.personalProfile.id);
+  if (index < 0) return null;
+  return index < Math.max(0, g.seats - 1) ? "confirmed" : "waitlist";
+}
+const matchesPublicFilters = g => matchesSearchG(g) && (!S.personalFilterActive || !!personalGameState(g));
+const personalGames = () => S.games.filter(g => !!personalGameState(g));
+const personalVisibleSlots = () => {
+  if (!S.personalFilterActive) return S.slots;
+  const keys = new Set(S.games.filter(matchesPublicFilters).filter(g => {
+    const assignment = asgFor(g);
+    const table = assignment && S.tables.find(item => item.id === assignment.table_id);
+    return !!table;
+  }).map(g => g.slotKey));
+  return S.slots.filter(slot => keys.has(slot.key));
+};
+const personalVisibleRooms = () => {
+  if (!S.personalFilterActive) return S.rooms;
+  const roomIds = new Set(S.games.filter(matchesPublicFilters).map(g => {
+    const assignment = asgFor(g);
+    const table = assignment && S.tables.find(item => item.id === assignment.table_id);
+    return table?.room_id;
+  }).filter(Boolean));
+  return S.rooms.filter(room => roomIds.has(room.id));
+};
 function matchesCrewGameSearch(g) {
   const query = S.crewSearch.trim().toLowerCase();
   if (!query) return true;

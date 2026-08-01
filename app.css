@@ -1380,6 +1380,38 @@ dialog {
   box-shadow: none;
   font-weight: 800;
 }
+.plan-page .public-personal-actions { gap: 10px; flex-wrap: nowrap; }
+.plan-page .public-personal-actions button {
+  padding: 8px 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  box-shadow: none;
+  font-family: Arial, sans-serif;
+  font-size: .78rem;
+  font-weight: 700;
+}
+.plan-page .public-personal-actions #myGamesFilter[aria-pressed="true"] {
+  border-bottom-color: currentColor;
+  color: var(--text-primary);
+  font-weight: 800;
+}
+.plan-page .public-personal-actions #personalGamesProfile {
+  max-width: 126px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: .7rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plan-page .public-personal-actions #personalGamesProfile:hover,
+.plan-page .public-personal-actions #personalGamesProfile:focus-visible {
+  border-bottom-color: currentColor;
+  color: var(--text-primary);
+}
 .plan-page #axisSwitch { display: flex; gap: 8px; }
 .plan-page #axisSwitch button {
   padding: 8px 14px;
@@ -1408,6 +1440,16 @@ dialog {
 }
 .plan-page .public-toolbar #printBtn .print-icon { font-size: 1.05rem; }
 :root[data-theme="ukiyo"] .plan-page .public-toolbar #printBtn { box-shadow: none; }
+.personal-profile-intro,
+.personal-profile-privacy { color: var(--text-secondary); line-height: 1.5; }
+.personal-profile-intro { margin: 0 0 var(--sp-4); }
+.personal-profile-privacy { margin: var(--sp-3) 0 0; font-size: var(--fs-sm); }
+#personalGamesDlg input { width: 100%; }
+#personalGamesDlg .dactions { flex-wrap: wrap; }
+#personalGamesDlg .personal-games-reset { margin-right: auto; }
+@media (max-width: 420px) {
+  #personalGamesDlg .personal-games-reset { width: 100%; margin-right: 0; }
+}
 .plan-page .public-table-card {
   margin-bottom: 24px;
   padding: 20px;
