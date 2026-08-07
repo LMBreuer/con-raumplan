@@ -98,9 +98,9 @@ function jumpFromFloorPlanToRoom(roomId) {
 }
 
 function floorPlanLegendHtml(document) {
-  const rooms = floorPlanLinkedRooms(document);
-  if (!rooms.length) return "";
-  return `<div class="floor-plan-print-legend"><h3>${esc(tr("floorPlanLegend"))}</h3><div>${rooms.map(room => `<span style="--floor-plan-room-color:${floorPlanRoomColor(room)}"><b aria-hidden="true">${esc(floorPlanRoomGlyph(room))}</b>${esc(room.name)}</span>`).join("")}</div></div>`;
+  const items = floorPlanLegendItems(document);
+  if (!items.length) return "";
+  return `<div class="floor-plan-print-legend"><h3>${esc(tr("floorPlanLegend"))}</h3><div>${items.map(item => `<span style="--floor-plan-room-color:${item.color}"><b aria-hidden="true">${esc(item.glyph)}</b>${esc(item.name)}</span>`).join("")}</div></div>`;
 }
 
 function floorPlanPrintPagesHtml() {
@@ -173,7 +173,7 @@ async function downloadFloorPlanPdf(documentValue, button) {
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 11;
-    const allLegendRooms = floorPlanLinkedRooms(document);
+    const allLegendRooms = floorPlanLegendItems(document);
     const legendRooms = allLegendRooms.slice(0, 9);
     const legendRows = Math.ceil(legendRooms.length / 3);
     const legendHeight = legendRooms.length ? Math.min(24, 7 + legendRows * 5) : 0;
@@ -216,7 +216,7 @@ async function downloadFloorPlanPdf(documentValue, button) {
           const row = Math.floor(roomIndex / 3);
           const x = margin + column * columnWidth;
           const y = legendTop + 9 + row * 5;
-          const color = floorPlanRoomColor(room).replace("#", "");
+          const color = room.color.replace("#", "");
           if (/^[0-9a-f]{6}$/i.test(color)) {
             pdf.setFillColor(parseInt(color.slice(0, 2), 16), parseInt(color.slice(2, 4), 16), parseInt(color.slice(4, 6), 16));
           } else pdf.setFillColor(91, 103, 123);

@@ -417,21 +417,26 @@ begin
     raise exception 'unsupported floor plan schema' using errcode = '22023';
   end if;
 
-  insert into public.con_floor_plans
-    (con_id, schema_version, document, revision, updated_at, updated_by)
-  select target_con, 1, new_document, 1, now(), auth.uid()
-  where expected_revision = 0
-  on conflict (con_id) do update
+  if expected_revision = 0 then
+    insert into public.con_floor_plans
+      (con_id, schema_version, document, revision, updated_at, updated_by)
+    values (target_con, 1, new_document, 1, now(), auth.uid())
+    on conflict (con_id) do nothing
+    returning revision into next_revision;
+  else
+    update public.con_floor_plans
     set schema_version = 1,
-        document = excluded.document,
+        document = new_document,
         revision = public.con_floor_plans.revision + 1,
         updated_at = now(),
         updated_by = auth.uid()
-    where public.con_floor_plans.revision = expected_revision
-  returning revision into next_revision;
+    where public.con_floor_plans.con_id = target_con
+      and public.con_floor_plans.revision = expected_revision
+    returning revision into next_revision;
+  end if;
 
   if next_revision is null then
-    raise exception 'floor plan revision conflict' using errcode = '40001';
+    raise sqlstate 'PT409' using message = 'floor plan revision conflict';
   end if;
   return next_revision;
 end;
@@ -459,7 +464,7 @@ begin
       published_by = auth.uid()
   where con_id = target_con and revision = expected_revision;
   if not found then
-    raise exception 'floor plan revision conflict' using errcode = '40001';
+    raise sqlstate 'PT409' using message = 'floor plan revision conflict';
   end if;
 
   update public.cons set floor_plan_mode = 'editor' where id = target_con;
