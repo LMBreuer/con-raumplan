@@ -2475,20 +2475,53 @@ dialog {
 .floor-plan-page-controls .floor-plan-floor-tabs { margin-right: auto; }
 .floor-plan-page-controls label { display: flex; align-items: center; gap: var(--sp-2); }
 .floor-plan-page-controls input { width: 150px; background: var(--surface-1); }
-.floor-plan-editor-shell { display: grid; grid-template-columns: 185px minmax(0, 1fr) 210px; gap: var(--sp-3); align-items: start; }
+.floor-plan-editor-shell { display: grid; grid-template-columns: 240px minmax(0, 1fr) 270px; gap: var(--sp-3); align-items: start; }
 .floor-plan-toolbox,
 .floor-plan-inspector {
   background: var(--surface-1); border: var(--border-w) solid var(--border); border-radius: var(--r-md);
   padding: var(--sp-3); box-shadow: var(--shadow-card); min-width: 0;
 }
-.floor-plan-toolbox { display: flex; flex-direction: column; gap: var(--sp-3); }
-.floor-plan-tool-group { display: flex; flex-direction: column; gap: var(--sp-2); }
+.floor-plan-toolbox { display: flex; flex-direction: column; gap: 0; padding-block: var(--sp-2); }
+.floor-plan-tool-section { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-1); }
+.floor-plan-tool-section + .floor-plan-tool-section { border-top: var(--border-w) solid var(--border); }
+.floor-plan-tool-heading,
+.floor-plan-inspector-title { display: flex; align-items: flex-start; gap: var(--sp-2); }
+.floor-plan-tool-heading > span,
+.floor-plan-inspector-title > span {
+  display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); color: var(--accent); font-weight: 850;
+}
+.floor-plan-tool-heading div,
+.floor-plan-inspector-title div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.floor-plan-tool-heading strong,
+.floor-plan-inspector-title strong { color: var(--text-primary); font-size: var(--fs-sm); }
+.floor-plan-tool-heading small,
+.floor-plan-inspector-title small { color: var(--text-muted); font-size: .68rem; line-height: 1.35; }
+.floor-plan-tool-field { display: flex; flex-direction: column; gap: 4px; color: var(--text-muted); font-size: var(--fs-xs); }
+.floor-plan-tool-field select,
+.floor-plan-tool-action { width: 100%; }
+.floor-plan-tool-action { justify-content: space-between; min-height: 40px; }
 .floor-plan-tool-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
 .floor-plan-tool-row button { justify-content: center; padding-inline: var(--sp-2); }
-.floor-plan-history-actions { grid-template-columns: repeat(3, 1fr); padding-top: var(--sp-2); border-top: var(--border-w) solid var(--border); }
+.floor-plan-history-actions { grid-template-columns: repeat(3, 1fr); margin-top: var(--sp-1); padding: var(--sp-3) var(--sp-1) var(--sp-1); border-top: var(--border-w) solid var(--border); }
+.floor-plan-symbol-palette { display: flex; flex-direction: column; gap: var(--sp-3); max-height: 420px; overflow: auto; padding: var(--sp-2); border: var(--border-w) solid var(--border); border-radius: var(--r-sm); background: var(--surface-2); }
+.floor-plan-symbol-category h4 { margin: 0 0 6px; color: var(--text-muted); font-size: .65rem; letter-spacing: .08em; text-transform: uppercase; }
+.floor-plan-symbol-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.floor-plan-symbol-choice { min-width: 0; min-height: 62px; padding: 8px 5px; flex-direction: column; justify-content: center; gap: 3px; border-color: transparent; background: var(--surface-1); }
+.floor-plan-symbol-choice b { color: var(--text-primary); font-size: 1.45rem; line-height: 1; }
+.floor-plan-symbol-choice span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); font-size: .68rem; white-space: nowrap; }
+.floor-plan-symbol-choice:hover,
+.floor-plan-symbol-choice.is-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface-1)); }
+.floor-plan-symbol-palette.is-inspector { max-height: 390px; padding: 0; border: 0; background: transparent; }
 .floor-plan-inspector { display: flex; flex-direction: column; gap: var(--sp-3); }
 .floor-plan-inspector label { display: flex; flex-direction: column; gap: var(--sp-1); }
 .floor-plan-inspector textarea, .floor-plan-inspector input, .floor-plan-inspector select { width: 100%; }
+.floor-plan-inspector .floor-plan-color-input { min-height: 42px; padding: 4px; cursor: pointer; }
+.floor-plan-marker-picker { margin: 0; padding: 0; border: 0; }
+.floor-plan-marker-picker legend { margin-bottom: var(--sp-1); font-size: var(--fs-sm); }
+.floor-plan-marker-picker > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.floor-plan-marker-picker button { min-width: 0; justify-content: center; padding: 8px; font-size: 1.15rem; }
+.floor-plan-marker-picker button.is-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface-1)); color: var(--accent); }
 .floor-plan-canvas-stage {
   min-width: 0; padding: var(--sp-4); border-radius: var(--r-lg); overflow: auto;
   background-color: color-mix(in srgb, var(--band) 70%, var(--page));
@@ -2540,8 +2573,9 @@ dialog {
 
 @media (max-width: 980px) {
   .floor-plan-editor-shell { grid-template-columns: 1fr; }
-  .floor-plan-toolbox { display: grid; grid-template-columns: minmax(180px, 1fr) 1fr 1fr; align-items: end; }
-  .floor-plan-history-actions { border: 0; padding: 0; }
+  .floor-plan-toolbox { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); align-items: start; padding: var(--sp-2); overflow-x: auto; }
+  .floor-plan-tool-section { border: 0 !important; padding: var(--sp-2); }
+  .floor-plan-history-actions { grid-column: 1 / -1; margin: 0; border-top: var(--border-w) solid var(--border); }
   .floor-plan-inspector { min-height: 80px; }
   .floor-plan-public-layout { grid-template-columns: 1fr; }
   .floor-plan-room-detail { position: static; }
@@ -2557,6 +2591,8 @@ dialog {
   .floor-plan-page-controls label { width: 100%; justify-content: space-between; }
   .floor-plan-page-controls label input, .floor-plan-page-controls label select { flex: 1; }
   .floor-plan-toolbox { display: flex; }
+  .floor-plan-tool-section { padding-inline: var(--sp-1); }
+  .floor-plan-symbol-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .floor-plan-canvas-stage { padding: var(--sp-2); }
   .floor-plan-public-card, .floor-plan-room-detail { padding: var(--sp-4); }
 }

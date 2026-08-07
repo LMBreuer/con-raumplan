@@ -5,15 +5,26 @@ const FLOOR_PLAN_SIZE = {
   portrait: { width: 792, height: 1120 },
 };
 const FLOOR_PLAN_SYMBOLS = {
-  entrance: { glyph: "↳", de: "Eingang", en: "Entrance" },
-  door: { glyph: "▯", de: "Tür", en: "Door" },
-  stairs: { glyph: "▰", de: "Treppe", en: "Stairs" },
-  lift: { glyph: "↕", de: "Lift", en: "Lift" },
-  wc: { glyph: "WC", de: "WC", en: "WC" },
-  kitchen: { glyph: "♨", de: "Küche", en: "Kitchen" },
-  info: { glyph: "i", de: "Information", en: "Information" },
-  wardrobe: { glyph: "♧", de: "Garderobe", en: "Cloakroom" },
-  emergency: { glyph: "➜", de: "Notausgang", en: "Emergency exit" },
+  entrance: { glyph: "↳", category: "access", de: "Eingang", en: "Entrance" },
+  exit: { glyph: "↗", category: "access", de: "Ausgang", en: "Exit" },
+  door: { glyph: "▯", category: "access", de: "Tür", en: "Door" },
+  stairs: { glyph: "≋", category: "access", de: "Treppe", en: "Stairs" },
+  lift: { glyph: "↕", category: "access", de: "Lift", en: "Lift" },
+  accessible: { glyph: "♿", category: "access", de: "Barrierefrei", en: "Accessible" },
+  wc: { glyph: "WC", category: "service", de: "WC", en: "WC" },
+  kitchen: { glyph: "K", category: "service", de: "Küche", en: "Kitchen" },
+  info: { glyph: "i", category: "service", de: "Information", en: "Information" },
+  wardrobe: { glyph: "G", category: "service", de: "Garderobe", en: "Cloakroom" },
+  firstAid: { glyph: "+", category: "service", de: "Erste Hilfe", en: "First aid" },
+  route: { glyph: "→", category: "orientation", de: "Wegpfeil", en: "Direction" },
+  assembly: { glyph: "◎", category: "orientation", de: "Sammelpunkt", en: "Assembly point" },
+  parking: { glyph: "P", category: "orientation", de: "Parkplatz", en: "Parking" },
+  emergency: { glyph: "!", category: "orientation", de: "Notausgang", en: "Emergency exit" },
+};
+const FLOOR_PLAN_SYMBOL_CATEGORIES = {
+  access: { de: "Zugänge & Wege", en: "Access & movement" },
+  service: { de: "Service", en: "Services" },
+  orientation: { de: "Orientierung", en: "Wayfinding" },
 };
 const FLOOR_PLAN_ROOM_GLYPHS = {
   circle: "●", triangle: "▲", square: "■", diamond: "◆", plus: "✚", cross: "✕", hexagon: "⬢",
@@ -58,7 +69,15 @@ function normalizeFloorPlanObject(raw, floor) {
     rotation: floorPlanNumber(raw.rotation, 0, -360, 360),
   };
   if (raw.type === "room") {
-    return { ...base, roomId: raw.roomId ? String(raw.roomId) : null, fallbackLabel: String(raw.fallbackLabel || "").slice(0, 80) };
+    const customColor = /^#[0-9a-f]{6}$/i.test(String(raw.customColor || "")) ? String(raw.customColor) : "#64748b";
+    return {
+      ...base,
+      roomId: raw.roomId ? String(raw.roomId) : null,
+      fallbackLabel: String(raw.fallbackLabel || "").slice(0, 80),
+      customLocation: String(raw.customLocation || "").slice(0, 80),
+      customColor,
+      customMarker: FLOOR_PLAN_ROOM_GLYPHS[raw.customMarker] ? raw.customMarker : "square",
+    };
   }
   if (raw.type === "text") return { ...base, text: String(raw.text || "Text").slice(0, 240) };
   return { ...base, symbol: FLOOR_PLAN_SYMBOLS[raw.symbol] ? raw.symbol : "info", label: String(raw.label || "").slice(0, 80) };
@@ -116,6 +135,16 @@ function floorPlanRoomGlyph(room) {
   return FLOOR_PLAN_ROOM_GLYPHS[marker] || "●";
 }
 
+function floorPlanObjectRoomColor(object, room = floorPlanRoom(object?.roomId)) {
+  if (room) return floorPlanRoomColor(room);
+  return /^#[0-9a-f]{6}$/i.test(object?.customColor || "") ? object.customColor : "#64748b";
+}
+
+function floorPlanObjectRoomGlyph(object, room = floorPlanRoom(object?.roomId)) {
+  if (room) return floorPlanRoomGlyph(room);
+  return FLOOR_PLAN_ROOM_GLYPHS[object?.customMarker] || "■";
+}
+
 function floorPlanTextLines(text, maxChars = 22, maxLines = 3) {
   const words = String(text || "").trim().split(/\s+/).filter(Boolean);
   const lines = [];
@@ -137,8 +166,10 @@ function floorPlanRotation(object) {
 function floorPlanRoomSvg(object, { interactive = false } = {}) {
   const room = floorPlanRoom(object.roomId);
   const label = room?.name || object.fallbackLabel || tr("floorPlanUnlinkedRoom");
-  const color = floorPlanRoomColor(room);
-  const glyph = floorPlanRoomGlyph(room);
+  const color = floorPlanObjectRoomColor(object, room);
+  const glyph = floorPlanObjectRoomGlyph(object, room);
+  const location = room?.floor || object.customLocation;
+  const isCustom = !object.roomId;
   const lineHeight = Math.max(18, Math.min(30, object.height / 5));
   const lines = floorPlanTextLines(label, Math.max(10, Math.floor(object.width / 11)), 3);
   const textStart = object.y + object.height / 2 - ((lines.length - 1) * lineHeight) / 2;
@@ -146,11 +177,11 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
   const attrs = room && interactive
     ? ` data-floor-plan-room="${esc(room.id)}" tabindex="0" role="button" aria-label="${esc(tr("floorPlanOpenRoomAria", { name: room.name }))}"`
     : ` aria-label="${esc(label)}"`;
-  return `<g class="floor-plan-map-room${room ? " is-linked" : " is-orphan"}"${attrs}${floorPlanRotation(object)} style="--floor-plan-room-color:${color}">
+  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}"${attrs}${floorPlanRotation(object)} style="--floor-plan-room-color:${color}">
     <rect x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" rx="18" />
     <text class="floor-plan-map-marker" x="${object.x + 28}" y="${object.y + 35}" text-anchor="middle">${esc(glyph)}</text>
     <text class="floor-plan-map-label" x="${object.x + object.width / 2}" y="${textStart}" text-anchor="middle" dominant-baseline="middle">${text}</text>
-    ${room?.floor ? `<text class="floor-plan-map-location" x="${object.x + object.width / 2}" y="${object.y + object.height - 18}" text-anchor="middle">${esc(room.floor)}</text>` : ""}
+    ${location ? `<text class="floor-plan-map-location" x="${object.x + object.width / 2}" y="${object.y + object.height - 18}" text-anchor="middle">${esc(location)}</text>` : ""}
   </g>`;
 }
 
@@ -179,9 +210,9 @@ function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id =
     <title>${esc(title)}</title>
     <style>
       .floor-plan-map-page{fill:#fff}.floor-plan-map-room rect{fill:var(--floor-plan-room-color);fill-opacity:.16;stroke:var(--floor-plan-room-color);stroke-width:4}
-      .floor-plan-map-label{fill:#172033;font:700 25px Arial,sans-serif}.floor-plan-map-marker{fill:var(--floor-plan-room-color);font:700 24px Arial,sans-serif}
+      .floor-plan-map-label{fill:#172033;font:700 25px Arial,sans-serif}.floor-plan-map-marker{fill:var(--floor-plan-room-color);font:700 27px Arial,sans-serif}
       .floor-plan-map-location{fill:#596579;font:500 14px Arial,sans-serif}.floor-plan-map-text text{fill:#172033;font:600 28px Arial,sans-serif}
-      .floor-plan-map-symbol circle{fill:#fff;stroke:#62708a;stroke-width:3}.floor-plan-map-symbol>text{fill:#27344d;font:700 24px Arial,sans-serif}.floor-plan-map-symbol-label{fill:#596579!important;font:500 14px Arial,sans-serif!important}
+      .floor-plan-map-symbol circle{fill:#fff;stroke:#62708a;stroke-width:4}.floor-plan-map-symbol>text{fill:#27344d;font:700 32px Arial,sans-serif}.floor-plan-map-symbol-label{fill:#596579!important;font:600 16px Arial,sans-serif!important}
       .floor-plan-map-room.is-orphan rect{stroke:#b45309;stroke-dasharray:10 7;fill:#fef3c7}
     </style>
     <rect class="floor-plan-map-page" x="0" y="0" width="${floor.width}" height="${floor.height}" />
@@ -192,4 +223,21 @@ function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id =
 function floorPlanLinkedRooms(documentValue) {
   const ids = new Set(normalizeFloorPlanDocument(documentValue).floors.flatMap(floor => floor.objects.filter(object => object.type === "room" && object.roomId).map(object => object.roomId)));
   return S.rooms.filter(room => ids.has(room.id));
+}
+
+function floorPlanLegendItems(documentValue) {
+  const document = normalizeFloorPlanDocument(documentValue);
+  const items = [];
+  const seenRooms = new Set();
+  document.floors.forEach(floor => floor.objects.filter(object => object.type === "room").forEach(object => {
+    const room = floorPlanRoom(object.roomId);
+    if (room) {
+      if (seenRooms.has(room.id)) return;
+      seenRooms.add(room.id);
+      items.push({ id: room.id, name: room.name, color: floorPlanRoomColor(room), glyph: floorPlanRoomGlyph(room) });
+      return;
+    }
+    items.push({ id: object.id, name: object.fallbackLabel || tr("floorPlanUnlinkedRoom"), color: floorPlanObjectRoomColor(object), glyph: floorPlanObjectRoomGlyph(object) });
+  }));
+  return items;
 }
