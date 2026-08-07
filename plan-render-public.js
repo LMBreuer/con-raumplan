@@ -147,11 +147,13 @@ function renderNav() {
   const detailGroup = document.getElementById("detailGroup");
   const detailDivider = document.getElementById("detailDivider");
   const isTableView = S.view === "tabelle";
+  const isFloorPlanView = S.view === "lageplan";
   const personalGroup = document.getElementById("personalGroup");
   const personalDivider = document.getElementById("personalDivider");
   const hasPlayablEvent = !!S.con?.playabl_event_id;
-  personalGroup.hidden = !hasPlayablEvent;
-  personalDivider.hidden = !hasPlayablEvent;
+  personalGroup.hidden = !hasPlayablEvent || isFloorPlanView;
+  personalDivider.hidden = !hasPlayablEvent || isFloorPlanView;
+  document.querySelector(".public-toolbar .toolbar-search-group").hidden = isFloorPlanView;
   if (hasPlayablEvent) {
     const personalToggle = document.getElementById("myGamesFilter");
     const personalProfileButton = document.getElementById("personalGamesProfile");
@@ -167,10 +169,10 @@ function renderNav() {
       personalProfileButton.setAttribute("aria-label", tr("changePersonalProfileFor", { name: S.personalProfile.username }));
     }
   }
-  contextGroup.hidden = isTableView;
-  contextDivider.hidden = isTableView;
-  detailGroup.hidden = isTableView;
-  detailDivider.hidden = isTableView;
+  contextGroup.hidden = isTableView || isFloorPlanView;
+  contextDivider.hidden = isTableView || isFloorPlanView;
+  detailGroup.hidden = isTableView || isFloorPlanView;
+  detailDivider.hidden = isTableView || isFloorPlanView;
   if (S.view === "raeume") {
     const visibleSlots = personalVisibleSlots();
     if (!visibleSlots.some(slot => slot.key === S.activeSlot)) S.activeSlot = visibleSlots[0]?.key || null;
@@ -194,19 +196,26 @@ function renderNav() {
     publicInfo.setAttribute("aria-label", tr("legendInfoText"));
   }
   const printBtn = document.getElementById("printBtn");
-  printBtn.innerHTML = `<span class="print-icon" aria-hidden="true">⎙</span> ${esc(tr("printAction"))}`;
+  printBtn.innerHTML = `<span class="toolbar-action-icon" aria-hidden="true">⎙</span> ${esc(tr("printAction"))}`;
   printBtn.title = tr("printCurrentView");
   printBtn.setAttribute("aria-label", tr("printCurrentView"));
   const floorPlanBtn = document.getElementById("floorPlanBtn");
-  const floorPlan = floorPlanUrl();
-  floorPlanBtn.hidden = !floorPlan;
+  const floorPlan = floorPlanPublicTarget();
+  floorPlanBtn.hidden = !floorPlan || isFloorPlanView;
   if (floorPlan) {
     floorPlanBtn.href = floorPlan;
+    if (floorPlanSourceMode() === "external") {
+      floorPlanBtn.target = "_blank";
+      floorPlanBtn.rel = "noopener";
+    } else {
+      floorPlanBtn.removeAttribute("target");
+      floorPlanBtn.removeAttribute("rel");
+    }
     floorPlanBtn.title = tr("openFloorPlan");
     floorPlanBtn.setAttribute("aria-label", tr("openFloorPlan"));
-    floorPlanBtn.innerHTML = `<span aria-hidden="true">⌖</span> ${esc(tr("floorPlan"))}`;
+    floorPlanBtn.innerHTML = `<span class="toolbar-action-icon" aria-hidden="true">⌖</span> ${esc(tr("floorPlan"))}`;
   }
-  document.getElementById("detailSwitch").hidden = isTableView;
+  document.getElementById("detailSwitch").hidden = isTableView || isFloorPlanView;
 }
 
 /* ---------------- Ansicht: Tabelle ---------------- */
@@ -350,7 +359,7 @@ function raeumeReadHtml() {
       const games = S.games.filter(g => g.slotKey === S.activeSlot && matchesPublicFilters(g)).filter(g => { const a = asgFor(g); return a && a.table_id === t.id; });
       return `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span></div>${games.map(g => chipHtml(g, { crew: false, inRoom: true })).join("") || `<div class="free room-public-free detail-${S.detailLevel}">${esc(tr("freeLabel"))}</div>`}</div>`;
     }).join("");
-    return `<div class="room${tables.length >= 4 ? " wide" : ""}" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
+    return `<div id="room-${esc(room.id)}" class="room${tables.length >= 4 ? " wide" : ""}" data-room-id="${esc(room.id)}" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
       <div class="room-head"><span class="room-swatch${roomMarkerClass(room)}" aria-hidden="true" style="--room-accent:${roomAccentVar(room)}"></span><h3>${esc(room.name)}</h3>${roomNameMarkerHtml(room)}</div>
       ${room.floor ? `<p class="room-location"><span aria-hidden="true">⌖</span> ${esc(room.floor)}</p>` : ""}
       <div class="room-badges">${roomBadgesHtml(room)}</div>

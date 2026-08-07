@@ -4,6 +4,8 @@ const TZ = params.get("tz") || "Europe/Vienna";
 const WS_RE = /workshop|panel|vortrag/i;
 
 const CON_PARAM = params.get("con");
+const REQUESTED_VIEW = params.get("view");
+const REQUESTED_ROOM = params.get("room");
 if (!CON_PARAM) location.href = "index.html";
 // entry=plan öffnet einmalig die öffentliche Ansicht und wird danach entfernt.
 const FORCE_PLAN_ENTRY = params.get("entry") === "plan";
@@ -71,7 +73,7 @@ function makeStore(conId) {
   const w = () => Auth.accessToken();
   return {
     async init() {
-      const [rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags, dbGames, gameRequiredTags] = await Promise.all([
+      const [rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags, dbGames, gameRequiredTags, publicFloorPlanRows] = await Promise.all([
         supaFetch(`rooms?select=*&con_id=eq.${conId}&order=sort,name`),
         supaFetch(`tables?select=*&con_id=eq.${conId}&order=sort,name`),
         supaFetch(`assignments?select=*&con_id=eq.${conId}`),
@@ -81,8 +83,9 @@ function makeStore(conId) {
         supaFetch(`room_feature_tags?select=*&con_id=eq.${conId}`),
         supaFetch(`games?select=*&con_id=eq.${conId}&order=title`),
         supaFetch(`game_required_tags?select=*&con_id=eq.${conId}`),
+        supaRpc("get_public_con_floor_plan", { target_con: conId }, CONFIG.supabase.anonKey).catch(() => []),
       ]);
-      return { rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags, dbGames, gameRequiredTags };
+      return { rooms, tables, assignments, slotBuckets, slots, featureTags, roomFeatureTags, dbGames, gameRequiredTags, publicFloorPlan: publicFloorPlanRows?.[0] || null };
     },
     async saveRoom(r) {
       const token = await w();
@@ -137,6 +140,19 @@ function makeStore(conId) {
     async updateRequest(id, fields) { await supaFetch(`requests?id=eq.${id}`, { method: "PATCH", headers: supaHeaders(await w(), true), body: JSON.stringify(fields) }); },
     async saveFloorPlanUrl(url) {
       await supaRpc("set_con_floor_plan_url", { target_con: conId, new_url: url || null }, await w());
+    },
+    async setFloorPlanSource(mode, url) {
+      await supaRpc("set_con_floor_plan_source", { target_con: conId, new_mode: mode, new_url: url || null }, await w());
+    },
+    async loadFloorPlanDraft() {
+      const rows = await supaFetch(`con_floor_plans?select=document,revision,updated_at,published_at&con_id=eq.${conId}`, { headers: supaHeaders(await w()) });
+      return rows?.[0] || null;
+    },
+    async saveFloorPlanDocument(document, expectedRevision) {
+      return supaRpc("save_con_floor_plan", { target_con: conId, expected_revision: expectedRevision || 0, new_document: document }, await w());
+    },
+    async publishFloorPlan(expectedRevision) {
+      await supaRpc("publish_con_floor_plan", { target_con: conId, expected_revision: expectedRevision }, await w());
     },
     async ensureSlotsForDays(days) {
       const token = await w();
@@ -208,9 +224,11 @@ const S = {
   games: [], dbGames: [], slots: [], slotBuckets: [], activeSlot: null,
   featureTags: [], roomFeatureTags: [], gameRequiredTags: [],
   rooms: [], tables: [], assignments: [], requests: [],
+  floorPlanPublic: null, floorPlanDraft: null, floorPlanEditorFloorId: null,
+  floorPlanViewerFloorId: null, floorPlanPreviewDocument: null,
   role: null, superadmin: false, search: "",
   personalProfile: loadStoredPersonalProfile(), personalFilterActive: false,
-  mode: "view", view: "raster", crewView: "zuordnen", setupTab: "raeume",
+  mode: "view", view: ["raster", "tabelle", "raeume", "lageplan"].includes(REQUESTED_VIEW) ? REQUESTED_VIEW : "raster", crewView: "zuordnen", setupTab: "raeume",
   rasterAxis: "rooms", tableSort: { key: "when", dir: 1 },
   showDoneRequests: false, minSeats: 0,
   filterReqTags: [], crewSearch: "",
@@ -229,7 +247,7 @@ function persistNavigationState() {
   }));
 }
 function restoreNavigationState() {
-  if (FORCE_PLAN_ENTRY) return;
+  if (FORCE_PLAN_ENTRY || REQUESTED_VIEW) return;
   let saved;
   try { saved = JSON.parse(Prefs.get(navigationStateKey, "")); } catch { return; }
   if (!saved || typeof saved !== "object") return;
@@ -250,6 +268,7 @@ const CREW_VIEWS = [
 ];
 const SETUP_VIEWS = [
   { key: "raeume", nameKey: "setupTabRooms" },
+  { key: "lageplan", nameKey: "setupTabFloorPlan" },
   { key: "slots", nameKey: "setupTabSlots" },
   { key: "spiele", nameKey: "setupTabGames" },
   { key: "crew", nameKey: "setupTabCrew" },

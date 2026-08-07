@@ -60,6 +60,12 @@ create table if not exists cons (
 
 -- Optionaler, von der Crew gepflegter externer Lageplan (vorzugsweise PDF).
 alter table public.cons add column if not exists floor_plan_url text;
+alter table public.cons add column if not exists floor_plan_mode text not null default 'none';
+update public.cons set floor_plan_mode = 'external'
+where floor_plan_url is not null and btrim(floor_plan_url) <> '' and floor_plan_mode = 'none';
+alter table public.cons drop constraint if exists cons_floor_plan_mode_check;
+alter table public.cons add constraint cons_floor_plan_mode_check
+  check (floor_plan_mode in ('none', 'external', 'editor'));
 
 create table if not exists con_members (
   con_id uuid not null references cons(id) on delete cascade,
@@ -68,6 +74,22 @@ create table if not exists con_members (
   status text not null default 'pending' check (status in ('pending','accepted')),
   added_at timestamptz not null default now(),
   primary key (con_id, user_id)
+);
+
+-- Fachliches Lageplan-Dokument. Der Entwurf bleibt Crew-intern; öffentlich
+-- wird ausschließlich der ausdrücklich veröffentlichte Snapshot ausgeliefert.
+create table if not exists con_floor_plans (
+  con_id uuid primary key references cons(id) on delete cascade,
+  schema_version int not null default 1 check (schema_version > 0),
+  document jsonb not null default '{"schemaVersion":1,"orientation":"landscape","floors":[]}'::jsonb,
+  published_document jsonb,
+  revision bigint not null default 1 check (revision > 0),
+  updated_at timestamptz not null default now(),
+  updated_by uuid references auth.users(id),
+  published_at timestamptz,
+  published_by uuid references auth.users(id),
+  check (jsonb_typeof(document) = 'object'),
+  check (published_document is null or jsonb_typeof(published_document) = 'object')
 );
 
 -- ---------- Slots (Tagesabschnitts-Vorlagen + konkrete, pro-Con-Slots) ----------
@@ -265,6 +287,7 @@ alter table assignments enable row level security;
 alter table requests    enable row level security;
 alter table cons        enable row level security;
 alter table con_members enable row level security;
+alter table con_floor_plans enable row level security;
 alter table slot_buckets enable row level security;
 alter table slots        enable row level security;
 alter table feature_tags enable row level security;
@@ -323,12 +346,145 @@ begin
     raise exception 'invalid floor plan URL' using errcode = '22023';
   end if;
   update public.cons
-  set floor_plan_url = nullif(btrim(new_url), '')
+  set floor_plan_url = nullif(btrim(new_url), ''),
+      floor_plan_mode = case when nullif(btrim(new_url), '') is null then 'none' else 'external' end
   where id = target_con;
 end;
 $$;
 revoke all on function public.set_con_floor_plan_url(uuid, text) from public;
 grant execute on function public.set_con_floor_plan_url(uuid, text) to authenticated;
+
+-- Quelle des öffentlichen Lageplans wählen. Crew-Mitglieder dürfen sowohl
+-- Link als auch Creator-Modus pflegen; ein Creator-Plan wird erst sichtbar,
+-- sobald ein veröffentlichter Snapshot existiert.
+create or replace function public.set_con_floor_plan_source(
+  target_con uuid,
+  new_mode text,
+  new_url text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.is_con_member(target_con) then
+    raise exception 'not authorized' using errcode = '42501';
+  end if;
+  if new_mode not in ('none', 'external', 'editor') then
+    raise exception 'invalid floor plan mode' using errcode = '22023';
+  end if;
+  if new_mode = 'external' and nullif(btrim(new_url), '') is null then
+    raise exception 'external floor plan URL required' using errcode = '22023';
+  end if;
+  if nullif(btrim(new_url), '') is not null
+     and btrim(new_url) !~* '^(https://|/|[a-z0-9][a-z0-9._/-]*\.pdf(?:[?#].*)?$)' then
+    raise exception 'invalid floor plan URL' using errcode = '22023';
+  end if;
+
+  update public.cons
+  set floor_plan_mode = new_mode,
+      floor_plan_url = case when new_mode = 'external' then nullif(btrim(new_url), '') else floor_plan_url end
+  where id = target_con;
+end;
+$$;
+revoke all on function public.set_con_floor_plan_source(uuid, text, text) from public;
+grant execute on function public.set_con_floor_plan_source(uuid, text, text) to authenticated;
+
+-- Optimistisches Speichern: expected_revision=0 legt den ersten Entwurf an;
+-- spätere Saves gelingen nur auf dem zuletzt geladenen Stand.
+create or replace function public.save_con_floor_plan(
+  target_con uuid,
+  expected_revision bigint,
+  new_document jsonb
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  next_revision bigint;
+begin
+  if not public.is_con_member(target_con) then
+    raise exception 'not authorized' using errcode = '42501';
+  end if;
+  if new_document is null or jsonb_typeof(new_document) <> 'object' then
+    raise exception 'invalid floor plan document' using errcode = '22023';
+  end if;
+  if new_document->'schemaVersion' is distinct from '1'::jsonb
+     or jsonb_typeof(new_document->'floors') <> 'array' then
+    raise exception 'unsupported floor plan schema' using errcode = '22023';
+  end if;
+
+  insert into public.con_floor_plans
+    (con_id, schema_version, document, revision, updated_at, updated_by)
+  select target_con, 1, new_document, 1, now(), auth.uid()
+  where expected_revision = 0
+  on conflict (con_id) do update
+    set schema_version = 1,
+        document = excluded.document,
+        revision = public.con_floor_plans.revision + 1,
+        updated_at = now(),
+        updated_by = auth.uid()
+    where public.con_floor_plans.revision = expected_revision
+  returning revision into next_revision;
+
+  if next_revision is null then
+    raise exception 'floor plan revision conflict' using errcode = '40001';
+  end if;
+  return next_revision;
+end;
+$$;
+revoke all on function public.save_con_floor_plan(uuid, bigint, jsonb) from public;
+grant execute on function public.save_con_floor_plan(uuid, bigint, jsonb) to authenticated;
+
+create or replace function public.publish_con_floor_plan(
+  target_con uuid,
+  expected_revision bigint
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.is_con_member(target_con) then
+    raise exception 'not authorized' using errcode = '42501';
+  end if;
+
+  update public.con_floor_plans
+  set published_document = document,
+      published_at = now(),
+      published_by = auth.uid()
+  where con_id = target_con and revision = expected_revision;
+  if not found then
+    raise exception 'floor plan revision conflict' using errcode = '40001';
+  end if;
+
+  update public.cons set floor_plan_mode = 'editor' where id = target_con;
+end;
+$$;
+revoke all on function public.publish_con_floor_plan(uuid, bigint) from public;
+grant execute on function public.publish_con_floor_plan(uuid, bigint) to authenticated;
+
+-- Öffentliche Ausgabe enthält niemals den unveröffentlichten Entwurf.
+create or replace function public.get_public_con_floor_plan(target_con uuid)
+returns table(document jsonb, revision bigint, published_at timestamptz)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select fp.published_document, fp.revision, fp.published_at
+  from public.con_floor_plans fp
+  join public.cons c on c.id = fp.con_id
+  where fp.con_id = target_con
+    and c.floor_plan_mode = 'editor'
+    and fp.published_document is not null;
+$$;
+revoke all on function public.get_public_con_floor_plan(uuid) from public;
+grant execute on function public.get_public_con_floor_plan(uuid) to anon, authenticated;
 
 create or replace function public.is_con_admin(target_con uuid)
 returns boolean
@@ -534,7 +690,7 @@ revoke all on table
   public.cons, public.con_members, public.rooms, public.tables,
   public.assignments, public.requests, public.slot_buckets, public.slots,
   public.feature_tags, public.room_feature_tags, public.games,
-  public.game_required_tags, public.superadmins
+  public.game_required_tags, public.con_floor_plans, public.superadmins
 from public, anon, authenticated;
 
 grant select on table
@@ -550,6 +706,7 @@ grant select, insert, update, delete on table
   public.con_members, public.rooms, public.tables, public.assignments,
   public.requests, public.slot_buckets, public.slots, public.games
 to authenticated;
+grant select on table public.con_floor_plans to authenticated;
 grant insert, delete on table
   public.room_feature_tags, public.game_required_tags
 to authenticated;
@@ -560,6 +717,9 @@ to authenticated;
 revoke execute on function public.is_superadmin() from anon;
 revoke execute on function public.is_con_member(uuid) from anon;
 revoke execute on function public.set_con_floor_plan_url(uuid, text) from anon;
+revoke execute on function public.set_con_floor_plan_source(uuid, text, text) from anon;
+revoke execute on function public.save_con_floor_plan(uuid, bigint, jsonb) from anon;
+revoke execute on function public.publish_con_floor_plan(uuid, bigint) from anon;
 revoke execute on function public.is_con_admin(uuid) from anon;
 revoke execute on function public.invite_member_to_con(uuid, text, text) from anon;
 revoke execute on function public.accept_invite(uuid) from anon;
@@ -583,6 +743,11 @@ create policy "admins update own con" on cons for update to authenticated
 drop policy if exists "superadmin delete cons" on cons;
 create policy "superadmin delete cons" on cons for delete to authenticated
   using (is_superadmin());
+
+-- ---------- Policies: con_floor_plans ----------
+drop policy if exists "members read floor plan drafts" on con_floor_plans;
+create policy "members read floor plan drafts" on con_floor_plans for select to authenticated
+  using (is_con_member(con_id));
 
 -- ---------- Policies: con_members ----------
 drop policy if exists "members read own con roster" on con_members;

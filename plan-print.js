@@ -84,6 +84,7 @@ function printRasterHtml() {
   return `<table class="print-table"><thead><tr><th></th>${colHeadHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
 }
 function printPageHtml() {
+  if (S.printMode === "lageplan") return floorPlanPrintPageHtml();
   if (!S.printSlot) S.printSlot = S.activeSlot || S.slots[0]?.key || "alle";
   const modeLabel = S.printMode === "raster" ? tr("viewRaster") : S.printMode === "tabelle" ? tr("viewTable") : tr("viewRooms");
   const orientation = S.printOrientation === "auto" ? (S.printMode === "raster" ? "landscape" : "portrait") : S.printOrientation;
