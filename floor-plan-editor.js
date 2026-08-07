@@ -164,11 +164,11 @@ async function mountFloorPlanSetup() {
 async function createFloorPlanDraft() {
   const button = document.getElementById("floorPlanCreateBtn");
   if (button) button.disabled = true;
-  const document = newFloorPlanDocument();
+  const floorPlanDocument = newFloorPlanDocument();
   try {
-    const revision = await S.store.saveFloorPlanDocument(document, 0);
-    S.floorPlanDraft = { document, revision: Number(revision), published_at: null, updated_at: new Date().toISOString() };
-    S.floorPlanEditorFloorId = document.floors[0].id;
+    const revision = await S.store.saveFloorPlanDocument(floorPlanDocument, 0);
+    S.floorPlanDraft = { document: floorPlanDocument, revision: Number(revision), published_at: null, updated_at: new Date().toISOString() };
+    S.floorPlanEditorFloorId = floorPlanDocument.floors[0].id;
     renderActive({ animate: false });
   } catch (error) {
     const msg = document.getElementById("floorPlanSetupMsg");
