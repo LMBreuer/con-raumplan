@@ -58,6 +58,9 @@ create table if not exists cons (
   created_at timestamptz not null default now()
 );
 
+-- Optionaler, von der Crew gepflegter externer Lageplan (vorzugsweise PDF).
+alter table public.cons add column if not exists floor_plan_url text;
+
 create table if not exists con_members (
   con_id uuid not null references cons(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -303,6 +306,30 @@ $$;
 revoke all on function public.is_con_member(uuid) from public;
 grant execute on function public.is_con_member(uuid) to authenticated;
 
+-- Erlaubt allen bestätigten Crew-Mitgliedern ausschließlich den Lageplan-Link
+-- zu ändern, ohne die strengere Admin-Policy für andere Con-Felder aufzuweichen.
+create or replace function public.set_con_floor_plan_url(target_con uuid, new_url text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.is_con_member(target_con) then
+    raise exception 'not authorized' using errcode = '42501';
+  end if;
+  if nullif(btrim(new_url), '') is not null
+     and btrim(new_url) !~* '^(https://|/|[a-z0-9][a-z0-9._/-]*\.pdf(?:[?#].*)?$)' then
+    raise exception 'invalid floor plan URL' using errcode = '22023';
+  end if;
+  update public.cons
+  set floor_plan_url = nullif(btrim(new_url), '')
+  where id = target_con;
+end;
+$$;
+revoke all on function public.set_con_floor_plan_url(uuid, text) from public;
+grant execute on function public.set_con_floor_plan_url(uuid, text) to authenticated;
+
 create or replace function public.is_con_admin(target_con uuid)
 returns boolean
 language sql
@@ -532,6 +559,7 @@ to authenticated;
 -- PUBLIC an den Definitionen und bereinigt auch ältere Live-Installationen.
 revoke execute on function public.is_superadmin() from anon;
 revoke execute on function public.is_con_member(uuid) from anon;
+revoke execute on function public.set_con_floor_plan_url(uuid, text) from anon;
 revoke execute on function public.is_con_admin(uuid) from anon;
 revoke execute on function public.invite_member_to_con(uuid, text, text) from anon;
 revoke execute on function public.accept_invite(uuid) from anon;

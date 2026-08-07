@@ -315,6 +315,9 @@ button.has-avatar { padding: 0; border-radius: 50%; background: transparent; bor
 .room-more summary::before { content: "▸ "; }
 .room-more[open] summary::before { content: "▾ "; }
 .room-more .room-notes { font-size: var(--fs-xs); color: var(--text-secondary); margin-top: var(--sp-1); }
+.room-location { margin: calc(-1 * var(--sp-2)) 0 var(--sp-3); color: var(--text-secondary); font-size: var(--fs-sm); }
+.floor-plan-form { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.floor-plan-form input { flex: 1 1 320px; min-width: 0; }
 
 /* ============================================================
    Guided Tour: bewusst außerhalb des vollen Headers. Der einmalige
