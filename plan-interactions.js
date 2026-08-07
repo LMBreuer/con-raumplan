@@ -126,6 +126,26 @@ document.addEventListener("change", e => {
     })();
   }
 });
+
+document.addEventListener("submit", async e => {
+  if (e.target.id !== "floorPlanForm") return;
+  e.preventDefault();
+  const input = document.getElementById("floorPlanUrl");
+  const msg = document.getElementById("floorPlanMsg");
+  const value = input.value.trim();
+  msg.className = "msg";
+  msg.textContent = tr("savingFloorPlan");
+  try {
+    await S.store.saveFloorPlanUrl(value);
+    S.con.floor_plan_url = value || null;
+    renderActive();
+    const updatedMsg = document.getElementById("floorPlanMsg");
+    if (updatedMsg) { updatedMsg.className = "msg ok"; updatedMsg.textContent = tr("floorPlanSaved"); }
+  } catch (err) {
+    msg.className = "msg err";
+    msg.textContent = tr("floorPlanSaveFailed", { err: err.message });
+  }
+});
 document.addEventListener("click", async e => {
   const clickedCrewChip = e.target.closest(".crew-chip[data-game]");
   if (S.assignMode === "click" && clickedCrewChip && !e.target.closest("a, button, select")) {

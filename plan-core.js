@@ -13,6 +13,14 @@ if (FORCE_PLAN_ENTRY) {
   history.replaceState(null, "", cleanUrl.href);
 }
 
+const BUNDLED_FLOOR_PLANS = {
+  "3w6-con-2026-9o4z": "files/3W6-Con-2026-Lageplan.pdf",
+};
+function floorPlanUrl() {
+  const value = String(S.con?.floor_plan_url || BUNDLED_FLOOR_PLANS[S.con?.slug] || "").trim();
+  return /^(https:\/\/|\/|[a-z0-9][a-z0-9._/-]*\.pdf(?:[?#].*)?$)/i.test(value) ? value : "";
+}
+
 const fmtDay = new Intl.DateTimeFormat("de-AT", { timeZone: TZ, weekday: "long", day: "2-digit", month: "2-digit" });
 const fmtTime = new Intl.DateTimeFormat("de-AT", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
 const dayKey = new Intl.DateTimeFormat("sv-SE", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
@@ -130,6 +138,9 @@ function makeStore(conId) {
     },
     async listRequests() { return supaFetch(`requests?select=*&con_id=eq.${conId}&order=created_at.desc`, { headers: supaHeaders(await w()) }); },
     async updateRequest(id, fields) { await supaFetch(`requests?id=eq.${id}`, { method: "PATCH", headers: supaHeaders(await w(), true), body: JSON.stringify(fields) }); },
+    async saveFloorPlanUrl(url) {
+      await supaRpc("set_con_floor_plan_url", { target_con: conId, new_url: url || null }, await w());
+    },
     async ensureSlotsForDays(days) {
       const token = await w();
       if (!token || !days.length) return; // anon kann nicht materialisieren — Slot erscheint erst, wenn Crew die Seite lädt

@@ -182,7 +182,19 @@ function raeumeVerwaltenHtml() {
       </div>
     </div>`;
   }).join("") || emptyState(tr("noRoomsYet"));
-  return `<div class="card setup-card">
+  const floorPlan = floorPlanUrl();
+  const floorPlanHtml = `<div class="card setup-card floor-plan-setup-card">
+    <div class="setup-head-title"><h2>${esc(tr("floorPlanUploadTitle"))}</h2></div>
+    <p class="hint">${esc(tr("floorPlanUploadHint"))}</p>
+    <form id="floorPlanForm" class="floor-plan-form">
+      <label class="sr-only" for="floorPlanUrl">${esc(tr("floorPlanUrlLabel"))}</label>
+      <input id="floorPlanUrl" type="url" inputmode="url" value="${esc(S.con?.floor_plan_url || "")}" placeholder="https://…/lageplan.pdf" aria-label="${esc(tr("floorPlanUrlLabel"))}">
+      ${floorPlan ? `<a class="btn" href="${esc(floorPlan)}" target="_blank" rel="noopener">${esc(tr("openFloorPlan"))}</a>` : ""}
+      <button type="submit" class="primary">${esc(tr("save"))}</button>
+    </form>
+    <p id="floorPlanMsg" class="msg" role="status" aria-live="polite"></p>
+  </div>`;
+  return `${floorPlanHtml}<div class="card setup-card">
     ${setupHeadHtml(tr("roomsInfoTitle"), tr("roomsInfoAriaLabel"), tr("roomsInfoText"), "addRoomBtn", tr("addRoomBtn"))}
     <div id="board">${roomsHtml}</div>
   </div>`;
