@@ -13,11 +13,8 @@ if (FORCE_PLAN_ENTRY) {
   history.replaceState(null, "", cleanUrl.href);
 }
 
-const BUNDLED_FLOOR_PLANS = {
-  "3w6-con-2026-9o4z": "files/3W6-Con-2026-Lageplan.pdf",
-};
 function floorPlanUrl() {
-  const value = String(S.con?.floor_plan_url || BUNDLED_FLOOR_PLANS[S.con?.slug] || "").trim();
+  const value = String(S.con?.floor_plan_url || "").trim();
   return /^(https:\/\/|\/|[a-z0-9][a-z0-9._/-]*\.pdf(?:[?#].*)?$)/i.test(value) ? value : "";
 }
 
