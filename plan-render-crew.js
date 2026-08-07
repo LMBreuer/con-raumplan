@@ -320,7 +320,9 @@ function crewNavHtml() {
     `<button type="button" data-crewview="${v.key}" aria-pressed="${String(S.crewView === v.key)}"${v.key === "wuensche" && openRequestCount ? ` aria-label="${esc(tr("crewViewRequestsWithCount", { n: openRequestCount }))}"` : ""}>${esc(tr(v.nameKey))}${v.key === "wuensche" && openRequestCount ? `<span class="crew-request-count" aria-hidden="true">${openRequestCount}</span>` : ""}</button>`).join("")}</div>`;
 }
 function setupHtml() {
-  const subTabsHtml = `<div class="slot-tabs" role="group" aria-label="${esc(tr("setupSubTabsAriaLabel"))}">${SETUP_VIEWS.map(v =>
+  const setupViews = SETUP_VIEWS.filter(view => view.key !== "lageplan" || S.superadmin);
+  if (!setupViews.some(view => view.key === S.setupTab)) S.setupTab = "raeume";
+  const subTabsHtml = `<div class="slot-tabs" role="group" aria-label="${esc(tr("setupSubTabsAriaLabel"))}">${setupViews.map(v =>
     `<button type="button" data-setuptab="${v.key}" aria-pressed="${String(S.setupTab === v.key)}">${esc(tr(v.nameKey))}</button>`).join("")}</div>`;
   const contentHtml = S.setupTab === "lageplan" ? floorPlanSetupHtml() : S.setupTab === "slots" ? slotsVerwaltenHtml() : S.setupTab === "spiele" ? spieleVerwaltenHtml() : S.setupTab === "crew" ? crewVerwaltenHtml() : raeumeVerwaltenHtml();
   return `${subTabsHtml}<div style="margin-top:var(--sp-3)">${contentHtml}</div>`;

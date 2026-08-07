@@ -329,8 +329,7 @@ $$;
 revoke all on function public.is_con_member(uuid) from public;
 grant execute on function public.is_con_member(uuid) to authenticated;
 
--- Erlaubt allen bestätigten Crew-Mitgliedern ausschließlich den Lageplan-Link
--- zu ändern, ohne die strengere Admin-Policy für andere Con-Felder aufzuweichen.
+-- Während der Testphase darf nur der site-weite Superadmin Lagepläne ändern.
 create or replace function public.set_con_floor_plan_url(target_con uuid, new_url text)
 returns void
 language plpgsql
@@ -338,7 +337,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if not public.is_con_member(target_con) then
+  if not public.is_superadmin() then
     raise exception 'not authorized' using errcode = '42501';
   end if;
   if nullif(btrim(new_url), '') is not null
@@ -354,9 +353,8 @@ $$;
 revoke all on function public.set_con_floor_plan_url(uuid, text) from public;
 grant execute on function public.set_con_floor_plan_url(uuid, text) to authenticated;
 
--- Quelle des öffentlichen Lageplans wählen. Crew-Mitglieder dürfen sowohl
--- Link als auch Creator-Modus pflegen; ein Creator-Plan wird erst sichtbar,
--- sobald ein veröffentlichter Snapshot existiert.
+-- Quelle des öffentlichen Lageplans wählen. Ein Creator-Plan wird erst
+-- sichtbar, sobald ein veröffentlichter Snapshot existiert.
 create or replace function public.set_con_floor_plan_source(
   target_con uuid,
   new_mode text,
@@ -368,7 +366,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if not public.is_con_member(target_con) then
+  if not public.is_superadmin() then
     raise exception 'not authorized' using errcode = '42501';
   end if;
   if new_mode not in ('none', 'external', 'editor') then
@@ -406,7 +404,7 @@ as $$
 declare
   next_revision bigint;
 begin
-  if not public.is_con_member(target_con) then
+  if not public.is_superadmin() then
     raise exception 'not authorized' using errcode = '42501';
   end if;
   if new_document is null or jsonb_typeof(new_document) <> 'object' then
@@ -454,7 +452,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if not public.is_con_member(target_con) then
+  if not public.is_superadmin() then
     raise exception 'not authorized' using errcode = '42501';
   end if;
 
@@ -751,8 +749,9 @@ create policy "superadmin delete cons" on cons for delete to authenticated
 
 -- ---------- Policies: con_floor_plans ----------
 drop policy if exists "members read floor plan drafts" on con_floor_plans;
-create policy "members read floor plan drafts" on con_floor_plans for select to authenticated
-  using (is_con_member(con_id));
+drop policy if exists "superadmins read floor plan drafts" on con_floor_plans;
+create policy "superadmins read floor plan drafts" on con_floor_plans for select to authenticated
+  using (is_superadmin());
 
 -- ---------- Policies: con_members ----------
 drop policy if exists "members read own con roster" on con_members;

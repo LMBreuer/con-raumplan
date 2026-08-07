@@ -46,6 +46,7 @@ function floorPlanMarkerLabel(marker) {
 }
 
 function floorPlanSetupHtml() {
+  if (!S.superadmin) return "";
   const mode = floorPlanSourceMode();
   const sourceButtons = [
     ["none", "floorPlanModeNone"],
@@ -177,6 +178,7 @@ async function mountFloorPlanSetup() {
 }
 
 async function createFloorPlanDraft() {
+  if (!S.superadmin) return;
   const button = document.getElementById("floorPlanCreateBtn");
   if (button) button.disabled = true;
   const floorPlanDocument = newFloorPlanDocument();

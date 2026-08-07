@@ -206,7 +206,10 @@ document.addEventListener("click", async e => {
     }
     renderActive();
   }
-  else if (t.matches("[data-setuptab]")) { S.setupTab = t.dataset.setuptab; renderActive(); }
+  else if (t.matches("[data-setuptab]")) {
+    if (t.dataset.setuptab === "lageplan" && !S.superadmin) return;
+    S.setupTab = t.dataset.setuptab; renderActive();
+  }
   else if (t.matches("[data-slot-scroll]")) {
     const scroller = t.closest(".crew-slot-scroller")?.querySelector(".local-slot-tabs");
     if (scroller) scroller.scrollBy({ left: Number(t.dataset.slotScroll) * Math.max(220, scroller.clientWidth * .72), behavior: "smooth" });
