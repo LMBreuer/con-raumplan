@@ -182,19 +182,7 @@ function raeumeVerwaltenHtml() {
       </div>
     </div>`;
   }).join("") || emptyState(tr("noRoomsYet"));
-  const floorPlan = floorPlanUrl();
-  const floorPlanHtml = `<div class="card setup-card floor-plan-setup-card">
-    <div class="setup-head-title"><h2>${esc(tr("floorPlanUploadTitle"))}</h2></div>
-    <p class="hint">${esc(tr("floorPlanUploadHint"))}</p>
-    <form id="floorPlanForm" class="floor-plan-form">
-      <label class="sr-only" for="floorPlanUrl">${esc(tr("floorPlanUrlLabel"))}</label>
-      <input id="floorPlanUrl" type="url" inputmode="url" value="${esc(S.con?.floor_plan_url || "")}" placeholder="https://…/lageplan.pdf" aria-label="${esc(tr("floorPlanUrlLabel"))}">
-      ${floorPlan ? `<a class="btn" href="${esc(floorPlan)}" target="_blank" rel="noopener">${esc(tr("openFloorPlan"))}</a>` : ""}
-      <button type="submit" class="primary">${esc(tr("save"))}</button>
-    </form>
-    <p id="floorPlanMsg" class="msg" role="status" aria-live="polite"></p>
-  </div>`;
-  return `${floorPlanHtml}<div class="card setup-card">
+  return `<div class="card setup-card">
     ${setupHeadHtml(tr("roomsInfoTitle"), tr("roomsInfoAriaLabel"), tr("roomsInfoText"), "addRoomBtn", tr("addRoomBtn"))}
     <div id="board">${roomsHtml}</div>
   </div>`;
@@ -334,7 +322,7 @@ function crewNavHtml() {
 function setupHtml() {
   const subTabsHtml = `<div class="slot-tabs" role="group" aria-label="${esc(tr("setupSubTabsAriaLabel"))}">${SETUP_VIEWS.map(v =>
     `<button type="button" data-setuptab="${v.key}" aria-pressed="${String(S.setupTab === v.key)}">${esc(tr(v.nameKey))}</button>`).join("")}</div>`;
-  const contentHtml = S.setupTab === "slots" ? slotsVerwaltenHtml() : S.setupTab === "spiele" ? spieleVerwaltenHtml() : S.setupTab === "crew" ? crewVerwaltenHtml() : raeumeVerwaltenHtml();
+  const contentHtml = S.setupTab === "lageplan" ? floorPlanSetupHtml() : S.setupTab === "slots" ? slotsVerwaltenHtml() : S.setupTab === "spiele" ? spieleVerwaltenHtml() : S.setupTab === "crew" ? crewVerwaltenHtml() : raeumeVerwaltenHtml();
   return `${subTabsHtml}<div style="margin-top:var(--sp-3)">${contentHtml}</div>`;
 }
 
@@ -357,6 +345,7 @@ function renderActive({ animate = true } = {}) {
   if (S.mode === "print") {
     viewC.hidden = true; crewC.hidden = true; printC.hidden = false;
     printC.innerHTML = printPageHtml();
+    if (S.printMode === "lageplan") mountFloorPlanPrintView();
     return;
   }
   printC.hidden = true;
@@ -373,11 +362,14 @@ function renderActive({ animate = true } = {}) {
       if (S.assignMode === "dnd") wireDnd();
     }
     if (S.crewView === "setup" && S.setupTab === "crew") refreshCrewList();
+    if (S.crewView === "setup" && S.setupTab === "lageplan") mountFloorPlanSetup();
   } else {
     viewC.hidden = false; crewC.hidden = true;
-    if (S.view === "tabelle") viewC.innerHTML = tabelleHtml();
+    if (S.view === "lageplan") viewC.innerHTML = floorPlanViewerHtml();
+    else if (S.view === "tabelle") viewC.innerHTML = tabelleHtml();
     else if (S.view === "raster") viewC.innerHTML = rasterHtml();
     else viewC.innerHTML = raeumeReadHtml();
+    if (S.view === "lageplan") mountFloorPlanViewer();
   }
   persistNavigationState();
 }

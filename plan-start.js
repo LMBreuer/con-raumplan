@@ -111,6 +111,7 @@ const authUI = mountAuthUI({
   buttonId: "authBtn",
   onChange: async () => {
     await refreshRole();
+    S.floorPlanDraft = S.role ? await S.store.loadFloorPlanDraft().catch(() => S.floorPlanDraft) : null;
     if (S.role) S.requests = await S.store.listRequests().catch(() => []);
     if (!S.role && S.mode === "crew") { S.mode = "view"; S.view = "tabelle"; }
     renderActive(); updateViewBanner();
@@ -304,8 +305,10 @@ function configurePlanTours() {
     S.slotBuckets = data.slotBuckets || []; S.slots = data.slots || [];
     S.featureTags = data.featureTags || []; S.roomFeatureTags = data.roomFeatureTags || [];
     S.gameRequiredTags = data.gameRequiredTags || [];
+    S.floorPlanPublic = data.publicFloorPlan || null;
     S.games = await loadPlayabl(con.playabl_event_id, S.slotBuckets);
     await refreshRole();
+    if (S.role) S.floorPlanDraft = await S.store.loadFloorPlanDraft().catch(() => null);
     if (S.games.length) {
       const days = [...new Set(S.games.map(g => g.slotKey.split("|")[0]))].filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
       await S.store.ensureSlotsForDays(days);

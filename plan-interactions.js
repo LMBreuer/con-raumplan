@@ -138,6 +138,7 @@ document.addEventListener("submit", async e => {
   try {
     await S.store.saveFloorPlanUrl(value);
     S.con.floor_plan_url = value || null;
+    S.con.floor_plan_mode = value ? "external" : "none";
     renderActive();
     const updatedMsg = document.getElementById("floorPlanMsg");
     if (updatedMsg) { updatedMsg.className = "msg ok"; updatedMsg.textContent = tr("floorPlanSaved"); }
@@ -225,7 +226,7 @@ document.addEventListener("click", async e => {
   else if (t.matches(".addToActiveSlotBtn")) assign(t.dataset.game, S.activeSlot, null);
   else if (t.matches(".requestBtn")) openRequestDlg(t.dataset.game);
   else if (t.id === "printBtn") {
-    S.printMode = S.view === "raster" ? "raster" : S.view === "tabelle" ? "tabelle" : "raeume";
+    S.printMode = S.view === "lageplan" ? "lageplan" : S.view === "raster" ? "raster" : S.view === "tabelle" ? "tabelle" : "raeume";
     S.printReturnMode = S.mode; S.printReturnView = S.view;
     S.mode = "print"; renderActive();
   }
@@ -238,7 +239,9 @@ document.addEventListener("click", async e => {
   else if (t.matches("[data-printcolor]")) { S.printColor = t.dataset.printcolor; renderActive(); }
   else if (t.id === "doPrintBtn") {
     document.documentElement.classList.toggle("print-bw", S.printColor !== "color");
-    const orientation = S.printOrientation === "auto" ? (S.printMode === "raster" ? "landscape" : "portrait") : S.printOrientation;
+    const orientation = S.printMode === "lageplan"
+      ? (activeFloorPlanDocument()?.orientation || "landscape")
+      : S.printOrientation === "auto" ? (S.printMode === "raster" ? "landscape" : "portrait") : S.printOrientation;
     let styleEl = document.getElementById("printOrientationStyle");
     if (!styleEl) { styleEl = document.createElement("style"); styleEl.id = "printOrientationStyle"; document.head.appendChild(styleEl); }
     styleEl.textContent = `@media print { @page { size: ${orientation}; } }`;
