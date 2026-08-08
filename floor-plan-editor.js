@@ -9,6 +9,7 @@ let floorPlanSaveTimer = null;
 let floorPlanSaveInFlight = null;
 let floorPlanPendingSnapshot = null;
 let floorPlanEditorAbortController = null;
+const floorPlanScaleNormalizations = new WeakSet();
 const FLOOR_PLAN_CUSTOM_MARKERS = ["square", "circle", "triangle", "diamond", "star", "plus"];
 
 function loadFloorPlanScript(src, globalName) {
@@ -96,7 +97,7 @@ function floorPlanEditorWorkspaceHtml() {
         <input id="floorPlanDocumentTitle" class="floor-plan-title-input" type="text" value="${esc(document.title)}" placeholder="${esc(S.con?.name || tr("floorPlan"))}" aria-label="${esc(tr("floorPlanTitleLabel"))}">
       </div>
       <div class="floor-plan-editor-actions">
-        <span id="floorPlanSaveState" class="floor-plan-save-state">${esc(tr("floorPlanSavedAt"))}</span>
+        <span id="floorPlanSaveState" class="floor-plan-save-state" role="status" aria-live="polite">${esc(tr("floorPlanSavedAt"))}</span>
         <button type="button" id="floorPlanPreviewBtn">${esc(tr("floorPlanPreview"))}</button>
         <button type="button" id="floorPlanPublishBtn" class="primary">${esc(tr("floorPlanPublish"))}</button>
       </div>
@@ -162,7 +163,7 @@ async function mountFloorPlanSetup() {
       renderActive({ animate: false });
     } catch (error) {
       msg.className = "msg err";
-      msg.textContent = tr("floorPlanSaveFailed", { err: error.message });
+      msg.textContent = floorPlanSaveErrorMessage(error);
     }
   }));
   document.getElementById("floorPlanCreateBtn")?.addEventListener("click", createFloorPlanDraft);
@@ -189,7 +190,7 @@ async function createFloorPlanDraft() {
     renderActive({ animate: false });
   } catch (error) {
     const msg = document.getElementById("floorPlanSetupMsg");
-    if (msg) { msg.className = "msg err"; msg.textContent = tr("floorPlanSaveFailed", { err: error.message }); }
+    if (msg) { msg.className = "msg err"; msg.textContent = floorPlanSaveErrorMessage(error); }
     if (button) button.disabled = false;
   }
 }
@@ -229,6 +230,8 @@ function floorPlanFabricRoom(object) {
     fpMarkerText: marker,
     fpRoomLabelText: text,
     fpLocationText: location,
+    fpWidth: object.width,
+    fpHeight: object.height,
   });
   return floorPlanFabricStyles(group);
 }
@@ -248,7 +251,7 @@ function floorPlanFabricObject(object) {
   const glyph = new fabric.FabricText(symbol.glyph, { left: 0, top: iconY, originX: "center", originY: "center", fontSize: Math.max(30, iconDiameter * .38), fill: "#27344d", fontWeight: "700", fontFamily: "Arial" });
   const label = new fabric.FabricText(object.label || "", { left: 0, top: iconDiameter / 2 + 1, originX: "center", originY: "top", fontSize: 15, fill: "#596579", fontWeight: "600", fontFamily: "Arial" });
   const group = new fabric.Group([circle, glyph, label], { left: object.x, top: object.y, originX: "left", originY: "top", angle: object.rotation || 0 });
-  Object.assign(group, { fpId: object.id, fpType: "symbol", fpSymbol: object.symbol, fpLabel: object.label || "", fpLabelText: label });
+  Object.assign(group, { fpId: object.id, fpType: "symbol", fpSymbol: object.symbol, fpLabel: object.label || "", fpLabelText: label, fpWidth: object.width, fpHeight: object.height });
   return floorPlanFabricStyles(group);
 }
 
@@ -279,10 +282,12 @@ function initializeFloorPlanCanvas() {
 }
 
 function floorPlanObjectFromFabric(object) {
+  const objectWidth = Number.isFinite(object.fpWidth) ? object.fpWidth : object.width;
+  const objectHeight = Number.isFinite(object.fpHeight) ? object.fpHeight : object.height;
   const base = {
     id: object.fpId || floorPlanId(object.fpType), type: object.fpType,
     x: Math.max(0, Math.round(object.left)), y: Math.max(0, Math.round(object.top)),
-    width: Math.max(24, Math.round(object.width * object.scaleX)), height: Math.max(24, Math.round(object.height * object.scaleY)),
+    width: Math.max(24, Math.round(objectWidth * object.scaleX)), height: Math.max(24, Math.round(objectHeight * object.scaleY)),
     rotation: Math.round(object.angle || 0),
   };
   if (object.fpType === "room") return {
@@ -299,15 +304,35 @@ function floorPlanObjectFromFabric(object) {
 
 function normalizeFloorPlanFabricScale(object) {
   if (!object || !["room", "symbol"].includes(object.fpType) || (Math.abs(object.scaleX - 1) < .001 && Math.abs(object.scaleY - 1) < .001)) return object;
+  if (floorPlanScaleNormalizations.has(object)) return object;
   const domain = floorPlanObjectFromFabric(object);
-  const index = floorPlanCanvas.getObjects().indexOf(object);
-  floorPlanCanvas.remove(object);
-  const replacement = floorPlanFabricObject(domain);
-  floorPlanCanvas.insertAt(index, replacement);
-  floorPlanCanvas.setActiveObject(replacement);
-  replacement.setCoords();
-  floorPlanCanvas.requestRenderAll();
-  return replacement;
+  const canvas = floorPlanCanvas;
+  const index = canvas.getObjects().indexOf(object);
+  floorPlanScaleNormalizations.add(object);
+  requestAnimationFrame(() => {
+    floorPlanScaleNormalizations.delete(object);
+    if (canvas !== floorPlanCanvas || !canvas.getObjects().includes(object)) return;
+    const replacement = floorPlanFabricObject(domain);
+    canvas.remove(object);
+    canvas.insertAt(index, replacement);
+    canvas.setActiveObject(replacement);
+    replacement.setCoords();
+    canvas.requestRenderAll();
+    renderFloorPlanInspector();
+  });
+  return object;
+}
+
+function floorPlanSaveErrorMessage(error) {
+  const code = String(error?.code || "").toUpperCase();
+  const status = Number(error?.status || 0);
+  const message = String(error?.message || error || "");
+  if (code === "PT409" || status === 409 || message.toLowerCase().includes("revision conflict")) return tr("floorPlanConflict");
+  if (code === "PT429" || code === "PT503" || status === 429 || status === 503) return tr("floorPlanSaveBusy");
+  if (code === "PT413" || status === 413) return tr("floorPlanSaveTooLarge");
+  if (code === "RPC_TIMEOUT" || code === "PT504" || status === 504) return tr("floorPlanSaveTimeout");
+  if (code === "42501" || status === 401 || status === 403) return tr("floorPlanSaveUnauthorized");
+  return tr("floorPlanSaveFailed", { err: message });
 }
 
 function syncFloorPlanCanvasToDocument({ history = true } = {}) {
@@ -360,8 +385,7 @@ function saveFloorPlanNow({ sync = true } = {}) {
       return revision;
     } catch (error) {
       const currentState = document.getElementById("floorPlanSaveState");
-      const message = String(error?.message || error);
-      if (currentState) { currentState.className = "floor-plan-save-state is-error"; currentState.textContent = message.toLowerCase().includes("conflict") ? tr("floorPlanConflict") : message; }
+      if (currentState) { currentState.className = "floor-plan-save-state is-error"; currentState.textContent = floorPlanSaveErrorMessage(error); }
       throw error;
     } finally {
       floorPlanSaveInFlight = null;
@@ -548,14 +572,20 @@ function wireFloorPlanEditorControls() {
     } catch (error) {
       button.disabled = false;
       const saveState = document.getElementById("floorPlanSaveState");
-      if (saveState) { saveState.className = "floor-plan-save-state is-error"; saveState.textContent = String(error?.message || error); }
+      if (saveState) { saveState.className = "floor-plan-save-state is-error"; saveState.textContent = floorPlanSaveErrorMessage(error); }
     }
   });
-  document.getElementById("floorPlanPreviewBtn")?.addEventListener("click", () => {
+  document.getElementById("floorPlanPreviewBtn")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    button.disabled = true;
     syncFloorPlanCanvasToDocument({ history: false });
-    saveFloorPlanNow({ sync: false }).catch(() => {});
-    S.floorPlanPreviewDocument = structuredClone(floorPlanEditorDocument);
-    S.mode = "view"; S.view = "lageplan"; renderActive();
+    try {
+      await saveFloorPlanNow({ sync: false });
+      S.floorPlanPreviewDocument = structuredClone(floorPlanEditorDocument);
+      S.mode = "view"; S.view = "lageplan"; renderActive();
+    } catch {
+      button.disabled = false;
+    }
   });
   document.addEventListener("keydown", floorPlanEditorKeydown, { signal: floorPlanEditorAbortController.signal });
   const inspector = document.getElementById("floorPlanInspector");

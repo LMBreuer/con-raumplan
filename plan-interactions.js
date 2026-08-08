@@ -144,7 +144,7 @@ document.addEventListener("submit", async e => {
     if (updatedMsg) { updatedMsg.className = "msg ok"; updatedMsg.textContent = tr("floorPlanSaved"); }
   } catch (err) {
     msg.className = "msg err";
-    msg.textContent = tr("floorPlanSaveFailed", { err: err.message });
+    msg.textContent = floorPlanSaveErrorMessage(err);
   }
 });
 document.addEventListener("click", async e => {

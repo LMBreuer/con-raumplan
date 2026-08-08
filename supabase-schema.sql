@@ -400,6 +400,8 @@ returns bigint
 language plpgsql
 security definer
 set search_path = ''
+set lock_timeout = '2s'
+set statement_timeout = '8s'
 as $$
 declare
   next_revision bigint;
@@ -413,6 +415,15 @@ begin
   if new_document->'schemaVersion' is distinct from '1'::jsonb
      or jsonb_typeof(new_document->'floors') <> 'array' then
     raise exception 'unsupported floor plan schema' using errcode = '22023';
+  end if;
+  if expected_revision < 0 then
+    raise exception 'invalid floor plan revision' using errcode = '22023';
+  end if;
+  if pg_catalog.pg_column_size(new_document) > 2097152 then
+    raise sqlstate 'PT413' using message = 'floor plan document is too large';
+  end if;
+  if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended(target_con::text, 0)) then
+    raise sqlstate 'PT429' using message = 'floor plan save already in progress';
   end if;
 
   if expected_revision = 0 then
@@ -437,6 +448,11 @@ begin
     raise sqlstate 'PT409' using message = 'floor plan revision conflict';
   end if;
   return next_revision;
+exception
+  when lock_not_available then
+    raise sqlstate 'PT503' using message = 'floor plan storage is busy';
+  when query_canceled then
+    raise sqlstate 'PT504' using message = 'floor plan save timed out';
 end;
 $$;
 revoke all on function public.save_con_floor_plan(uuid, bigint, jsonb) from public;
@@ -450,10 +466,15 @@ returns void
 language plpgsql
 security definer
 set search_path = ''
+set lock_timeout = '2s'
+set statement_timeout = '8s'
 as $$
 begin
   if not public.is_superadmin() then
     raise exception 'not authorized' using errcode = '42501';
+  end if;
+  if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended(target_con::text, 0)) then
+    raise sqlstate 'PT429' using message = 'floor plan save already in progress';
   end if;
 
   update public.con_floor_plans
@@ -466,6 +487,11 @@ begin
   end if;
 
   update public.cons set floor_plan_mode = 'editor' where id = target_con;
+exception
+  when lock_not_available then
+    raise sqlstate 'PT503' using message = 'floor plan storage is busy';
+  when query_canceled then
+    raise sqlstate 'PT504' using message = 'floor plan publish timed out';
 end;
 $$;
 revoke all on function public.publish_con_floor_plan(uuid, bigint) from public;

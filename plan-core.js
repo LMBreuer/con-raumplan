@@ -149,10 +149,10 @@ function makeStore(conId) {
       return rows?.[0] || null;
     },
     async saveFloorPlanDocument(document, expectedRevision) {
-      return supaRpc("save_con_floor_plan", { target_con: conId, expected_revision: expectedRevision || 0, new_document: document }, await w());
+      return supaRpc("save_con_floor_plan", { target_con: conId, expected_revision: expectedRevision || 0, new_document: document }, await w(), { timeoutMs: 10000 });
     },
     async publishFloorPlan(expectedRevision) {
-      await supaRpc("publish_con_floor_plan", { target_con: conId, expected_revision: expectedRevision }, await w());
+      await supaRpc("publish_con_floor_plan", { target_con: conId, expected_revision: expectedRevision }, await w(), { timeoutMs: 10000 });
     },
     async ensureSlotsForDays(days) {
       const token = await w();

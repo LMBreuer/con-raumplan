@@ -15,14 +15,34 @@ function supaHeaders(accessToken, write) {
   return h;
 }
 
-async function supaRpc(name, body, accessToken) {
-  const r = await fetch(`${CONFIG.supabase.url}/rest/v1/rpc/${name}`, {
-    method: "POST",
-    headers: { apikey: CONFIG.supabase.anonKey, Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const text = await r.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!r.ok) throw new Error(data?.message || `RPC-Fehler (${r.status})`);
-  return data;
+async function supaRpc(name, body, accessToken, { timeoutMs = 15000 } = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(`${CONFIG.supabase.url}/rest/v1/rpc/${name}`, {
+      method: "POST",
+      headers: { apikey: CONFIG.supabase.anonKey, Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const text = await r.text();
+    let data = null;
+    if (text) {
+      try { data = JSON.parse(text); }
+      catch { data = { message: text.slice(0, 300) }; }
+    }
+    if (!r.ok) {
+      const error = new Error(data?.message || `RPC-Fehler (${r.status})`);
+      Object.assign(error, { status: r.status, code: data?.code || "", details: data?.details || "" });
+      throw error;
+    }
+    return data;
+  } catch (error) {
+    if (error?.name !== "AbortError") throw error;
+    const timeoutError = new Error(`RPC-Timeout nach ${Math.ceil(timeoutMs / 1000)} Sekunden`);
+    Object.assign(timeoutError, { status: 504, code: "RPC_TIMEOUT" });
+    throw timeoutError;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
