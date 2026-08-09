@@ -207,7 +207,6 @@ document.addEventListener("click", async e => {
     renderActive();
   }
   else if (t.matches("[data-setuptab]")) {
-    if (t.dataset.setuptab === "lageplan" && !S.superadmin) return;
     S.setupTab = t.dataset.setuptab; renderActive();
   }
   else if (t.matches("[data-slot-scroll]")) {
@@ -263,6 +262,7 @@ document.addEventListener("click", async e => {
     renderActive();
   }
   else if (t.id === "addRoomBtn") openRoomDlg(null);
+  else if (t.id === "roomImportBtn") openRoomImportDialog();
   else if (t.matches(".editRoomBtn")) openRoomDlg(S.rooms.find(r => r.id === t.dataset.id));
   else if (t.matches(".delRoomBtn")) {
     if (!confirm(tr("confirmDeleteRoom"))) return;

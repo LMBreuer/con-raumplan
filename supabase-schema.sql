@@ -92,6 +92,21 @@ create table if not exists con_floor_plans (
   check (published_document is null or jsonb_typeof(published_document) = 'object')
 );
 
+-- Kleine, bewusst begrenzte Sicherungshistorie. Pro Con bleiben höchstens
+-- drei automatische, drei veröffentlichte und eine Sicherheitsversion.
+create table if not exists con_floor_plan_versions (
+  id uuid primary key default gen_random_uuid(),
+  con_id uuid not null references cons(id) on delete cascade,
+  source_revision bigint not null check (source_revision > 0),
+  document jsonb not null,
+  kind text not null check (kind in ('automatic', 'published', 'safety')),
+  created_at timestamptz not null default now(),
+  created_by uuid references auth.users(id),
+  check (jsonb_typeof(document) = 'object')
+);
+create index if not exists con_floor_plan_versions_con_kind_created_idx
+  on con_floor_plan_versions (con_id, kind, created_at desc);
+
 -- ---------- Slots (Tagesabschnitts-Vorlagen + konkrete, pro-Con-Slots) ----------
 create table if not exists slot_buckets (
   id uuid primary key default gen_random_uuid(),
@@ -288,6 +303,7 @@ alter table requests    enable row level security;
 alter table cons        enable row level security;
 alter table con_members enable row level security;
 alter table con_floor_plans enable row level security;
+alter table con_floor_plan_versions enable row level security;
 alter table slot_buckets enable row level security;
 alter table slots        enable row level security;
 alter table feature_tags enable row level security;
@@ -329,7 +345,7 @@ $$;
 revoke all on function public.is_con_member(uuid) from public;
 grant execute on function public.is_con_member(uuid) to authenticated;
 
--- Während der Testphase darf nur der site-weite Superadmin Lagepläne ändern.
+-- Akzeptierte Crew-Mitglieder dürfen den Lageplan ihrer eigenen Con ändern.
 create or replace function public.set_con_floor_plan_url(target_con uuid, new_url text)
 returns void
 language plpgsql
@@ -337,7 +353,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if not public.is_superadmin() then
+  if not public.is_con_member(target_con) then
     raise exception 'not authorized' using errcode = '42501';
   end if;
   if nullif(btrim(new_url), '') is not null
@@ -366,7 +382,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if not public.is_superadmin() then
+  if not public.is_con_member(target_con) then
     raise exception 'not authorized' using errcode = '42501';
   end if;
   if new_mode not in ('none', 'external', 'editor') then
@@ -406,7 +422,7 @@ as $$
 declare
   next_revision bigint;
 begin
-  if not public.is_superadmin() then
+  if not public.is_con_member(target_con) then
     raise exception 'not authorized' using errcode = '42501';
   end if;
   if new_document is null or jsonb_typeof(new_document) <> 'object' then
@@ -433,6 +449,21 @@ begin
     on conflict (con_id) do nothing
     returning revision into next_revision;
   else
+    -- Höchstens eine automatische Sicherung je 15 Minuten. Gesichert wird
+    -- der vorherige Stand; bei einem Revisionskonflikt wird auch dieser
+    -- Insert durch die Funktionstransaktion zurückgerollt.
+    insert into public.con_floor_plan_versions
+      (con_id, source_revision, document, kind, created_by)
+    select fp.con_id, fp.revision, fp.document, 'automatic', auth.uid()
+    from public.con_floor_plans fp
+    where fp.con_id = target_con
+      and fp.revision = expected_revision
+      and not exists (
+        select 1 from public.con_floor_plan_versions v
+        where v.con_id = target_con and v.kind = 'automatic'
+          and v.created_at > now() - interval '15 minutes'
+      );
+
     update public.con_floor_plans
     set schema_version = 1,
         document = new_document,
@@ -447,6 +478,14 @@ begin
   if next_revision is null then
     raise sqlstate 'PT409' using message = 'floor plan revision conflict';
   end if;
+
+  delete from public.con_floor_plan_versions v
+  where v.id in (
+    select old.id from public.con_floor_plan_versions old
+    where old.con_id = target_con and old.kind = 'automatic'
+    order by old.created_at desc, old.id desc
+    offset 3
+  );
   return next_revision;
 exception
   when lock_not_available then
@@ -470,12 +509,18 @@ set lock_timeout = '2s'
 set statement_timeout = '8s'
 as $$
 begin
-  if not public.is_superadmin() then
+  if not public.is_con_member(target_con) then
     raise exception 'not authorized' using errcode = '42501';
   end if;
   if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended(target_con::text, 0)) then
     raise sqlstate 'PT429' using message = 'floor plan save already in progress';
   end if;
+
+  insert into public.con_floor_plan_versions
+    (con_id, source_revision, document, kind, created_by)
+  select fp.con_id, fp.revision, fp.document, 'published', auth.uid()
+  from public.con_floor_plans fp
+  where fp.con_id = target_con and fp.revision = expected_revision;
 
   update public.con_floor_plans
   set published_document = document,
@@ -485,6 +530,14 @@ begin
   if not found then
     raise sqlstate 'PT409' using message = 'floor plan revision conflict';
   end if;
+
+  delete from public.con_floor_plan_versions v
+  where v.id in (
+    select old.id from public.con_floor_plan_versions old
+    where old.con_id = target_con and old.kind = 'published'
+    order by old.created_at desc, old.id desc
+    offset 3
+  );
 
   update public.cons set floor_plan_mode = 'editor' where id = target_con;
 exception
@@ -496,6 +549,252 @@ end;
 $$;
 revoke all on function public.publish_con_floor_plan(uuid, bigint) from public;
 grant execute on function public.publish_con_floor_plan(uuid, bigint) to authenticated;
+
+-- Import/Kopie ersetzt den Entwurf bewusst in einem Schritt und legt davor
+-- immer eine einzelne Sicherheitsversion an. expected_revision=0 erlaubt die
+-- Erstanlage bei einer Con ohne bisherigen Creator-Plan.
+create or replace function public.replace_con_floor_plan(
+  target_con uuid,
+  expected_revision bigint,
+  new_document jsonb
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+set lock_timeout = '2s'
+set statement_timeout = '8s'
+as $$
+declare
+  current_revision bigint;
+  current_document jsonb;
+  next_revision bigint;
+begin
+  if not public.is_con_member(target_con) then
+    raise exception 'not authorized' using errcode = '42501';
+  end if;
+  if new_document is null or jsonb_typeof(new_document) <> 'object'
+     or new_document->'schemaVersion' is distinct from '1'::jsonb
+     or jsonb_typeof(new_document->'floors') <> 'array' then
+    raise exception 'unsupported floor plan schema' using errcode = '22023';
+  end if;
+  if expected_revision < 0 then
+    raise exception 'invalid floor plan revision' using errcode = '22023';
+  end if;
+  if pg_catalog.pg_column_size(new_document) > 2097152 then
+    raise sqlstate 'PT413' using message = 'floor plan document is too large';
+  end if;
+  if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended(target_con::text, 0)) then
+    raise sqlstate 'PT429' using message = 'floor plan save already in progress';
+  end if;
+
+  select fp.revision, fp.document
+  into current_revision, current_document
+  from public.con_floor_plans fp
+  where fp.con_id = target_con
+  for update;
+
+  if current_revision is null then
+    if expected_revision <> 0 then
+      raise sqlstate 'PT409' using message = 'floor plan revision conflict';
+    end if;
+    insert into public.con_floor_plans
+      (con_id, schema_version, document, revision, updated_at, updated_by)
+    values (target_con, 1, new_document, 1, now(), auth.uid())
+    returning revision into next_revision;
+  else
+    if current_revision <> expected_revision then
+      raise sqlstate 'PT409' using message = 'floor plan revision conflict';
+    end if;
+    insert into public.con_floor_plan_versions
+      (con_id, source_revision, document, kind, created_by)
+    values (target_con, current_revision, current_document, 'safety', auth.uid());
+    delete from public.con_floor_plan_versions v
+    where v.id in (
+      select old.id from public.con_floor_plan_versions old
+      where old.con_id = target_con and old.kind = 'safety'
+      order by old.created_at desc, old.id desc
+      offset 1
+    );
+    update public.con_floor_plans
+    set schema_version = 1,
+        document = new_document,
+        revision = current_revision + 1,
+        updated_at = now(),
+        updated_by = auth.uid()
+    where con_id = target_con
+    returning revision into next_revision;
+  end if;
+
+  update public.cons set floor_plan_mode = 'editor' where id = target_con;
+  return next_revision;
+exception
+  when lock_not_available then
+    raise sqlstate 'PT503' using message = 'floor plan storage is busy';
+  when query_canceled then
+    raise sqlstate 'PT504' using message = 'floor plan replacement timed out';
+end;
+$$;
+revoke all on function public.replace_con_floor_plan(uuid, bigint, jsonb) from public;
+grant execute on function public.replace_con_floor_plan(uuid, bigint, jsonb) to authenticated;
+
+create or replace function public.restore_con_floor_plan_version(
+  target_con uuid,
+  version_id uuid,
+  expected_revision bigint
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+set lock_timeout = '2s'
+set statement_timeout = '8s'
+as $$
+declare
+  current_revision bigint;
+  current_document jsonb;
+  restored_document jsonb;
+  next_revision bigint;
+begin
+  if not public.is_con_member(target_con) then
+    raise exception 'not authorized' using errcode = '42501';
+  end if;
+  if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended(target_con::text, 0)) then
+    raise sqlstate 'PT429' using message = 'floor plan save already in progress';
+  end if;
+
+  select fp.revision, fp.document
+  into current_revision, current_document
+  from public.con_floor_plans fp
+  where fp.con_id = target_con
+  for update;
+  if current_revision is null or current_revision <> expected_revision then
+    raise sqlstate 'PT409' using message = 'floor plan revision conflict';
+  end if;
+
+  select v.document into restored_document
+  from public.con_floor_plan_versions v
+  where v.id = version_id and v.con_id = target_con;
+  if restored_document is null then
+    raise exception 'floor plan version not found' using errcode = '22023';
+  end if;
+
+  insert into public.con_floor_plan_versions
+    (con_id, source_revision, document, kind, created_by)
+  values (target_con, current_revision, current_document, 'safety', auth.uid());
+  delete from public.con_floor_plan_versions v
+  where v.id in (
+    select old.id from public.con_floor_plan_versions old
+    where old.con_id = target_con and old.kind = 'safety'
+    order by old.created_at desc, old.id desc
+    offset 1
+  );
+
+  update public.con_floor_plans
+  set document = restored_document,
+      schema_version = 1,
+      revision = current_revision + 1,
+      updated_at = now(),
+      updated_by = auth.uid()
+  where con_id = target_con
+  returning revision into next_revision;
+
+  return jsonb_build_object('revision', next_revision, 'document', restored_document);
+exception
+  when lock_not_available then
+    raise sqlstate 'PT503' using message = 'floor plan storage is busy';
+  when query_canceled then
+    raise sqlstate 'PT504' using message = 'floor plan restore timed out';
+end;
+$$;
+revoke all on function public.restore_con_floor_plan_version(uuid, uuid, bigint) from public;
+grant execute on function public.restore_con_floor_plan_version(uuid, uuid, bigint) to authenticated;
+
+-- Räume, deren Tische und Eigenschafts-Tags werden in einer Transaktion
+-- kopiert. Die Rückgabe enthält die neuen Zeilen und die exakte ID-Zuordnung,
+-- mit der der Client optional auch den Lageplan umhängen kann.
+create or replace function public.import_con_rooms(
+  target_con uuid,
+  source_con uuid,
+  source_room_ids uuid[]
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+set statement_timeout = '8s'
+as $$
+declare
+  source_room record;
+  target_room_id uuid;
+  target_room_ids uuid[] := array[]::uuid[];
+  mapping jsonb := '[]'::jsonb;
+begin
+  if not public.is_con_member(target_con) or not public.is_con_member(source_con) then
+    raise exception 'not authorized' using errcode = '42501';
+  end if;
+  if target_con = source_con or coalesce(array_length(source_room_ids, 1), 0) = 0 then
+    raise exception 'invalid room import selection' using errcode = '22023';
+  end if;
+
+  for source_room in
+    select r.* from public.rooms r
+    where r.con_id = source_con and r.id = any(source_room_ids)
+    order by r.sort, r.name
+  loop
+    target_room_id := gen_random_uuid();
+    insert into public.rooms
+      (id, con_id, name, floor, features, notes, sort, color, marker)
+    values
+      (target_room_id, target_con, source_room.name, source_room.floor,
+       source_room.features, source_room.notes, source_room.sort,
+       source_room.color, source_room.marker);
+
+    insert into public.tables (id, con_id, room_id, name, seats, notes, sort)
+    select gen_random_uuid(), target_con, target_room_id, t.name, t.seats, t.notes, t.sort
+    from public.tables t
+    where t.con_id = source_con and t.room_id = source_room.id;
+
+    insert into public.room_feature_tags (con_id, room_id, feature_tag_id)
+    select target_con, target_room_id, rt.feature_tag_id
+    from public.room_feature_tags rt
+    where rt.con_id = source_con and rt.room_id = source_room.id
+    on conflict do nothing;
+
+    target_room_ids := array_append(target_room_ids, target_room_id);
+    mapping := mapping || jsonb_build_array(jsonb_build_object(
+      'sourceRoomId', source_room.id,
+      'targetRoomId', target_room_id
+    ));
+  end loop;
+
+  if coalesce(array_length(target_room_ids, 1), 0) = 0 then
+    raise exception 'no source rooms found' using errcode = '22023';
+  end if;
+
+  return jsonb_build_object(
+    'roomMapping', mapping,
+    'rooms', coalesce((
+      select jsonb_agg(to_jsonb(r) order by r.sort, r.name)
+      from public.rooms r where r.id = any(target_room_ids)
+    ), '[]'::jsonb),
+    'tables', coalesce((
+      select jsonb_agg(to_jsonb(t) order by t.sort, t.name)
+      from public.tables t where t.room_id = any(target_room_ids)
+    ), '[]'::jsonb),
+    'roomFeatureTags', coalesce((
+      select jsonb_agg(to_jsonb(rt))
+      from public.room_feature_tags rt
+      where rt.con_id = target_con and rt.room_id = any(target_room_ids)
+    ), '[]'::jsonb)
+  );
+exception
+  when query_canceled then
+    raise sqlstate 'PT504' using message = 'room import timed out';
+end;
+$$;
+revoke all on function public.import_con_rooms(uuid, uuid, uuid[]) from public;
+grant execute on function public.import_con_rooms(uuid, uuid, uuid[]) to authenticated;
 
 -- Öffentliche Ausgabe enthält niemals den unveröffentlichten Entwurf.
 create or replace function public.get_public_con_floor_plan(target_con uuid)
@@ -719,7 +1018,8 @@ revoke all on table
   public.cons, public.con_members, public.rooms, public.tables,
   public.assignments, public.requests, public.slot_buckets, public.slots,
   public.feature_tags, public.room_feature_tags, public.games,
-  public.game_required_tags, public.con_floor_plans, public.superadmins
+  public.game_required_tags, public.con_floor_plans,
+  public.con_floor_plan_versions, public.superadmins
 from public, anon, authenticated;
 
 grant select on table
@@ -735,7 +1035,7 @@ grant select, insert, update, delete on table
   public.con_members, public.rooms, public.tables, public.assignments,
   public.requests, public.slot_buckets, public.slots, public.games
 to authenticated;
-grant select on table public.con_floor_plans to authenticated;
+grant select on table public.con_floor_plans, public.con_floor_plan_versions to authenticated;
 grant insert, delete on table
   public.room_feature_tags, public.game_required_tags
 to authenticated;
@@ -749,6 +1049,9 @@ revoke execute on function public.set_con_floor_plan_url(uuid, text) from anon;
 revoke execute on function public.set_con_floor_plan_source(uuid, text, text) from anon;
 revoke execute on function public.save_con_floor_plan(uuid, bigint, jsonb) from anon;
 revoke execute on function public.publish_con_floor_plan(uuid, bigint) from anon;
+revoke execute on function public.replace_con_floor_plan(uuid, bigint, jsonb) from anon;
+revoke execute on function public.restore_con_floor_plan_version(uuid, uuid, bigint) from anon;
+revoke execute on function public.import_con_rooms(uuid, uuid, uuid[]) from anon;
 revoke execute on function public.is_con_admin(uuid) from anon;
 revoke execute on function public.invite_member_to_con(uuid, text, text) from anon;
 revoke execute on function public.accept_invite(uuid) from anon;
@@ -776,8 +1079,14 @@ create policy "superadmin delete cons" on cons for delete to authenticated
 -- ---------- Policies: con_floor_plans ----------
 drop policy if exists "members read floor plan drafts" on con_floor_plans;
 drop policy if exists "superadmins read floor plan drafts" on con_floor_plans;
-create policy "superadmins read floor plan drafts" on con_floor_plans for select to authenticated
-  using (is_superadmin());
+create policy "members read floor plan drafts" on con_floor_plans for select to authenticated
+  using (is_con_member(con_id));
+
+-- ---------- Policies: con_floor_plan_versions ----------
+drop policy if exists "members read floor plan versions" on con_floor_plan_versions;
+drop policy if exists "superadmins read floor plan versions" on con_floor_plan_versions;
+create policy "members read floor plan versions" on con_floor_plan_versions for select to authenticated
+  using (is_con_member(con_id));
 
 -- ---------- Policies: con_members ----------
 drop policy if exists "members read own con roster" on con_members;

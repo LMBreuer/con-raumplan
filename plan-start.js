@@ -107,10 +107,24 @@ async function refreshRole() {
   } catch { S.role = null; }
 }
 
+async function refreshCrewCons() {
+  const token = await Auth.accessToken();
+  if (!token || !S.role) { S.crewCons = []; return; }
+  try {
+    if (S.superadmin) {
+      S.crewCons = await supaFetch("cons?select=id,name,slug&order=name", { headers: supaHeaders(token) });
+      return;
+    }
+    const memberships = await supaFetch("con_members?select=con_id,cons(id,name,slug)&status=eq.accepted", { headers: supaHeaders(token) });
+    S.crewCons = [...new Map((memberships || []).filter(item => item.cons).map(item => [item.cons.id, item.cons])).values()].sort((a, b) => a.name.localeCompare(b.name));
+  } catch { S.crewCons = S.con ? [{ id: S.con.id, name: S.con.name, slug: S.con.slug }] : []; }
+}
+
 const authUI = mountAuthUI({
   buttonId: "authBtn",
   onChange: async () => {
     await refreshRole();
+    await refreshCrewCons();
     S.floorPlanDraft = S.role ? await S.store.loadFloorPlanDraft().catch(() => S.floorPlanDraft) : null;
     if (S.role) S.requests = await S.store.listRequests().catch(() => []);
     if (!S.role && S.mode === "crew") { S.mode = "view"; S.view = "tabelle"; }
@@ -308,6 +322,7 @@ function configurePlanTours() {
     S.floorPlanPublic = data.publicFloorPlan || null;
     S.games = await loadPlayabl(con.playabl_event_id, S.slotBuckets);
     await refreshRole();
+    await refreshCrewCons();
     if (S.role) S.floorPlanDraft = await S.store.loadFloorPlanDraft().catch(() => null);
     if (S.games.length) {
       const days = [...new Set(S.games.map(g => g.slotKey.split("|")[0]))].filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
@@ -336,6 +351,7 @@ function configurePlanTours() {
     S.activeSlot = S.slots[0]?.key || null;
     if (S.role) S.requests = await S.store.listRequests().catch(() => []);
     restoreNavigationState();
+    if (FORCE_CREW_ENTRY && S.role) S.mode = "crew";
     document.getElementById("status").textContent =
       tr("asOf", { date: new Intl.DateTimeFormat(LANG === "en" ? "en-GB" : "de-AT", { timeZone: TZ, dateStyle: "full", timeStyle: "short" }).format(new Date()) });
     renderActive();

@@ -4,6 +4,14 @@ const FLOOR_PLAN_SIZE = {
   landscape: { width: 1120, height: 792 },
   portrait: { width: 792, height: 1120 },
 };
+const FLOOR_PLAN_GRAPHIC_LIMITS = {
+  count: 4,
+  inputBytes: 2 * 1024 * 1024,
+  sourcePixels: 4096,
+  outputPixels: 1200,
+  outputBytes: 280 * 1024,
+};
+const FLOOR_PLAN_GRAPHIC_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=]+$/i;
 const FLOOR_PLAN_SYMBOLS = {
   entrance: { glyph: "↳", category: "access", de: "Eingang", en: "Entrance" },
   exit: { glyph: "↗", category: "access", de: "Ausgang", en: "Exit" },
@@ -32,6 +40,16 @@ const FLOOR_PLAN_ROOM_GLYPHS = {
   heart: "♥", flag: "⚑", key: "⚿", book: "▤", music: "♪", bulb: "☼", letter: "✉",
   dice: "⚄", invader: "⌘", wc: "WC", kitchen: "♨", door: "▯", coat: "♧", toy: "♟",
 };
+const floorPlanRoomMarkerNameKey = marker => `roomMarker${marker.charAt(0).toUpperCase()}${marker.slice(1)}`;
+const FLOOR_PLAN_ROOM_MARKER_SYMBOLS = Object.fromEntries(ROOM_MARKERS.map(marker => [`room-marker-${marker}`, {
+  glyph: FLOOR_PLAN_ROOM_GLYPHS[marker], category: "roomMarkers", nameKey: floorPlanRoomMarkerNameKey(marker),
+}]));
+Object.assign(FLOOR_PLAN_SYMBOLS, FLOOR_PLAN_ROOM_MARKER_SYMBOLS);
+FLOOR_PLAN_SYMBOL_CATEGORIES.roomMarkers = { de: "Raumsymbole", en: "Room symbols" };
+
+function floorPlanSymbolName(symbol) {
+  return symbol?.nameKey ? tr(symbol.nameKey) : symbol?.[LANG === "en" ? "en" : "de"] || "";
+}
 
 function floorPlanId(prefix = "fp") {
   const id = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -58,7 +76,7 @@ const floorPlanNumber = (value, fallback, min = -10000, max = 10000) => {
 };
 
 function normalizeFloorPlanObject(raw, floor) {
-  if (!raw || typeof raw !== "object" || !["room", "text", "symbol"].includes(raw.type)) return null;
+  if (!raw || typeof raw !== "object" || !["room", "text", "symbol", "image"].includes(raw.type)) return null;
   const base = {
     id: String(raw.id || floorPlanId(raw.type)),
     type: raw.type,
@@ -80,6 +98,11 @@ function normalizeFloorPlanObject(raw, floor) {
     };
   }
   if (raw.type === "text") return { ...base, text: String(raw.text || "Text").slice(0, 240) };
+  if (raw.type === "image") {
+    const src = String(raw.src || "");
+    if (!FLOOR_PLAN_GRAPHIC_DATA_URL.test(src) || src.length > 390000) return null;
+    return { ...base, src, alt: String(raw.alt || "").slice(0, 120) };
+  }
   return { ...base, symbol: FLOOR_PLAN_SYMBOLS[raw.symbol] ? raw.symbol : "info", label: String(raw.label || "").slice(0, 80) };
 }
 
@@ -87,6 +110,7 @@ function normalizeFloorPlanDocument(raw) {
   const source = raw && typeof raw === "object" ? raw : {};
   const orientation = source.orientation === "portrait" ? "portrait" : "landscape";
   const expectedSize = FLOOR_PLAN_SIZE[orientation];
+  let graphicCount = 0;
   const floors = (Array.isArray(source.floors) ? source.floors : []).slice(0, 20).map((item, index) => {
     const floor = {
       id: String(item?.id || floorPlanId("floor")),
@@ -95,7 +119,13 @@ function normalizeFloorPlanDocument(raw) {
       height: floorPlanNumber(item?.height, expectedSize.height, 320, 2400),
       objects: [],
     };
-    floor.objects = (Array.isArray(item?.objects) ? item.objects : []).slice(0, 500).map(object => normalizeFloorPlanObject(object, floor)).filter(Boolean);
+    floor.objects = (Array.isArray(item?.objects) ? item.objects : []).slice(0, 500).map(object => normalizeFloorPlanObject(object, floor)).filter(object => {
+      if (!object) return false;
+      if (object.type !== "image") return true;
+      if (graphicCount >= FLOOR_PLAN_GRAPHIC_LIMITS.count) return false;
+      graphicCount += 1;
+      return true;
+    });
     return floor;
   });
   return {
@@ -157,6 +187,28 @@ function floorPlanTextLines(text, maxChars = 22, maxLines = 3) {
   return lines.length ? lines : [""];
 }
 
+function floorPlanRoomLayout(object, label, location) {
+  const labelFontSize = Math.max(18, Math.min(26, object.width / 10));
+  const lineHeight = Math.max(20, Math.min(30, labelFontSize * 1.12));
+  const lines = floorPlanTextLines(label, Math.max(10, Math.floor(object.width / 11)), 3);
+  const markerSize = Math.max(30, Math.min(64, object.width * .2, object.height * .34));
+  const topInset = 12;
+  const contentBottom = object.height - (location ? 34 : 12);
+  const labelHeight = lines.length * lineHeight;
+  const gap = Math.max(6, Math.min(12, object.height * .06));
+  const contentHeight = labelHeight + gap + markerSize;
+  const contentTop = topInset + Math.max(0, (contentBottom - topInset - contentHeight) / 2);
+  return {
+    lines,
+    labelFontSize,
+    lineHeight,
+    labelCenterY: contentTop + labelHeight / 2,
+    markerCenterY: contentTop + labelHeight + gap + markerSize / 2,
+    markerSize,
+    locationY: object.height - 16,
+  };
+}
+
 function floorPlanRotation(object) {
   const cx = object.x + object.width / 2;
   const cy = object.y + object.height / 2;
@@ -170,18 +222,17 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
   const glyph = floorPlanObjectRoomGlyph(object, room);
   const location = room?.floor || object.customLocation;
   const isCustom = !object.roomId;
-  const lineHeight = Math.max(18, Math.min(30, object.height / 5));
-  const lines = floorPlanTextLines(label, Math.max(10, Math.floor(object.width / 11)), 3);
-  const textStart = object.y + object.height / 2 - ((lines.length - 1) * lineHeight) / 2;
-  const text = lines.map((line, index) => `<tspan x="${object.x + object.width / 2}" dy="${index ? lineHeight : 0}">${esc(line)}</tspan>`).join("");
+  const layout = floorPlanRoomLayout(object, label, location);
+  const textStart = object.y + layout.labelCenterY - ((layout.lines.length - 1) * layout.lineHeight) / 2;
+  const text = layout.lines.map((line, index) => `<tspan x="${object.x + object.width / 2}" dy="${index ? layout.lineHeight : 0}">${esc(line)}</tspan>`).join("");
   const attrs = room && interactive
     ? ` data-floor-plan-room="${esc(room.id)}" tabindex="0" role="button" aria-label="${esc(tr("floorPlanOpenRoomAria", { name: room.name }))}"`
     : ` aria-label="${esc(label)}"`;
   return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}"${attrs}${floorPlanRotation(object)} style="--floor-plan-room-color:${color}">
     <rect x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" rx="18" />
-    <text class="floor-plan-map-marker" x="${object.x + 28}" y="${object.y + 35}" text-anchor="middle">${esc(glyph)}</text>
-    <text class="floor-plan-map-label" x="${object.x + object.width / 2}" y="${textStart}" text-anchor="middle" dominant-baseline="middle">${text}</text>
-    ${location ? `<text class="floor-plan-map-location" x="${object.x + object.width / 2}" y="${object.y + object.height - 18}" text-anchor="middle">${esc(location)}</text>` : ""}
+    <text class="floor-plan-map-label" x="${object.x + object.width / 2}" y="${textStart}" text-anchor="middle" dominant-baseline="middle" style="font-size:${layout.labelFontSize}px">${text}</text>
+    <text class="floor-plan-map-marker" x="${object.x + object.width / 2}" y="${object.y + layout.markerCenterY}" text-anchor="middle" dominant-baseline="central" style="font-size:${layout.markerSize}px">${esc(glyph)}</text>
+    ${location ? `<text class="floor-plan-map-location" x="${object.x + object.width / 2}" y="${object.y + layout.locationY}" text-anchor="middle">${esc(location)}</text>` : ""}
   </g>`;
 }
 
@@ -193,8 +244,11 @@ function floorPlanObjectSvg(object, options) {
     const text = lines.map((line, index) => `<tspan x="${object.x + object.width / 2}" dy="${index ? lineHeight : 0}">${esc(line)}</tspan>`).join("");
     return `<g class="floor-plan-map-text"${floorPlanRotation(object)}><text x="${object.x + object.width / 2}" y="${object.y + object.height / 2 - ((lines.length - 1) * lineHeight) / 2}" text-anchor="middle" dominant-baseline="middle">${text}</text></g>`;
   }
+  if (object.type === "image") return `<g class="floor-plan-map-image"${floorPlanRotation(object)} aria-label="${esc(object.alt || tr("floorPlanGraphic"))}">
+    <image href="${esc(object.src)}" x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" preserveAspectRatio="none" />
+  </g>`;
   const symbol = FLOOR_PLAN_SYMBOLS[object.symbol] || FLOOR_PLAN_SYMBOLS.info;
-  const label = object.label || symbol[LANG === "en" ? "en" : "de"];
+  const label = object.label || floorPlanSymbolName(symbol);
   return `<g class="floor-plan-map-symbol"${floorPlanRotation(object)} aria-label="${esc(label)}">
     <circle cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" r="${Math.max(18, Math.min(object.width, object.height) / 2 - 3)}" />
     <text x="${object.x + object.width / 2}" y="${object.y + object.height / 2}" text-anchor="middle" dominant-baseline="central">${esc(symbol.glyph)}</text>
@@ -210,7 +264,7 @@ function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id =
     <title>${esc(title)}</title>
     <style>
       .floor-plan-map-page{fill:#fff}.floor-plan-map-room rect{fill:var(--floor-plan-room-color);fill-opacity:.16;stroke:var(--floor-plan-room-color);stroke-width:4}
-      .floor-plan-map-label{fill:#172033;font:700 25px Arial,sans-serif}.floor-plan-map-marker{fill:var(--floor-plan-room-color);font:700 27px Arial,sans-serif}
+      .floor-plan-map-label{fill:#172033;font:700 25px Arial,sans-serif}.floor-plan-map-marker{fill:var(--floor-plan-room-color);font:800 48px Arial,sans-serif}
       .floor-plan-map-location{fill:#596579;font:500 14px Arial,sans-serif}.floor-plan-map-text text{fill:#172033;font:600 28px Arial,sans-serif}
       .floor-plan-map-symbol circle{fill:#fff;stroke:#62708a;stroke-width:4}.floor-plan-map-symbol>text{fill:#27344d;font:700 32px Arial,sans-serif}.floor-plan-map-symbol-label{fill:#596579!important;font:600 16px Arial,sans-serif!important}
       .floor-plan-map-room.is-orphan rect{stroke:#b45309;stroke-dasharray:10 7;fill:#fef3c7}

@@ -149,10 +149,10 @@ function slotsVerwaltenHtml() {
 }
 
 /* ---------------- Crew: Räume verwalten ---------------- */
-function setupHeadHtml(titleText, infoAriaLabel, infoText, btnId, btnLabel) {
+function setupHeadHtml(titleText, infoAriaLabel, infoText, btnId, btnLabel, extraActions = "") {
   return `<div class="controls no-print setup-head">
     <div class="setup-head-title"><h2>${esc(titleText)}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(infoAriaLabel)}" data-info-text="${esc(infoText)}">i</span></div>
-    <button type="button" id="${btnId}" class="primary">${esc(btnLabel)}</button>
+    <div class="setup-head-actions">${extraActions}<button type="button" id="${btnId}" class="primary">${esc(btnLabel)}</button></div>
   </div>`;
 }
 function raeumeVerwaltenHtml() {
@@ -182,8 +182,9 @@ function raeumeVerwaltenHtml() {
       </div>
     </div>`;
   }).join("") || emptyState(tr("noRoomsYet"));
+  const importAction = `<button type="button" id="roomImportBtn">⧉ ${esc(tr("roomsImport"))}</button>`;
   return `<div class="card setup-card">
-    ${setupHeadHtml(tr("roomsInfoTitle"), tr("roomsInfoAriaLabel"), tr("roomsInfoText"), "addRoomBtn", tr("addRoomBtn"))}
+    ${setupHeadHtml(tr("roomsInfoTitle"), tr("roomsInfoAriaLabel"), tr("roomsInfoText"), "addRoomBtn", tr("addRoomBtn"), importAction)}
     <div id="board">${roomsHtml}</div>
   </div>`;
 }
@@ -320,7 +321,7 @@ function crewNavHtml() {
     `<button type="button" data-crewview="${v.key}" aria-pressed="${String(S.crewView === v.key)}"${v.key === "wuensche" && openRequestCount ? ` aria-label="${esc(tr("crewViewRequestsWithCount", { n: openRequestCount }))}"` : ""}>${esc(tr(v.nameKey))}${v.key === "wuensche" && openRequestCount ? `<span class="crew-request-count" aria-hidden="true">${openRequestCount}</span>` : ""}</button>`).join("")}</div>`;
 }
 function setupHtml() {
-  const setupViews = SETUP_VIEWS.filter(view => view.key !== "lageplan" || S.superadmin);
+  const setupViews = SETUP_VIEWS;
   if (!setupViews.some(view => view.key === S.setupTab)) S.setupTab = "raeume";
   const subTabsHtml = `<div class="slot-tabs" role="group" aria-label="${esc(tr("setupSubTabsAriaLabel"))}">${setupViews.map(v =>
     `<button type="button" data-setuptab="${v.key}" aria-pressed="${String(S.setupTab === v.key)}">${esc(tr(v.nameKey))}</button>`).join("")}</div>`;
@@ -328,10 +329,20 @@ function setupHtml() {
   return `${subTabsHtml}<div style="margin-top:var(--sp-3)">${contentHtml}</div>`;
 }
 
+function renderCrewConSwitch() {
+  const host = document.getElementById("crewConSwitch");
+  if (!host) return;
+  const cons = (S.crewCons || []).filter(con => con.id !== S.con?.id);
+  host.hidden = S.mode !== "crew" || !S.role || !cons.length;
+  if (host.hidden) { host.innerHTML = ""; return; }
+  host.innerHTML = `<details><summary>${esc(tr("switchCon"))}</summary><nav aria-label="${esc(tr("switchConAria"))}">${cons.map(con => `<a href="plan.html?con=${encodeURIComponent(con.slug || con.id)}&crew=1">${esc(con.name)}</a>`).join("")}</nav></details>`;
+}
+
 /* ---------------- Render-Dispatcher ---------------- */
 function renderActive({ animate = true } = {}) {
   document.body.classList.add("is-ready");
   document.body.classList.toggle("print-mode", S.mode === "print");
+  renderCrewConSwitch();
   // Das Comic-Motiv hängt von der aktuellen Ansicht ab.
   if (document.documentElement.getAttribute("data-theme") === "comic") pickComicBackground();
   const viewC = document.getElementById("viewContent"), crewC = document.getElementById("crewContent");

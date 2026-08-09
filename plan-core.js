@@ -6,6 +6,7 @@ const WS_RE = /workshop|panel|vortrag/i;
 const CON_PARAM = params.get("con");
 const REQUESTED_VIEW = params.get("view");
 const REQUESTED_ROOM = params.get("room");
+const FORCE_CREW_ENTRY = params.get("crew") === "1";
 if (!CON_PARAM) location.href = "index.html";
 // entry=plan öffnet einmalig die öffentliche Ansicht und wird danach entfernt.
 const FORCE_PLAN_ENTRY = params.get("entry") === "plan";
@@ -154,6 +155,33 @@ function makeStore(conId) {
     async publishFloorPlan(expectedRevision) {
       await supaRpc("publish_con_floor_plan", { target_con: conId, expected_revision: expectedRevision }, await w(), { timeoutMs: 10000 });
     },
+    async replaceFloorPlanDocument(document, expectedRevision) {
+      return supaRpc("replace_con_floor_plan", { target_con: conId, expected_revision: expectedRevision || 0, new_document: document }, await w(), { timeoutMs: 10000 });
+    },
+    async listFloorPlanVersions() {
+      return supaFetch(`con_floor_plan_versions?select=id,source_revision,document,kind,created_at,created_by&con_id=eq.${conId}&order=created_at.desc&limit=7`, { headers: supaHeaders(await w()) });
+    },
+    async restoreFloorPlanVersion(versionId, expectedRevision) {
+      return supaRpc("restore_con_floor_plan_version", { target_con: conId, version_id: versionId, expected_revision: expectedRevision }, await w(), { timeoutMs: 10000 });
+    },
+    async listReuseCons() {
+      return supaFetch(`cons?select=id,name,slug&id=neq.${conId}&order=name`, { headers: supaHeaders(await w()) });
+    },
+    async loadReuseCon(sourceConId) {
+      const token = await w();
+      const encoded = encodeURIComponent(sourceConId);
+      const [conRows, rooms, tables, roomFeatureTags, floorPlanRows] = await Promise.all([
+        supaFetch(`cons?select=id,name,slug&id=eq.${encoded}`, { headers: supaHeaders(token) }),
+        supaFetch(`rooms?select=*&con_id=eq.${encoded}&order=sort,name`, { headers: supaHeaders(token) }),
+        supaFetch(`tables?select=*&con_id=eq.${encoded}&order=sort,name`, { headers: supaHeaders(token) }),
+        supaFetch(`room_feature_tags?select=*&con_id=eq.${encoded}`, { headers: supaHeaders(token) }),
+        supaFetch(`con_floor_plans?select=document,revision,updated_at&con_id=eq.${encoded}`, { headers: supaHeaders(token) }),
+      ]);
+      return { con: conRows?.[0] || null, rooms: rooms || [], tables: tables || [], roomFeatureTags: roomFeatureTags || [], floorPlan: floorPlanRows?.[0] || null };
+    },
+    async importRoomsFromCon(sourceConId, sourceRoomIds) {
+      return supaRpc("import_con_rooms", { target_con: conId, source_con: sourceConId, source_room_ids: sourceRoomIds }, await w(), { timeoutMs: 10000 });
+    },
     async ensureSlotsForDays(days) {
       const token = await w();
       if (!token || !days.length) return; // anon kann nicht materialisieren — Slot erscheint erst, wenn Crew die Seite lädt
@@ -223,7 +251,7 @@ const S = {
   con: null, store: null,
   games: [], dbGames: [], slots: [], slotBuckets: [], activeSlot: null,
   featureTags: [], roomFeatureTags: [], gameRequiredTags: [],
-  rooms: [], tables: [], assignments: [], requests: [],
+  rooms: [], tables: [], assignments: [], requests: [], crewCons: [],
   floorPlanPublic: null, floorPlanDraft: null, floorPlanEditorFloorId: null,
   floorPlanViewerFloorId: null, floorPlanPreviewDocument: null,
   role: null, superadmin: false, search: "",
