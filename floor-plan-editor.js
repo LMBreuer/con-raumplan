@@ -809,9 +809,19 @@ function floorPlanObjectFromFabric(object) {
 function containFloorPlanFabricPosition(object) {
   const floor = floorPlanActiveFloor();
   if (!object || !floor) return object;
-  const raw = floorPlanObjectFromFabric(object);
-  const domain = normalizeFloorPlanObject(raw, floor);
-  object.set({ left: domain.x, top: domain.y });
+  object.setCoords();
+  const box = object.getBoundingRect();
+  let deltaX = 0;
+  let deltaY = 0;
+  if (box.width <= floor.width) {
+    if (box.left < 0) deltaX = -box.left;
+    else if (box.left + box.width > floor.width) deltaX = floor.width - box.left - box.width;
+  }
+  if (box.height <= floor.height) {
+    if (box.top < 0) deltaY = -box.top;
+    else if (box.top + box.height > floor.height) deltaY = floor.height - box.top - box.height;
+  }
+  if (deltaX || deltaY) object.set({ left: object.left + deltaX, top: object.top + deltaY });
   object.setCoords();
   return object;
 }
@@ -821,6 +831,7 @@ function normalizeFloorPlanFabricObject(object) {
   if (!object || !floor) return object;
   const raw = floorPlanObjectFromFabric(object);
   const domain = normalizeFloorPlanObject(raw, floor);
+  if (!domain) return object;
   const scaled = Math.abs((object.scaleX || 1) - 1) >= .001 || Math.abs((object.scaleY || 1) - 1) >= .001;
   if (!scaled) {
     object.set({ left: domain.x, top: domain.y });
