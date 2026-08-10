@@ -165,8 +165,9 @@ function floorPlanSvgForExport(documentValue, floor) {
   const wrapper = globalThis.document.createElement("div");
   wrapper.innerHTML = floorPlanSvgHtml(documentValue, floor);
   const svg = wrapper.firstElementChild;
-  svg.setAttribute("width", String(floor.width));
-  svg.setAttribute("height", String(floor.height));
+  const viewport = floorPlanSvgViewport(floor);
+  svg.setAttribute("width", String(viewport.width));
+  svg.setAttribute("height", String(viewport.height));
   return new XMLSerializer().serializeToString(svg);
 }
 
@@ -177,8 +178,9 @@ function floorPlanSvgToPng(documentValue, floor, scale = 3) {
     const url = URL.createObjectURL(blob);
     const image = new Image();
     image.onload = () => {
+      const viewport = floorPlanSvgViewport(floor);
       const canvas = globalThis.document.createElement("canvas");
-      canvas.width = floor.width * scale; canvas.height = floor.height * scale;
+      canvas.width = Math.ceil(viewport.width * scale); canvas.height = Math.ceil(viewport.height * scale);
       const context = canvas.getContext("2d");
       context.fillStyle = "#ffffff"; context.fillRect(0, 0, canvas.width, canvas.height);
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
@@ -210,6 +212,7 @@ async function downloadFloorPlanPdf(documentValue, button) {
     for (let index = 0; index < document.floors.length; index += 1) {
       if (index) pdf.addPage("a4", document.orientation);
       const floor = document.floors[index];
+      const viewport = floorPlanSvgViewport(floor);
       const image = await floorPlanSvgToPng(document, floor, 3);
       pdf.setTextColor(29, 36, 51);
       pdf.setFont("helvetica", "bold");
@@ -225,9 +228,9 @@ async function downloadFloorPlanPdf(documentValue, button) {
       const mapBottom = pageHeight - 11 - legendHeight;
       const availableWidth = pageWidth - margin * 2;
       const availableHeight = mapBottom - mapTop;
-      const scale = Math.min(availableWidth / floor.width, availableHeight / floor.height);
-      const mapWidth = floor.width * scale;
-      const mapHeight = floor.height * scale;
+      const scale = Math.min(availableWidth / viewport.width, availableHeight / viewport.height);
+      const mapWidth = viewport.width * scale;
+      const mapHeight = viewport.height * scale;
       const mapX = (pageWidth - mapWidth) / 2;
       const mapY = mapTop + (availableHeight - mapHeight) / 2;
       pdf.addImage(image, "PNG", mapX, mapY, mapWidth, mapHeight, undefined, "FAST");

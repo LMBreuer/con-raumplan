@@ -88,12 +88,14 @@ function normalizeFloorPlanObject(raw, floor) {
   };
   if (raw.type === "room") {
     const customColor = /^#[0-9a-f]{6}$/i.test(String(raw.customColor || "")) ? String(raw.customColor) : "#64748b";
+    const foregroundColor = /^#[0-9a-f]{6}$/i.test(String(raw.foregroundColor || "")) ? String(raw.foregroundColor) : null;
     return {
       ...base,
       roomId: raw.roomId ? String(raw.roomId) : null,
       fallbackLabel: String(raw.fallbackLabel || "").slice(0, 80),
       customLocation: String(raw.customLocation || "").slice(0, 80),
       customColor,
+      foregroundColor,
       customMarker: FLOOR_PLAN_ROOM_GLYPHS[raw.customMarker] ? raw.customMarker : "square",
       labelVisible: raw.labelVisible !== false,
       markerVisible: raw.markerVisible !== false,
@@ -205,6 +207,33 @@ function floorPlanObjectRoomColor(object, room = floorPlanRoom(object?.roomId)) 
   return /^#[0-9a-f]{6}$/i.test(object?.customColor || "") ? object.customColor : "#64748b";
 }
 
+function floorPlanColorLuminance(color) {
+  const match = /^#([0-9a-f]{6})$/i.exec(String(color || ""));
+  if (!match) return 1;
+  const channels = [0, 2, 4].map(offset => parseInt(match[1].slice(offset, offset + 2), 16) / 255)
+    .map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
+  return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+}
+
+function floorPlanContrastRatio(background, foreground) {
+  const values = [floorPlanColorLuminance(background), floorPlanColorLuminance(foreground)].sort((a, b) => b - a);
+  return (values[0] + .05) / (values[1] + .05);
+}
+
+function floorPlanColorOnWhite(color, opacity = .16) {
+  const match = /^#([0-9a-f]{6})$/i.exec(String(color || ""));
+  if (!match) return "#ffffff";
+  const channels = [0, 2, 4].map(offset => parseInt(match[1].slice(offset, offset + 2), 16))
+    .map(value => Math.round(value * opacity + 255 * (1 - opacity)).toString(16).padStart(2, "0"));
+  return `#${channels.join("")}`;
+}
+
+function floorPlanObjectRoomForeground(object, room = floorPlanRoom(object?.roomId)) {
+  if (/^#[0-9a-f]{6}$/i.test(String(object?.foregroundColor || ""))) return object.foregroundColor;
+  const background = floorPlanColorOnWhite(floorPlanObjectRoomColor(object, room));
+  return floorPlanContrastRatio(background, "#ffffff") > floorPlanContrastRatio(background, "#172033") ? "#ffffff" : "#172033";
+}
+
 function floorPlanObjectRoomGlyph(object, room = floorPlanRoom(object?.roomId)) {
   if (room) return floorPlanRoomGlyph(room);
   return FLOOR_PLAN_ROOM_GLYPHS[object?.customMarker] || "■";
@@ -256,6 +285,7 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
   const room = floorPlanRoom(object.roomId);
   const label = room?.name || object.fallbackLabel || tr("floorPlanUnlinkedRoom");
   const color = floorPlanObjectRoomColor(object, room);
+  const foreground = floorPlanObjectRoomForeground(object, room);
   const glyph = floorPlanObjectRoomGlyph(object, room);
   const labelVisible = object.labelVisible !== false;
   const location = labelVisible ? room?.floor || object.customLocation : "";
@@ -267,12 +297,45 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
     ? ` data-floor-plan-room="${esc(room.id)}" tabindex="0" role="button" aria-label="${esc(tr("floorPlanOpenRoomAria", { name: room.name }))}"`
     : ` aria-label="${esc(label)}"`;
   const cornerRadius = Math.min(object.cornerRadius ?? 18, object.width / 2, object.height / 2);
-  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}"${attrs}${floorPlanRotation(object)} style="--floor-plan-room-color:${color}">
+  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}"${attrs}${floorPlanRotation(object)} style="--floor-plan-room-color:${color};--floor-plan-room-foreground:${foreground}">
     <rect x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" rx="${cornerRadius}" />
     ${labelVisible ? `<text class="floor-plan-map-label" x="${object.x + object.width / 2}" y="${textStart}" text-anchor="middle" dominant-baseline="middle" style="font-size:${layout.labelFontSize}px">${text}</text>` : ""}
     ${object.markerVisible === false ? "" : `<text class="floor-plan-map-marker" x="${object.x + object.width / 2}" y="${object.y + layout.markerCenterY}" text-anchor="middle" dominant-baseline="central" style="font-size:${layout.markerSize}px">${esc(glyph)}</text>`}
     ${location ? `<text class="floor-plan-map-location" x="${object.x + object.width / 2}" y="${object.y + layout.locationY}" text-anchor="middle">${esc(location)}</text>` : ""}
   </g>`;
+}
+
+function floorPlanObjectBounds(object) {
+  const extraBottom = object.type === "symbol" && object.label ? 24 : 0;
+  const room = object.type === "room" ? floorPlanRoom(object.roomId) : null;
+  const roomLabel = room?.name || object.fallbackLabel || "";
+  const roomLocation = room?.floor || object.customLocation || "";
+  const roomLayout = object.type === "room" ? floorPlanRoomLayout(object, roomLabel, roomLocation) : null;
+  const fontSize = object.type === "text" ? object.fontSize || 28 : roomLayout?.labelFontSize || 16;
+  const textLines = object.type === "text"
+    ? floorPlanTextLines(object.text, Math.max(6, Math.floor(object.width / Math.max(7, fontSize * .55))), 5)
+    : object.type === "room" ? roomLayout.lines : [object.label || ""];
+  const estimatedTextWidth = Math.max(0, ...textLines.map(line => line.length * fontSize * .64));
+  const estimatedLocationWidth = object.type === "room" ? roomLocation.length * 14 * .58 : 0;
+  const width = Math.max(object.width, estimatedTextWidth, estimatedLocationWidth);
+  const estimatedTextHeight = object.type === "text" ? textLines.length * fontSize * 1.2 : 0;
+  const height = Math.max(object.height, estimatedTextHeight) + extraBottom;
+  const centerX = object.x + object.width / 2;
+  const centerY = object.y + object.height / 2 + extraBottom / 2;
+  const radians = (object.rotation || 0) * Math.PI / 180;
+  const halfWidth = Math.abs(Math.cos(radians)) * width / 2 + Math.abs(Math.sin(radians)) * height / 2;
+  const halfHeight = Math.abs(Math.sin(radians)) * width / 2 + Math.abs(Math.cos(radians)) * height / 2;
+  return { left: centerX - halfWidth, top: centerY - halfHeight, right: centerX + halfWidth, bottom: centerY + halfHeight };
+}
+
+function floorPlanSvgViewport(floor) {
+  const padding = 12;
+  const bounds = floor.objects.map(floorPlanObjectBounds);
+  const left = Math.min(0, ...bounds.map(item => item.left)) - padding;
+  const top = Math.min(0, ...bounds.map(item => item.top)) - padding;
+  const right = Math.max(floor.width, ...bounds.map(item => item.right)) + padding;
+  const bottom = Math.max(floor.height, ...bounds.map(item => item.bottom)) + padding;
+  return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
 function floorPlanObjectSvg(object, options) {
@@ -303,13 +366,13 @@ function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id =
   const document = normalizeFloorPlanDocument(documentValue);
   const floor = document.floors.find(item => item.id === floorValue?.id) || document.floors[0];
   const title = `${document.title || S.con?.name || tr("floorPlan")} · ${floor.name}`;
-  const edgePadding = 8;
-  return `<svg${id ? ` id="${esc(id)}"` : ""} class="floor-plan-map" viewBox="-${edgePadding} -${edgePadding} ${floor.width + edgePadding * 2} ${floor.height + edgePadding * 2}" role="img" aria-label="${esc(title)}" xmlns="http://www.w3.org/2000/svg">
+  const viewport = floorPlanSvgViewport(floor);
+  return `<svg${id ? ` id="${esc(id)}"` : ""} class="floor-plan-map" viewBox="${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}" data-floor-plan-width="${viewport.width}" data-floor-plan-height="${viewport.height}" role="img" aria-label="${esc(title)}" xmlns="http://www.w3.org/2000/svg">
     <title>${esc(title)}</title>
     <style>
       .floor-plan-map-page{fill:#fff}.floor-plan-map-room rect{fill:var(--floor-plan-room-color);fill-opacity:.16;stroke:var(--floor-plan-room-color);stroke-width:4}
-      .floor-plan-map-label{fill:#172033;font:700 25px Arial,sans-serif}.floor-plan-map-marker{fill:var(--floor-plan-room-color);font:800 48px Arial,sans-serif}
-      .floor-plan-map-location{fill:#596579;font:500 14px Arial,sans-serif}.floor-plan-map-text text{fill:#172033;font:600 28px Arial,sans-serif}
+      .floor-plan-map-label{fill:var(--floor-plan-room-foreground);font:700 25px Arial,sans-serif}.floor-plan-map-marker{fill:var(--floor-plan-room-foreground);font:800 48px Arial,sans-serif}
+      .floor-plan-map-location{fill:var(--floor-plan-room-foreground);font:500 14px Arial,sans-serif}.floor-plan-map-text text{fill:#172033;font:600 28px Arial,sans-serif}
       .floor-plan-map-symbol circle{fill:#fff;stroke:#62708a;stroke-width:4}.floor-plan-map-symbol>text{fill:#27344d;font:700 32px Arial,sans-serif}.floor-plan-map-symbol-label{fill:#596579!important;font:600 16px Arial,sans-serif!important}
       .floor-plan-map-room.is-orphan rect{stroke:#b45309;stroke-dasharray:10 7;fill:#fef3c7}
     </style>
