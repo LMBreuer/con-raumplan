@@ -72,18 +72,21 @@ function newFloorPlanDocument() {
 
 const floorPlanNumber = (value, fallback, min = -10000, max = 10000) => {
   const number = Number(value);
-  return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
+  const resolved = Number.isFinite(number) ? number : Number(fallback);
+  return Math.min(max, Math.max(min, Number.isFinite(resolved) ? resolved : 0));
 };
 
 function normalizeFloorPlanObject(raw, floor) {
   if (!raw || typeof raw !== "object" || !["room", "text", "symbol", "image"].includes(raw.type)) return null;
+  const width = floorPlanNumber(raw.width, raw.type === "room" ? 250 : 120, 24, floor.width);
+  const height = floorPlanNumber(raw.height, raw.type === "room" ? 150 : 56, 24, floor.height);
   const base = {
     id: String(raw.id || floorPlanId(raw.type)),
     type: raw.type,
-    x: floorPlanNumber(raw.x, 80, 0, floor.width),
-    y: floorPlanNumber(raw.y, 80, 0, floor.height),
-    width: floorPlanNumber(raw.width, raw.type === "room" ? 250 : 120, 24, floor.width),
-    height: floorPlanNumber(raw.height, raw.type === "room" ? 150 : 56, 24, floor.height),
+    x: floorPlanNumber(raw.x, 80, 0, Math.max(0, floor.width - width)),
+    y: floorPlanNumber(raw.y, 80, 0, Math.max(0, floor.height - height)),
+    width,
+    height,
     rotation: floorPlanNumber(raw.rotation, 0, -360, 360),
   };
   if (raw.type === "room") {
@@ -305,37 +308,8 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
   </g>`;
 }
 
-function floorPlanObjectBounds(object) {
-  const extraBottom = object.type === "symbol" && object.label ? 24 : 0;
-  const room = object.type === "room" ? floorPlanRoom(object.roomId) : null;
-  const roomLabel = room?.name || object.fallbackLabel || "";
-  const roomLocation = room?.floor || object.customLocation || "";
-  const roomLayout = object.type === "room" ? floorPlanRoomLayout(object, roomLabel, roomLocation) : null;
-  const fontSize = object.type === "text" ? object.fontSize || 28 : roomLayout?.labelFontSize || 16;
-  const textLines = object.type === "text"
-    ? floorPlanTextLines(object.text, Math.max(6, Math.floor(object.width / Math.max(7, fontSize * .55))), 5)
-    : object.type === "room" ? roomLayout.lines : [object.label || ""];
-  const estimatedTextWidth = Math.max(0, ...textLines.map(line => line.length * fontSize * .64));
-  const estimatedLocationWidth = object.type === "room" ? roomLocation.length * 14 * .58 : 0;
-  const width = Math.max(object.width, estimatedTextWidth, estimatedLocationWidth);
-  const estimatedTextHeight = object.type === "text" ? textLines.length * fontSize * 1.2 : 0;
-  const height = Math.max(object.height, estimatedTextHeight) + extraBottom;
-  const centerX = object.x + object.width / 2;
-  const centerY = object.y + object.height / 2 + extraBottom / 2;
-  const radians = (object.rotation || 0) * Math.PI / 180;
-  const halfWidth = Math.abs(Math.cos(radians)) * width / 2 + Math.abs(Math.sin(radians)) * height / 2;
-  const halfHeight = Math.abs(Math.sin(radians)) * width / 2 + Math.abs(Math.cos(radians)) * height / 2;
-  return { left: centerX - halfWidth, top: centerY - halfHeight, right: centerX + halfWidth, bottom: centerY + halfHeight };
-}
-
 function floorPlanSvgViewport(floor) {
-  const padding = 12;
-  const bounds = floor.objects.map(floorPlanObjectBounds);
-  const left = Math.min(0, ...bounds.map(item => item.left)) - padding;
-  const top = Math.min(0, ...bounds.map(item => item.top)) - padding;
-  const right = Math.max(floor.width, ...bounds.map(item => item.right)) + padding;
-  const bottom = Math.max(floor.height, ...bounds.map(item => item.bottom)) + padding;
-  return { x: left, y: top, width: right - left, height: bottom - top };
+  return { x: 0, y: 0, width: floor.width, height: floor.height };
 }
 
 function floorPlanObjectSvg(object, options) {
@@ -370,9 +344,9 @@ function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id =
   return `<svg${id ? ` id="${esc(id)}"` : ""} class="floor-plan-map" viewBox="${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}" data-floor-plan-width="${viewport.width}" data-floor-plan-height="${viewport.height}" role="img" aria-label="${esc(title)}" xmlns="http://www.w3.org/2000/svg">
     <title>${esc(title)}</title>
     <style>
-      .floor-plan-map-page{fill:#fff}.floor-plan-map-room rect{fill:var(--floor-plan-room-color);fill-opacity:.16;stroke:var(--floor-plan-room-color);stroke-width:4}
+      .floor-plan-map-page{fill:#fff}.floor-plan-map-room rect{fill:var(--floor-plan-room-color);fill-opacity:.149;stroke:var(--floor-plan-room-color);stroke-width:4}
       .floor-plan-map-label{fill:var(--floor-plan-room-foreground);font:700 25px Arial,sans-serif}.floor-plan-map-marker{fill:var(--floor-plan-room-foreground);font:800 48px Arial,sans-serif}
-      .floor-plan-map-location{fill:var(--floor-plan-room-foreground);font:500 14px Arial,sans-serif}.floor-plan-map-text text{fill:#172033;font:600 28px Arial,sans-serif}
+      .floor-plan-map-location{fill:var(--floor-plan-room-foreground);font:500 13px Arial,sans-serif}.floor-plan-map-text text{fill:#172033;font:600 28px Arial,sans-serif}
       .floor-plan-map-symbol circle{fill:#fff;stroke:#62708a;stroke-width:4}.floor-plan-map-symbol>text{fill:#27344d;font:700 32px Arial,sans-serif}.floor-plan-map-symbol-label{fill:#596579!important;font:600 16px Arial,sans-serif!important}
       .floor-plan-map-room.is-orphan rect{stroke:#b45309;stroke-dasharray:10 7;fill:#fef3c7}
     </style>

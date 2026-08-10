@@ -12,7 +12,6 @@ let floorPlanSaveTimer = null;
 let floorPlanSaveInFlight = null;
 let floorPlanPendingSnapshot = null;
 let floorPlanEditorAbortController = null;
-const floorPlanScaleNormalizations = new WeakSet();
 const FLOOR_PLAN_CUSTOM_MARKERS = [...ROOM_MARKERS];
 const FLOOR_PLAN_GRAPHIC_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const FLOOR_PLAN_TRACE_TYPES = new Set([...FLOOR_PLAN_GRAPHIC_TYPES, "application/pdf"]);
@@ -756,6 +755,7 @@ function initializeFloorPlanCanvas() {
     const object = event.target;
     if (floorPlanGridVisible) object.set({ left: Math.round(object.left / 12) * 12, top: Math.round(object.top / 12) * 12 });
     alignFloorPlanObject(object);
+    containFloorPlanFabricPosition(object);
   });
   floorPlanCanvas.on("object:scaling", event => {
     const object = event.target;
@@ -764,7 +764,7 @@ function initializeFloorPlanCanvas() {
   });
   floorPlanCanvas.on("object:modified", event => {
     clearFloorPlanSnapGuides();
-    normalizeFloorPlanFabricScale(event.target);
+    normalizeFloorPlanFabricObject(event.target);
     floorPlanCanvasChanged();
   });
   floorPlanCanvas.on("mouse:up", clearFloorPlanSnapGuides);
@@ -806,25 +806,37 @@ function floorPlanObjectFromFabric(object) {
   return { ...base, symbol: object.fpSymbol || "info", label: object.fpLabel || "", backgroundVisible: object.fpBackgroundVisible !== false };
 }
 
-function normalizeFloorPlanFabricScale(object) {
-  if (!object || !["room", "symbol", "image"].includes(object.fpType) || (Math.abs(object.scaleX - 1) < .001 && Math.abs(object.scaleY - 1) < .001)) return object;
-  if (floorPlanScaleNormalizations.has(object)) return object;
-  const domain = floorPlanObjectFromFabric(object);
+function containFloorPlanFabricPosition(object) {
+  const floor = floorPlanActiveFloor();
+  if (!object || !floor) return object;
+  const raw = floorPlanObjectFromFabric(object);
+  const domain = normalizeFloorPlanObject(raw, floor);
+  object.set({ left: domain.x, top: domain.y });
+  object.setCoords();
+  return object;
+}
+
+function normalizeFloorPlanFabricObject(object) {
+  const floor = floorPlanActiveFloor();
+  if (!object || !floor) return object;
+  const raw = floorPlanObjectFromFabric(object);
+  const domain = normalizeFloorPlanObject(raw, floor);
+  const scaled = Math.abs((object.scaleX || 1) - 1) >= .001 || Math.abs((object.scaleY || 1) - 1) >= .001;
+  if (!scaled) {
+    object.set({ left: domain.x, top: domain.y });
+    object.setCoords();
+    return object;
+  }
   const canvas = floorPlanCanvas;
   const index = canvas.getObjects().indexOf(object);
-  floorPlanScaleNormalizations.add(object);
-  requestAnimationFrame(() => {
-    floorPlanScaleNormalizations.delete(object);
-    if (canvas !== floorPlanCanvas || !canvas.getObjects().includes(object)) return;
-    const replacement = floorPlanFabricObject(domain);
-    canvas.remove(object);
-    canvas.insertAt(index, replacement);
-    canvas.setActiveObject(replacement);
-    replacement.setCoords();
-    canvas.requestRenderAll();
-    renderFloorPlanInspector();
-  });
-  return object;
+  const replacement = floorPlanFabricObject(domain);
+  canvas.remove(object);
+  canvas.insertAt(index, replacement);
+  canvas.setActiveObject(replacement);
+  replacement.setCoords();
+  canvas.requestRenderAll();
+  renderFloorPlanInspector();
+  return replacement;
 }
 
 function floorPlanSaveErrorMessage(error) {
@@ -842,7 +854,7 @@ function floorPlanSaveErrorMessage(error) {
 function syncFloorPlanCanvasToDocument({ history = true } = {}) {
   const floor = floorPlanActiveFloor();
   if (!floor || !floorPlanCanvas) return;
-  floor.objects = floorPlanCanvas.getObjects().map(floorPlanObjectFromFabric);
+  floor.objects = floorPlanCanvas.getObjects().map(object => normalizeFloorPlanObject(floorPlanObjectFromFabric(object), floor)).filter(Boolean);
   const serialized = JSON.stringify(floorPlanEditorDocument);
   if (history && floorPlanHistory.at(-1) !== serialized) {
     floorPlanHistory.push(serialized);
@@ -1439,5 +1451,6 @@ function floorPlanEditorKeydown(event) {
   if (event.key === "ArrowRight") active.left += step;
   if (event.key === "ArrowUp") active.top -= step;
   if (event.key === "ArrowDown") active.top += step;
+  containFloorPlanFabricPosition(active);
   active.setCoords(); floorPlanCanvas.requestRenderAll(); floorPlanCanvasChanged();
 }

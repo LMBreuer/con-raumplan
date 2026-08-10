@@ -98,7 +98,8 @@ document.getElementById("credits").innerHTML = `
   <a href="https://playabl.io" target="_blank" rel="noopener">Playabl</a> ·
   <a href="https://www.3w6-podcast.com/" target="_blank" rel="noopener">3W6-Community</a> ·
   <a href="https://lmbreuer.github.io/playabl-dashboard/" target="_blank" rel="noopener">Slot-Dashboard</a> ·
-  <a href="impressum.html"><span data-i18n="imprint">${esc(tr("imprint"))}</span></a> <span id="themeCatSlot"></span>`;
+  <a href="impressum.html"><span data-i18n="imprint">${esc(tr("imprint"))}</span></a> <span id="themeCatSlot"></span>
+  <span class="ai-disclosure"><button type="button" class="ai-disclosure-trigger" aria-describedby="aiDisclosureLanding" data-i18n="aiDisclosureLabel">${esc(tr("aiDisclosureLabel"))}</button><span id="aiDisclosureLanding" class="ai-disclosure-tooltip" role="tooltip" data-i18n="aiDisclosureText">${esc(tr("aiDisclosureText"))}</span></span>`;
 updateCatEasterEgg();
 
 /* ---------- Cons laden & anzeigen ---------- */
