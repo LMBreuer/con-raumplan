@@ -6,7 +6,10 @@
 
   const VERSION = "2";
   const ACTIVE_KEY = "raumplan-guided-tour-active";
-  const teaserKey = `guided-tour-teaser-v${VERSION}`;
+  // v3 unterscheidet erstmals bewusst zwischen bloßem Schließen und der
+  // ausdrücklichen Entscheidung „Später“. Frühere Versionen merkten den
+  // Hinweis bereits beim Anzeigen als erledigt.
+  const teaserKey = "guided-tour-teaser-dismissed-v3";
   const completeKey = type => `guided-tour-${type}-complete-v${VERSION}`;
 
   let config = null;
@@ -147,10 +150,13 @@
     layer.querySelector(".guided-tour-skip").addEventListener("click", () => stop("skipped"));
     layer.querySelector(".guided-tour-back").addEventListener("click", previous);
     layer.querySelector(".guided-tour-next").addEventListener("click", next);
-    teaser.querySelector(".guided-tour-teaser-close").addEventListener("click", dismissTeaser);
-    teaser.querySelector("[data-tour-teaser-dismiss]").addEventListener("click", dismissTeaser);
+    teaser.querySelector(".guided-tour-teaser-close").addEventListener("click", () => dismissTeaser());
+    teaser.querySelector("[data-tour-teaser-dismiss]").addEventListener("click", () => {
+      dismissTeaser({ remember: true });
+      showNotice("tourLaterNotice", 4200);
+    });
     teaser.querySelector("[data-tour-teaser-start]").addEventListener("click", () => {
-      dismissTeaser();
+      dismissTeaser({ remember: true });
       start("public");
     });
     followup.querySelector(".guided-tour-followup-close").addEventListener("click", () => dismissFollowup());
@@ -252,8 +258,9 @@
   }
 
   function maybeShowTeaser() {
-    if (!config?.showTeaser || Prefs.get(teaserKey, "") === "1") return;
-    Prefs.set(teaserKey, "1");
+    if (!config?.showTeaser
+        || Prefs.get(teaserKey, "") === "1"
+        || Prefs.get(completeKey("public"), "") === "1") return;
     window.setTimeout(() => {
       if (active || document.querySelector("dialog[open]")) return;
       teaser.hidden = false;
@@ -261,8 +268,9 @@
     }, 900);
   }
 
-  function dismissTeaser() {
+  function dismissTeaser({ remember = false } = {}) {
     if (!teaser || teaser.hidden) return;
+    if (remember) Prefs.set(teaserKey, "1");
     teaser.classList.remove("is-visible");
     window.setTimeout(() => { teaser.hidden = true; }, reducedMotion() ? 0 : 180);
   }

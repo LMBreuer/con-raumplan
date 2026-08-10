@@ -2627,6 +2627,7 @@ dialog {
 .floor-plan-zoom-controls button { min-width: 36px; justify-content: center; padding-inline: 9px; }
 .floor-plan-zoom-controls output { min-width: 54px; color: var(--text-secondary); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: center; }
 .floor-plan-zoom-controls .floor-plan-zoom-fit { min-width: 0; }
+.floor-plan-zoom-fit svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .floor-plan-zoom-controls .floor-plan-grid-toggle { min-width: 0; }
 .floor-plan-grid-toggle[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface-1)); color: var(--accent); }
 .floor-plan-trace-controls { flex: 1 1 420px; justify-content: flex-end; }
@@ -2639,6 +2640,10 @@ dialog {
 .floor-plan-canvas-wrap { width: 100%; margin: 0 auto; background: #fff; box-shadow: 0 18px 45px rgba(20, 30, 50, .16); border-radius: 3px; overflow: hidden; transition: width .16s ease; }
 .floor-plan-canvas-wrap .canvas-container { width: 100% !important; height: auto !important; background: #fff; }
 .floor-plan-canvas-wrap .canvas-container::before { content: ""; position: absolute; inset: 0; pointer-events: none; }
+.floor-plan-snap-guide { position: absolute; z-index: 12; display: block; pointer-events: none; background: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent), 0 0 8px color-mix(in srgb, var(--accent) 45%, transparent); }
+.floor-plan-snap-guide.is-vertical { top: 0; bottom: 0; width: 2px; transform: translateX(-1px); }
+.floor-plan-snap-guide.is-horizontal { left: 0; right: 0; height: 2px; transform: translateY(-1px); }
+.floor-plan-snap-guide[hidden] { display: none; }
 .floor-plan-canvas-wrap .canvas-container.is-grid-visible::before {
   background-image: linear-gradient(rgba(91, 141, 239, .13) 1px, transparent 1px), linear-gradient(90deg, rgba(91, 141, 239, .13) 1px, transparent 1px);
   background-size: var(--floor-plan-grid-x) var(--floor-plan-grid-y);

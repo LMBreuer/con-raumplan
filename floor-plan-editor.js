@@ -169,7 +169,7 @@ function floorPlanEditorWorkspaceHtml() {
             <button type="button" id="floorPlanZoomOut" title="${esc(tr("floorPlanZoomOut"))}" aria-label="${esc(tr("floorPlanZoomOut"))}">−</button>
             <output id="floorPlanZoomValue" aria-live="polite">100 %</output>
             <button type="button" id="floorPlanZoomIn" title="${esc(tr("floorPlanZoomIn"))}" aria-label="${esc(tr("floorPlanZoomIn"))}">＋</button>
-            <button type="button" id="floorPlanZoomFit" class="floor-plan-zoom-fit">${esc(tr("floorPlanZoomFit"))}</button>
+            <button type="button" id="floorPlanZoomFit" class="floor-plan-zoom-fit" title="${esc(tr("floorPlanZoomFit"))}" aria-label="${esc(tr("floorPlanZoomFit"))}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg></button>
             <button type="button" id="floorPlanGridToggle" class="floor-plan-grid-toggle" aria-pressed="${String(floorPlanGridVisible)}" title="${esc(tr("floorPlanGridToggle"))}">▦ ${esc(tr("floorPlanGrid"))}</button>
             <button type="button" id="floorPlanSnapToggle" class="floor-plan-grid-toggle" aria-pressed="${String(floorPlanSnapEnabled)}" title="${esc(tr("floorPlanSnapHint"))}">↔ ${esc(tr("floorPlanSnap"))}</button>
           </div>
@@ -385,35 +385,77 @@ function toggleFloorPlanSnap() {
   catch { /* Die lokale Komforteinstellung darf den Editor nicht blockieren. */ }
   const button = document.getElementById("floorPlanSnapToggle");
   if (button) button.setAttribute("aria-pressed", String(floorPlanSnapEnabled));
+  if (!floorPlanSnapEnabled) clearFloorPlanSnapGuides();
 }
 
-function floorPlanSnapDelta(activeValues, targetValues, threshold = 8) {
+function floorPlanSnapCandidate(activeValues, targetValues, threshold = 8) {
   let best = null;
   for (const active of activeValues) for (const target of targetValues) {
     const delta = target - active;
-    if (Math.abs(delta) <= threshold && (best == null || Math.abs(delta) < Math.abs(best))) best = delta;
+    if (Math.abs(delta) <= threshold && (best == null || Math.abs(delta) < Math.abs(best.delta))) best = { delta, target };
   }
   return best;
 }
 
+function floorPlanSnapGuide(axis) {
+  const container = document.querySelector(".floor-plan-canvas-wrap .canvas-container");
+  if (!container) return null;
+  let guide = container.querySelector(`[data-floor-plan-snap-guide="${axis}"]`);
+  if (!guide) {
+    guide = document.createElement("span");
+    guide.className = `floor-plan-snap-guide is-${axis}`;
+    guide.dataset.floorPlanSnapGuide = axis;
+    guide.hidden = true;
+    container.appendChild(guide);
+  }
+  return guide;
+}
+
+function showFloorPlanSnapGuides({ x = null, y = null } = {}) {
+  const floor = floorPlanActiveFloor();
+  if (!floor) return;
+  const vertical = floorPlanSnapGuide("vertical");
+  const horizontal = floorPlanSnapGuide("horizontal");
+  if (vertical) {
+    vertical.hidden = x == null;
+    if (x != null) vertical.style.left = `${Math.min(100, Math.max(0, x / floor.width * 100))}%`;
+  }
+  if (horizontal) {
+    horizontal.hidden = y == null;
+    if (y != null) horizontal.style.top = `${Math.min(100, Math.max(0, y / floor.height * 100))}%`;
+  }
+}
+
+function clearFloorPlanSnapGuides() {
+  document.querySelectorAll("[data-floor-plan-snap-guide]").forEach(guide => { guide.hidden = true; });
+}
+
 function alignFloorPlanObject(object) {
-  if (!floorPlanSnapEnabled || !object || object.type === "activeSelection") return;
+  if (!floorPlanSnapEnabled || !object) {
+    clearFloorPlanSnapGuides();
+    return;
+  }
   const floor = floorPlanActiveFloor();
   if (!floor) return;
   object.setCoords();
   const box = object.getBoundingRect();
   const xTargets = [0, floor.width / 2, floor.width];
   const yTargets = [0, floor.height / 2, floor.height];
-  floorPlanCanvas.getObjects().filter(other => other !== object).forEach(other => {
+  const movingObjects = new Set(object.type === "activeSelection" && object.getObjects ? object.getObjects() : [object]);
+  floorPlanCanvas.getObjects().filter(other => !movingObjects.has(other)).forEach(other => {
     const target = other.getBoundingRect();
     xTargets.push(target.left, target.left + target.width / 2, target.left + target.width);
     yTargets.push(target.top, target.top + target.height / 2, target.top + target.height);
   });
-  const dx = floorPlanSnapDelta([box.left, box.left + box.width / 2, box.left + box.width], xTargets);
-  const dy = floorPlanSnapDelta([box.top, box.top + box.height / 2, box.top + box.height], yTargets);
-  if (dx != null) object.set("left", object.left + dx);
-  if (dy != null) object.set("top", object.top + dy);
+  // Die Toleranz bleibt auch bei verkleinerter/vergrößerter Arbeitsfläche
+  // ungefähr 14 sichtbare Pixel groß und ist damit bewusst spürbar.
+  const threshold = 14 / floorPlanEditorZoom;
+  const xSnap = floorPlanSnapCandidate([box.left, box.left + box.width / 2, box.left + box.width], xTargets, threshold);
+  const ySnap = floorPlanSnapCandidate([box.top, box.top + box.height / 2, box.top + box.height], yTargets, threshold);
+  if (xSnap) object.set("left", object.left + xSnap.delta);
+  if (ySnap) object.set("top", object.top + ySnap.delta);
   object.setCoords();
+  showFloorPlanSnapGuides({ x: xSnap?.target ?? null, y: ySnap?.target ?? null });
 }
 
 function floorPlanTraceEntry() {
@@ -523,7 +565,7 @@ function initializeFloorPlanCanvas() {
   floorPlanCanvas.add(...floor.objects.map(floorPlanFabricObject));
   floorPlanCanvas.on("selection:created", renderFloorPlanInspector);
   floorPlanCanvas.on("selection:updated", renderFloorPlanInspector);
-  floorPlanCanvas.on("selection:cleared", renderFloorPlanInspector);
+  floorPlanCanvas.on("selection:cleared", () => { clearFloorPlanSnapGuides(); renderFloorPlanInspector(); });
   floorPlanCanvas.on("object:moving", event => {
     const object = event.target;
     if (floorPlanGridVisible) object.set({ left: Math.round(object.left / 12) * 12, top: Math.round(object.top / 12) * 12 });
@@ -534,9 +576,11 @@ function initializeFloorPlanCanvas() {
     if (object?.fpType === "image") object.set("scaleY", object.scaleX);
   });
   floorPlanCanvas.on("object:modified", event => {
+    clearFloorPlanSnapGuides();
     normalizeFloorPlanFabricScale(event.target);
     floorPlanCanvasChanged();
   });
+  floorPlanCanvas.on("mouse:up", clearFloorPlanSnapGuides);
   floorPlanHistory = [JSON.stringify(floorPlanEditorDocument)];
   floorPlanFuture = [];
   updateFloorPlanHistoryButtons();
