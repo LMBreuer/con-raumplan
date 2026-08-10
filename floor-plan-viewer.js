@@ -1,6 +1,7 @@
 /* Öffentliche, Fabric-unabhängige Lageplanansicht sowie Druck/PDF-Export. */
 const FLOOR_PLAN_JSPDF_URL = "https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js";
 let floorPlanPdfPromise = null;
+let floorPlanPendingRoomHighlight = REQUESTED_ROOM || null;
 
 function activeFloorPlanDocument() {
   const value = S.floorPlanPreviewDocument || S.floorPlanPublic?.document;
@@ -10,6 +11,8 @@ function activeFloorPlanDocument() {
 function floorPlanViewerHtml() {
   const document = activeFloorPlanDocument();
   if (!document) return emptyState(tr("floorPlanEmptyPublic"));
+  const pendingFloor = floorPlanPendingRoomHighlight ? floorPlanFloorForRoom(document, floorPlanPendingRoomHighlight) : null;
+  if (pendingFloor) S.floorPlanViewerFloorId = pendingFloor.id;
   const activeFloor = document.floors.find(floor => floor.id === S.floorPlanViewerFloorId) || document.floors[0];
   S.floorPlanViewerFloorId = activeFloor.id;
   const floorTabs = document.floors.map(floor => `<button type="button" data-public-floor-plan-floor="${esc(floor.id)}" aria-pressed="${String(floor.id === activeFloor.id)}">${esc(floor.name)}</button>`).join("");
@@ -36,6 +39,7 @@ function mountFloorPlanViewer() {
   const document = activeFloorPlanDocument();
   if (!document) return;
   globalThis.document.querySelectorAll("[data-public-floor-plan-floor]").forEach(button => button.addEventListener("click", () => {
+    floorPlanPendingRoomHighlight = null;
     S.floorPlanViewerFloorId = button.dataset.publicFloorPlanFloor;
     renderActive({ animate: false });
   }));
@@ -53,7 +57,23 @@ function mountFloorPlanViewer() {
   globalThis.document.getElementById("floorPlanBackToEditor")?.addEventListener("click", () => {
     S.floorPlanPreviewDocument = null; S.mode = "crew"; S.crewView = "setup"; S.setupTab = "lageplan"; renderActive();
   });
-  if (REQUESTED_ROOM && floorPlanRoom(REQUESTED_ROOM)) showFloorPlanRoomDetails(REQUESTED_ROOM);
+  if (floorPlanPendingRoomHighlight && floorPlanRoom(floorPlanPendingRoomHighlight)) {
+    const roomId = floorPlanPendingRoomHighlight;
+    floorPlanPendingRoomHighlight = null;
+    showFloorPlanRoomDetails(roomId, { highlight: true });
+  }
+}
+
+function jumpToFloorPlanRoom(roomId) {
+  const document = activeFloorPlanDocument();
+  const floor = floorPlanFloorForRoom(document, roomId);
+  if (!floor) return;
+  floorPlanPendingRoomHighlight = roomId;
+  S.floorPlanViewerFloorId = floor.id;
+  S.mode = "view";
+  S.view = "lageplan";
+  renderActive({ animate: false });
+  history.replaceState(null, "", `${location.pathname}?con=${encodeURIComponent(S.con?.slug || S.con?.id)}&view=lageplan&room=${encodeURIComponent(roomId)}`);
 }
 
 function floorPlanRoomGames(roomId) {
@@ -65,7 +85,7 @@ function floorPlanRoomGames(roomId) {
   }).filter(Boolean);
 }
 
-function showFloorPlanRoomDetails(roomId) {
+function showFloorPlanRoomDetails(roomId, { highlight = false } = {}) {
   const room = floorPlanRoom(roomId);
   const detail = globalThis.document.getElementById("floorPlanRoomDetail");
   if (!room || !detail) return;
@@ -81,6 +101,16 @@ function showFloorPlanRoomDetails(roomId) {
     <button type="button" class="primary" id="floorPlanJumpRoomBtn" data-room-id="${esc(room.id)}">${esc(tr("floorPlanShowInRooms"))} →</button>`;
   detail.querySelector("#floorPlanJumpRoomBtn").addEventListener("click", () => jumpFromFloorPlanToRoom(room.id));
   globalThis.document.querySelectorAll("[data-floor-plan-room]").forEach(element => element.classList.toggle("is-active", element.dataset.floorPlanRoom === room.id));
+  if (highlight) {
+    const element = globalThis.document.querySelector(`[data-floor-plan-room="${CSS.escape(room.id)}"]`);
+    if (element) {
+      element.classList.remove("is-jump-highlight");
+      requestAnimationFrame(() => {
+        element.classList.add("is-jump-highlight");
+        element.addEventListener("animationend", () => element.classList.remove("is-jump-highlight"), { once: true });
+      });
+    }
+  }
 }
 
 function jumpFromFloorPlanToRoom(roomId) {

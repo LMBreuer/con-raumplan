@@ -200,11 +200,21 @@ function configurePlanTours() {
             bodyKey: "tourPublicPlanBody",
           },
           {
+            prepare: showPublic("raster"),
             target: ".public-toolbar",
             titleKey: "tourPublicControlsTitle",
             bodyKey: "tourPublicControlsBody",
           },
           {
+            prepare: showPublic("raster"),
+            target: "#personalGroup",
+            titleKey: "tourPublicPersonalTitle",
+            bodyKey: "tourPublicPersonalBody",
+            when: () => !!S.con?.playabl_event_id,
+            optional: true,
+          },
+          {
+            prepare: showPublic("raster"),
             target: () => document.querySelector("#viewContent .public-chip") || document.getElementById("viewContent"),
             titleKey: "tourPublicGameTitle",
             bodyKey: "tourPublicGameBody",
@@ -220,6 +230,32 @@ function configurePlanTours() {
             target: "#viewContent",
             titleKey: "tourPublicRoomsTitle",
             bodyKey: "tourPublicRoomsBody",
+          },
+          {
+            prepare: showPublic("raeume"),
+            target: () => document.querySelector(".floor-plan-room-link"),
+            titleKey: "tourPublicRoomMapLinkTitle",
+            bodyKey: "tourPublicRoomMapLinkBody",
+            when: () => !!(floorPlanInteractiveEnabled() && S.floorPlanPublic?.document && S.rooms.some(room => floorPlanFloorForRoom(S.floorPlanPublic.document, room.id))),
+            optional: true,
+          },
+          {
+            prepare: showPublic("raeume"),
+            target: "#floorPlanAction",
+            titleKey: "tourPublicFloorPlanChoiceTitle",
+            bodyKey: "tourPublicFloorPlanChoiceBody",
+            when: () => floorPlanPublicSources().length > 0,
+            optional: true,
+          },
+          {
+            prepare: async () => {
+              if (floorPlanInteractiveEnabled() && S.floorPlanPublic?.document) await showPublic("lageplan")();
+            },
+            target: () => document.querySelector(".floor-plan-public-layout"),
+            titleKey: "tourPublicFloorPlanTitle",
+            bodyKey: "tourPublicFloorPlanBody",
+            when: () => !!(floorPlanInteractiveEnabled() && S.floorPlanPublic?.document),
+            optional: true,
           },
           {
             target: "#printBtn",
@@ -243,21 +279,25 @@ function configurePlanTours() {
             vars: () => ({ role: tr(S.role === "admin" ? "tourRoleAdmin" : "tourRoleEditor") }),
           },
           {
+            prepare: showCrew({ crewView: "zuordnen" }),
             target: () => document.querySelector(".crew-slot-group") || document.querySelector(".toolbar-card"),
             titleKey: "tourCrewSlotsTitle",
             bodyKey: "tourCrewSlotsBody",
           },
           {
+            prepare: showCrew({ crewView: "zuordnen" }),
             target: () => document.querySelector(".assign-layout") || document.getElementById("crewContent"),
             titleKey: "tourCrewAssignTitle",
             bodyKey: "tourCrewAssignBody",
           },
           {
+            prepare: showCrew({ crewView: "zuordnen" }),
             target: () => document.querySelector(".queue-actions") || document.querySelector(".assign-layout"),
             titleKey: "tourCrewAutoTitle",
             bodyKey: "tourCrewAutoBody",
           },
           {
+            prepare: showCrew({ crewView: "zuordnen" }),
             target: () => document.querySelector(".crew-filter-group") || document.querySelector(".toolbar-card"),
             titleKey: "tourCrewFilterTitle",
             bodyKey: "tourCrewFilterBody",
@@ -267,6 +307,34 @@ function configurePlanTours() {
             target: "#crewContent .slot-tabs",
             titleKey: "tourCrewSetupTitle",
             bodyKey: "tourCrewSetupBody",
+          },
+          {
+            prepare: showCrew({ crewView: "setup", setupTab: "raeume" }),
+            target: "#roomImportBtn",
+            titleKey: "tourCrewRoomReuseTitle",
+            bodyKey: "tourCrewRoomReuseBody",
+            optional: true,
+          },
+          {
+            prepare: showCrew({ crewView: "setup", setupTab: "lageplan" }),
+            target: ".floor-plan-setup-card",
+            titleKey: "tourCrewFloorPlanTitle",
+            bodyKey: "tourCrewFloorPlanBody",
+          },
+          {
+            prepare: showCrew({ crewView: "setup", setupTab: "lageplan" }),
+            target: () => document.querySelector(".floor-plan-canvas-stage"),
+            titleKey: "tourCrewFloorPlanEditorTitle",
+            bodyKey: "tourCrewFloorPlanEditorBody",
+            when: () => !!S.floorPlanDraft?.document,
+            optional: true,
+          },
+          {
+            target: ".crew-con-switch",
+            titleKey: "tourCrewConSwitchTitle",
+            bodyKey: "tourCrewConSwitchBody",
+            when: () => (S.crewCons || []).some(con => con.id !== S.con?.id),
+            optional: true,
           },
           {
             prepare: async () => {

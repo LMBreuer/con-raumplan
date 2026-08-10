@@ -13,7 +13,7 @@ const FLOOR_PLAN_GRAPHIC_LIMITS = {
 };
 const FLOOR_PLAN_GRAPHIC_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=]+$/i;
 const FLOOR_PLAN_SYMBOLS = {
-  entrance: { glyph: "↳", category: "access", de: "Eingang", en: "Entrance" },
+  entrance: { glyph: "⇥", category: "access", de: "Eingang", en: "Entrance" },
   exit: { glyph: "↗", category: "access", de: "Ausgang", en: "Exit" },
   door: { glyph: "▯", category: "access", de: "Tür", en: "Door" },
   stairs: { glyph: "≋", category: "access", de: "Treppe", en: "Stairs" },
@@ -95,15 +95,21 @@ function normalizeFloorPlanObject(raw, floor) {
       customLocation: String(raw.customLocation || "").slice(0, 80),
       customColor,
       customMarker: FLOOR_PLAN_ROOM_GLYPHS[raw.customMarker] ? raw.customMarker : "square",
+      labelVisible: raw.labelVisible !== false,
+      markerVisible: raw.markerVisible !== false,
+      cornerRadius: floorPlanNumber(raw.cornerRadius, 18, 0, 60),
     };
   }
-  if (raw.type === "text") return { ...base, text: String(raw.text || "Text").slice(0, 240) };
+  if (raw.type === "text") {
+    const color = /^#[0-9a-f]{6}$/i.test(String(raw.color || "")) ? String(raw.color) : "#172033";
+    return { ...base, text: String(raw.text || "Text").slice(0, 240), color, fontSize: floorPlanNumber(raw.fontSize, 28, 12, 96) };
+  }
   if (raw.type === "image") {
     const src = String(raw.src || "");
     if (!FLOOR_PLAN_GRAPHIC_DATA_URL.test(src) || src.length > 390000) return null;
     return { ...base, src, alt: String(raw.alt || "").slice(0, 120) };
   }
-  return { ...base, symbol: FLOOR_PLAN_SYMBOLS[raw.symbol] ? raw.symbol : "info", label: String(raw.label || "").slice(0, 80) };
+  return { ...base, symbol: FLOOR_PLAN_SYMBOLS[raw.symbol] ? raw.symbol : "info", label: String(raw.label || "").slice(0, 80), backgroundVisible: raw.backgroundVisible !== false };
 }
 
 function normalizeFloorPlanDocument(raw) {
@@ -138,17 +144,46 @@ function normalizeFloorPlanDocument(raw) {
 
 function floorPlanSourceMode() {
   const stored = S.con?.floor_plan_mode;
-  if (["none", "external", "editor"].includes(stored)) return stored;
+  if (["none", "external", "editor", "both"].includes(stored)) return stored;
   return floorPlanUrl() ? "external" : "none";
 }
 
+function floorPlanExternalEnabled() {
+  return ["external", "both"].includes(floorPlanSourceMode()) && !!floorPlanUrl();
+}
+
+function floorPlanInteractiveEnabled() {
+  return ["editor", "both"].includes(floorPlanSourceMode());
+}
+
+function floorPlanModeForSources({ external = false, interactive = false } = {}) {
+  if (external && interactive) return "both";
+  if (interactive) return "editor";
+  if (external) return "external";
+  return "none";
+}
+
 function floorPlanPublicTarget() {
-  const mode = floorPlanSourceMode();
-  if (mode === "external") return floorPlanUrl();
-  if (mode === "editor" && S.floorPlanPublic?.document) {
+  if (floorPlanInteractiveEnabled() && S.floorPlanPublic?.document) {
     return `${location.pathname}?con=${encodeURIComponent(S.con?.slug || S.con?.id || CON_PARAM)}&view=lageplan`;
   }
+  if (floorPlanExternalEnabled()) return floorPlanUrl();
   return "";
+}
+
+function floorPlanPublicSources() {
+  const sources = [];
+  if (floorPlanInteractiveEnabled() && S.floorPlanPublic?.document) {
+    sources.push({ key: "interactive", href: `${location.pathname}?con=${encodeURIComponent(S.con?.slug || S.con?.id || CON_PARAM)}&view=lageplan`, external: false });
+  }
+  if (floorPlanExternalEnabled()) sources.push({ key: "file", href: floorPlanUrl(), external: true });
+  return sources;
+}
+
+function floorPlanFloorForRoom(documentValue, roomId) {
+  if (!documentValue || !roomId) return null;
+  const document = normalizeFloorPlanDocument(documentValue);
+  return document.floors.find(floor => floor.objects.some(object => object.type === "room" && object.roomId === roomId)) || null;
 }
 
 function floorPlanRoom(roomId) {
@@ -188,22 +223,24 @@ function floorPlanTextLines(text, maxChars = 22, maxLines = 3) {
 }
 
 function floorPlanRoomLayout(object, label, location) {
+  const labelVisible = object.labelVisible !== false;
+  const markerVisible = object.markerVisible !== false;
   const labelFontSize = Math.max(18, Math.min(26, object.width / 10));
   const lineHeight = Math.max(20, Math.min(30, labelFontSize * 1.12));
-  const lines = floorPlanTextLines(label, Math.max(10, Math.floor(object.width / 11)), 3);
-  const markerSize = Math.max(30, Math.min(64, object.width * .2, object.height * .34));
+  const lines = labelVisible ? floorPlanTextLines(label, Math.max(10, Math.floor(object.width / 11)), 3) : [];
+  const markerSize = markerVisible ? Math.max(30, Math.min(64, object.width * .2, object.height * .34)) : 0;
   const topInset = 12;
-  const contentBottom = object.height - (location ? 34 : 12);
+  const contentBottom = object.height - (labelVisible && location ? 34 : 12);
   const labelHeight = lines.length * lineHeight;
-  const gap = Math.max(6, Math.min(12, object.height * .06));
+  const gap = markerVisible && labelVisible ? Math.max(6, Math.min(12, object.height * .06)) : 0;
   const contentHeight = labelHeight + gap + markerSize;
   const contentTop = topInset + Math.max(0, (contentBottom - topInset - contentHeight) / 2);
   return {
     lines,
     labelFontSize,
     lineHeight,
-    labelCenterY: contentTop + labelHeight / 2,
-    markerCenterY: contentTop + labelHeight + gap + markerSize / 2,
+    labelCenterY: labelVisible ? contentTop + labelHeight / 2 : contentTop,
+    markerCenterY: markerVisible ? contentTop + labelHeight + gap + markerSize / 2 : contentTop + labelHeight / 2,
     markerSize,
     locationY: object.height - 16,
   };
@@ -220,7 +257,8 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
   const label = room?.name || object.fallbackLabel || tr("floorPlanUnlinkedRoom");
   const color = floorPlanObjectRoomColor(object, room);
   const glyph = floorPlanObjectRoomGlyph(object, room);
-  const location = room?.floor || object.customLocation;
+  const labelVisible = object.labelVisible !== false;
+  const location = labelVisible ? room?.floor || object.customLocation : "";
   const isCustom = !object.roomId;
   const layout = floorPlanRoomLayout(object, label, location);
   const textStart = object.y + layout.labelCenterY - ((layout.lines.length - 1) * layout.lineHeight) / 2;
@@ -228,10 +266,11 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
   const attrs = room && interactive
     ? ` data-floor-plan-room="${esc(room.id)}" tabindex="0" role="button" aria-label="${esc(tr("floorPlanOpenRoomAria", { name: room.name }))}"`
     : ` aria-label="${esc(label)}"`;
+  const cornerRadius = Math.min(object.cornerRadius ?? 18, object.width / 2, object.height / 2);
   return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}"${attrs}${floorPlanRotation(object)} style="--floor-plan-room-color:${color}">
-    <rect x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" rx="18" />
-    <text class="floor-plan-map-label" x="${object.x + object.width / 2}" y="${textStart}" text-anchor="middle" dominant-baseline="middle" style="font-size:${layout.labelFontSize}px">${text}</text>
-    <text class="floor-plan-map-marker" x="${object.x + object.width / 2}" y="${object.y + layout.markerCenterY}" text-anchor="middle" dominant-baseline="central" style="font-size:${layout.markerSize}px">${esc(glyph)}</text>
+    <rect x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" rx="${cornerRadius}" />
+    ${labelVisible ? `<text class="floor-plan-map-label" x="${object.x + object.width / 2}" y="${textStart}" text-anchor="middle" dominant-baseline="middle" style="font-size:${layout.labelFontSize}px">${text}</text>` : ""}
+    ${object.markerVisible === false ? "" : `<text class="floor-plan-map-marker" x="${object.x + object.width / 2}" y="${object.y + layout.markerCenterY}" text-anchor="middle" dominant-baseline="central" style="font-size:${layout.markerSize}px">${esc(glyph)}</text>`}
     ${location ? `<text class="floor-plan-map-location" x="${object.x + object.width / 2}" y="${object.y + layout.locationY}" text-anchor="middle">${esc(location)}</text>` : ""}
   </g>`;
 }
@@ -239,19 +278,23 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
 function floorPlanObjectSvg(object, options) {
   if (object.type === "room") return floorPlanRoomSvg(object, options);
   if (object.type === "text") {
-    const lines = floorPlanTextLines(object.text, Math.max(10, Math.floor(object.width / 10)), 5);
-    const lineHeight = 24;
+    const fontSize = object.fontSize || 28;
+    const lines = floorPlanTextLines(object.text, Math.max(6, Math.floor(object.width / Math.max(7, fontSize * .55))), 5);
+    const lineHeight = fontSize * 1.2;
     const text = lines.map((line, index) => `<tspan x="${object.x + object.width / 2}" dy="${index ? lineHeight : 0}">${esc(line)}</tspan>`).join("");
-    return `<g class="floor-plan-map-text"${floorPlanRotation(object)}><text x="${object.x + object.width / 2}" y="${object.y + object.height / 2 - ((lines.length - 1) * lineHeight) / 2}" text-anchor="middle" dominant-baseline="middle">${text}</text></g>`;
+    return `<g class="floor-plan-map-text"${floorPlanRotation(object)}><text x="${object.x + object.width / 2}" y="${object.y + object.height / 2 - ((lines.length - 1) * lineHeight) / 2}" text-anchor="middle" dominant-baseline="middle" style="fill:${object.color || "#172033"};font-size:${fontSize}px">${text}</text></g>`;
   }
   if (object.type === "image") return `<g class="floor-plan-map-image"${floorPlanRotation(object)} aria-label="${esc(object.alt || tr("floorPlanGraphic"))}">
-    <image href="${esc(object.src)}" x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" preserveAspectRatio="none" />
+    <image href="${esc(object.src)}" x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" preserveAspectRatio="xMidYMid meet" />
   </g>`;
   const symbol = FLOOR_PLAN_SYMBOLS[object.symbol] || FLOOR_PLAN_SYMBOLS.info;
   const label = object.label || floorPlanSymbolName(symbol);
+  const symbolSize = object.backgroundVisible === false
+    ? Math.max(42, Math.min(96, Math.min(object.width, object.height) * .58))
+    : Math.max(30, Math.min(64, Math.min(object.width, object.height) * .38));
   return `<g class="floor-plan-map-symbol"${floorPlanRotation(object)} aria-label="${esc(label)}">
-    <circle cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" r="${Math.max(18, Math.min(object.width, object.height) / 2 - 3)}" />
-    <text x="${object.x + object.width / 2}" y="${object.y + object.height / 2}" text-anchor="middle" dominant-baseline="central">${esc(symbol.glyph)}</text>
+    ${object.backgroundVisible === false ? "" : `<circle cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" r="${Math.max(18, Math.min(object.width, object.height) / 2 - 3)}" />`}
+    <text x="${object.x + object.width / 2}" y="${object.y + object.height / 2}" text-anchor="middle" dominant-baseline="central" style="font-size:${symbolSize}px">${esc(symbol.glyph)}</text>
     ${object.label ? `<text class="floor-plan-map-symbol-label" x="${object.x + object.width / 2}" y="${object.y + object.height + 18}" text-anchor="middle">${esc(object.label)}</text>` : ""}
   </g>`;
 }
@@ -260,7 +303,8 @@ function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id =
   const document = normalizeFloorPlanDocument(documentValue);
   const floor = document.floors.find(item => item.id === floorValue?.id) || document.floors[0];
   const title = `${document.title || S.con?.name || tr("floorPlan")} · ${floor.name}`;
-  return `<svg${id ? ` id="${esc(id)}"` : ""} class="floor-plan-map" viewBox="0 0 ${floor.width} ${floor.height}" role="img" aria-label="${esc(title)}" xmlns="http://www.w3.org/2000/svg">
+  const edgePadding = 8;
+  return `<svg${id ? ` id="${esc(id)}"` : ""} class="floor-plan-map" viewBox="-${edgePadding} -${edgePadding} ${floor.width + edgePadding * 2} ${floor.height + edgePadding * 2}" role="img" aria-label="${esc(title)}" xmlns="http://www.w3.org/2000/svg">
     <title>${esc(title)}</title>
     <style>
       .floor-plan-map-page{fill:#fff}.floor-plan-map-room rect{fill:var(--floor-plan-room-color);fill-opacity:.16;stroke:var(--floor-plan-room-color);stroke-width:4}

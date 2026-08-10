@@ -199,22 +199,16 @@ function renderNav() {
   printBtn.innerHTML = `<span class="toolbar-action-icon" aria-hidden="true">⎙</span> ${esc(tr("printAction"))}`;
   printBtn.title = tr("printCurrentView");
   printBtn.setAttribute("aria-label", tr("printCurrentView"));
-  const floorPlanBtn = document.getElementById("floorPlanBtn");
-  const floorPlan = floorPlanPublicTarget();
-  floorPlanBtn.hidden = !floorPlan || isFloorPlanView;
-  if (floorPlan) {
-    floorPlanBtn.href = floorPlan;
-    if (floorPlanSourceMode() === "external") {
-      floorPlanBtn.target = "_blank";
-      floorPlanBtn.rel = "noopener";
-    } else {
-      floorPlanBtn.removeAttribute("target");
-      floorPlanBtn.removeAttribute("rel");
-    }
-    floorPlanBtn.title = tr("openFloorPlan");
-    floorPlanBtn.setAttribute("aria-label", tr("openFloorPlan"));
-    floorPlanBtn.innerHTML = `<span class="toolbar-action-icon" aria-hidden="true">⌖</span> ${esc(tr("floorPlan"))}`;
-  }
+  const floorPlanAction = document.getElementById("floorPlanAction");
+  const floorPlanSources = floorPlanPublicSources().filter(source => !isFloorPlanView || source.key !== "interactive");
+  floorPlanAction.hidden = !floorPlanSources.length;
+  if (floorPlanSources.length === 1) {
+    const source = floorPlanSources[0];
+    const sourceLabel = isFloorPlanView && source.key === "file" ? tr("floorPlanPublicFile") : tr("floorPlan");
+    floorPlanAction.innerHTML = `<a class="btn toolbar-action" href="${esc(source.href)}"${source.external ? ' target="_blank" rel="noopener"' : ""} title="${esc(tr("openFloorPlan"))}" aria-label="${esc(tr("openFloorPlan"))}"><span class="toolbar-action-icon" aria-hidden="true">⌖</span> ${esc(sourceLabel)}</a>`;
+  } else if (floorPlanSources.length > 1) {
+    floorPlanAction.innerHTML = `<details class="floor-plan-public-menu"><summary class="btn toolbar-action"><span class="toolbar-action-icon" aria-hidden="true">⌖</span> ${esc(tr("floorPlan"))} <span aria-hidden="true">⌄</span></summary><div>${floorPlanSources.map(source => `<a href="${esc(source.href)}"${source.external ? ' target="_blank" rel="noopener"' : ""}>${esc(tr(source.key === "interactive" ? "floorPlanPublicInteractive" : "floorPlanPublicFile"))}</a>`).join("")}</div></details>`;
+  } else floorPlanAction.innerHTML = "";
   document.getElementById("detailSwitch").hidden = isTableView || isFloorPlanView;
 }
 
@@ -351,6 +345,7 @@ function raeumeReadHtml() {
     return g.slotKey === S.activeSlot && matchesPublicFilters(g) && table?.room_id === room.id;
   }));
   const boardHtml = visibleRooms.map(room => {
+    const floorPlanFloor = floorPlanInteractiveEnabled() && S.floorPlanPublic?.document ? floorPlanFloorForRoom(S.floorPlanPublic.document, room.id) : null;
     const tables = S.tables.filter(t => t.room_id === room.id).filter(t => !S.personalFilterActive || S.games.some(g => {
       const assignment = asgFor(g);
       return g.slotKey === S.activeSlot && matchesPublicFilters(g) && assignment?.table_id === t.id;
@@ -360,7 +355,7 @@ function raeumeReadHtml() {
       return `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span></div>${games.map(g => chipHtml(g, { crew: false, inRoom: true })).join("") || `<div class="free room-public-free detail-${S.detailLevel}">${esc(tr("freeLabel"))}</div>`}</div>`;
     }).join("");
     return `<div id="room-${esc(room.id)}" class="room${tables.length >= 4 ? " wide" : ""}" data-room-id="${esc(room.id)}" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
-      <div class="room-head"><span class="room-swatch${roomMarkerClass(room)}" aria-hidden="true" style="--room-accent:${roomAccentVar(room)}"></span><h3>${esc(room.name)}</h3>${roomNameMarkerHtml(room)}</div>
+      <div class="room-head"><span class="room-swatch${roomMarkerClass(room)}" aria-hidden="true" style="--room-accent:${roomAccentVar(room)}"></span><h3>${floorPlanFloor ? `<button type="button" class="link-btn floor-plan-room-link" data-floor-plan-room-link="${esc(room.id)}" title="${esc(tr("floorPlanShowRoomOnMap", { name: room.name }))}">${esc(room.name)} <span aria-hidden="true">⌖</span></button>` : esc(room.name)}</h3>${roomNameMarkerHtml(room)}</div>
       ${room.floor ? `<p class="room-location"><span aria-hidden="true">⌖</span> ${esc(room.floor)}</p>` : ""}
       <div class="room-badges">${roomBadgesHtml(room)}</div>
       ${tablesHtml || `<p class="hint">${esc(tr("noTablesYet"))}</p>`}

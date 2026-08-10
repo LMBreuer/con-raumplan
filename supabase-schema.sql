@@ -65,7 +65,7 @@ update public.cons set floor_plan_mode = 'external'
 where floor_plan_url is not null and btrim(floor_plan_url) <> '' and floor_plan_mode = 'none';
 alter table public.cons drop constraint if exists cons_floor_plan_mode_check;
 alter table public.cons add constraint cons_floor_plan_mode_check
-  check (floor_plan_mode in ('none', 'external', 'editor'));
+  check (floor_plan_mode in ('none', 'external', 'editor', 'both'));
 
 create table if not exists con_members (
   con_id uuid not null references cons(id) on delete cascade,
@@ -352,17 +352,25 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  clean_url text := nullif(btrim(new_url), '');
 begin
   if not public.is_con_member(target_con) then
     raise exception 'not authorized' using errcode = '42501';
   end if;
-  if nullif(btrim(new_url), '') is not null
-     and btrim(new_url) !~* '^(https://|/|[a-z0-9][a-z0-9._/-]*\.pdf(?:[?#].*)?$)' then
+  if clean_url is not null
+     and clean_url !~* '^(https://|/|[a-z0-9][a-z0-9._/-]*\.pdf(?:[?#].*)?$)' then
     raise exception 'invalid floor plan URL' using errcode = '22023';
   end if;
   update public.cons
-  set floor_plan_url = nullif(btrim(new_url), ''),
-      floor_plan_mode = case when nullif(btrim(new_url), '') is null then 'none' else 'external' end
+  set floor_plan_url = clean_url,
+      floor_plan_mode = case
+        when clean_url is null and floor_plan_mode = 'both' then 'editor'
+        when clean_url is null and floor_plan_mode = 'external' then 'none'
+        when clean_url is not null and floor_plan_mode = 'editor' then 'both'
+        when clean_url is not null and floor_plan_mode = 'none' then 'external'
+        else floor_plan_mode
+      end
   where id = target_con;
 end;
 $$;
@@ -381,24 +389,26 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  clean_url text := nullif(btrim(new_url), '');
 begin
   if not public.is_con_member(target_con) then
     raise exception 'not authorized' using errcode = '42501';
   end if;
-  if new_mode not in ('none', 'external', 'editor') then
+  if new_mode not in ('none', 'external', 'editor', 'both') then
     raise exception 'invalid floor plan mode' using errcode = '22023';
   end if;
-  if new_mode = 'external' and nullif(btrim(new_url), '') is null then
+  if new_mode in ('external', 'both') and clean_url is null then
     raise exception 'external floor plan URL required' using errcode = '22023';
   end if;
-  if nullif(btrim(new_url), '') is not null
-     and btrim(new_url) !~* '^(https://|/|[a-z0-9][a-z0-9._/-]*\.pdf(?:[?#].*)?$)' then
+  if clean_url is not null
+     and clean_url !~* '^(https://|/|[a-z0-9][a-z0-9._/-]*\.pdf(?:[?#].*)?$)' then
     raise exception 'invalid floor plan URL' using errcode = '22023';
   end if;
 
   update public.cons
   set floor_plan_mode = new_mode,
-      floor_plan_url = case when new_mode = 'external' then nullif(btrim(new_url), '') else floor_plan_url end
+      floor_plan_url = case when clean_url is not null then clean_url else floor_plan_url end
   where id = target_con;
 end;
 $$;
@@ -539,7 +549,12 @@ begin
     offset 3
   );
 
-  update public.cons set floor_plan_mode = 'editor' where id = target_con;
+  update public.cons
+  set floor_plan_mode = case
+    when floor_plan_mode in ('external', 'both') and nullif(btrim(floor_plan_url), '') is not null then 'both'
+    else 'editor'
+  end
+  where id = target_con;
 exception
   when lock_not_available then
     raise sqlstate 'PT503' using message = 'floor plan storage is busy';
@@ -626,7 +641,12 @@ begin
     returning revision into next_revision;
   end if;
 
-  update public.cons set floor_plan_mode = 'editor' where id = target_con;
+  update public.cons
+  set floor_plan_mode = case
+    when floor_plan_mode in ('external', 'both') and nullif(btrim(floor_plan_url), '') is not null then 'both'
+    else 'editor'
+  end
+  where id = target_con;
   return next_revision;
 exception
   when lock_not_available then
@@ -808,7 +828,7 @@ as $$
   from public.con_floor_plans fp
   join public.cons c on c.id = fp.con_id
   where fp.con_id = target_con
-    and c.floor_plan_mode = 'editor'
+    and c.floor_plan_mode in ('editor', 'both')
     and fp.published_document is not null;
 $$;
 revoke all on function public.get_public_con_floor_plan(uuid) from public;

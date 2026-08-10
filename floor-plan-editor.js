@@ -1,6 +1,9 @@
 /* Crew-Lageplan-Editor. Fabric.js bleibt eine austauschbare Interaktionsschicht. */
 const FLOOR_PLAN_FABRIC_URL = "https://cdn.jsdelivr.net/npm/fabric@7.4.0/dist/index.min.js";
+const FLOOR_PLAN_PDF_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
+const FLOOR_PLAN_PDF_WORKER_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 let floorPlanFabricPromise = null;
+let floorPlanTracePdfPromise = null;
 let floorPlanCanvas = null;
 let floorPlanEditorDocument = null;
 let floorPlanHistory = [];
@@ -12,6 +15,20 @@ let floorPlanEditorAbortController = null;
 const floorPlanScaleNormalizations = new WeakSet();
 const FLOOR_PLAN_CUSTOM_MARKERS = [...ROOM_MARKERS];
 const FLOOR_PLAN_GRAPHIC_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const FLOOR_PLAN_TRACE_TYPES = new Set([...FLOOR_PLAN_GRAPHIC_TYPES, "application/pdf"]);
+const FLOOR_PLAN_TRACE_MAX_BYTES = 20 * 1024 * 1024;
+const floorPlanTraceReferences = new Map();
+let floorPlanTraceRenderToken = 0;
+let floorPlanEditorZoom = 1;
+let floorPlanExternalEditing = false;
+let floorPlanSnapEnabled = (() => {
+  try { return localStorage.getItem("floorPlanEditorSnapEnabled") !== "false"; }
+  catch { return true; }
+})();
+let floorPlanGridVisible = (() => {
+  try { return localStorage.getItem("floorPlanEditorGridVisible") !== "false"; }
+  catch { return true; }
+})();
 
 function loadFloorPlanScript(src, globalName) {
   if (globalThis[globalName]) return Promise.resolve(globalThis[globalName]);
@@ -36,6 +53,13 @@ function loadFloorPlanFabric() {
   return floorPlanFabricPromise;
 }
 
+async function loadFloorPlanPdf() {
+  floorPlanTracePdfPromise ||= loadFloorPlanScript(FLOOR_PLAN_PDF_URL, "pdfjsLib");
+  const pdfjsLib = await floorPlanTracePdfPromise;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = FLOOR_PLAN_PDF_WORKER_URL;
+  return pdfjsLib;
+}
+
 function floorPlanSymbolPaletteHtml({ selected = "", inspector = false } = {}) {
   return Object.entries(FLOOR_PLAN_SYMBOL_CATEGORIES).map(([categoryKey, category]) => {
     const symbols = Object.entries(FLOOR_PLAN_SYMBOLS).filter(([, symbol]) => symbol.category === categoryKey);
@@ -48,16 +72,11 @@ function floorPlanMarkerLabel(marker) {
 }
 
 function floorPlanSetupHtml() {
-  const mode = floorPlanSourceMode();
-  const sourceButtons = [
-    ["none", "floorPlanModeNone"],
-    ["external", "floorPlanModeExternal"],
-    ["editor", "floorPlanModeEditor"],
-  ].map(([key, label]) => `<button type="button" data-floor-plan-source="${key}" aria-pressed="${String(mode === key)}">${esc(tr(label))}</button>`).join("");
-  let body = "";
-  if (mode === "external") {
-    const external = floorPlanUrl();
-    body = `<div class="floor-plan-source-panel">
+  const externalEnabled = floorPlanExternalEnabled();
+  const interactiveEnabled = floorPlanInteractiveEnabled();
+  const showExternalPanel = externalEnabled || floorPlanExternalEditing;
+  const external = floorPlanUrl();
+  const externalPanel = showExternalPanel ? `<div class="floor-plan-source-panel" data-floor-plan-source-panel="external">
       <p class="hint">${esc(tr("floorPlanExternalHint"))}</p>
       <form id="floorPlanForm" class="floor-plan-form">
         <label class="sr-only" for="floorPlanUrl">${esc(tr("floorPlanUrlLabel"))}</label>
@@ -66,20 +85,21 @@ function floorPlanSetupHtml() {
         <button type="submit" class="primary">${esc(tr("save"))}</button>
       </form>
       <p id="floorPlanMsg" class="msg" role="status" aria-live="polite"></p>
-    </div>`;
-  } else if (mode === "editor") {
-    body = S.floorPlanDraft?.document ? floorPlanEditorWorkspaceHtml() : `<div class="floor-plan-creator-empty">
+    </div>` : "";
+  const editorPanel = interactiveEnabled ? `<div class="floor-plan-source-panel" data-floor-plan-source-panel="interactive">${S.floorPlanDraft?.document ? floorPlanEditorWorkspaceHtml() : `<div class="floor-plan-creator-empty">
       <span class="floor-plan-empty-glyph" aria-hidden="true">⌖</span>
       <h3>${esc(tr("floorPlanCreatorTitle"))}</h3>
       <p>${esc(tr("floorPlanCreatorHint"))}</p>
       <button type="button" id="floorPlanCreateBtn" class="primary">${esc(tr("floorPlanCreateDraft"))}</button>
-    </div>`;
-  }
+    </div>`}</div>` : "";
   return `<div class="card setup-card floor-plan-setup-card">
     <div class="setup-head-title"><h2>${esc(tr("floorPlanSetupTitle"))}</h2></div>
     <p class="hint">${esc(tr("floorPlanSetupHint"))}</p>
-    <div class="floor-plan-source-switch slot-tabs" role="group" aria-label="${esc(tr("floorPlanSetupTitle"))}">${sourceButtons}</div>
-    ${body}
+    <div class="floor-plan-source-options" role="group" aria-label="${esc(tr("floorPlanSetupTitle"))}">
+      <label><input type="checkbox" data-floor-plan-source-toggle="interactive"${interactiveEnabled ? " checked" : ""}><span><strong>${esc(tr("floorPlanSourceInteractive"))}</strong><small>${esc(tr("floorPlanSourceInteractiveHint"))}</small></span></label>
+      <label><input type="checkbox" data-floor-plan-source-toggle="external"${showExternalPanel ? " checked" : ""}><span><strong>${esc(tr("floorPlanSourceFile"))}</strong><small>${esc(tr("floorPlanSourceFileHint"))}</small></span></label>
+    </div>
+    ${externalPanel}${editorPanel}
     <p id="floorPlanSetupMsg" class="msg" role="status" aria-live="polite"></p>
   </div>`;
 }
@@ -143,13 +163,36 @@ function floorPlanEditorWorkspaceHtml() {
           <button type="button" id="floorPlanDeleteObjectBtn" class="danger" title="${esc(tr("floorPlanDeleteObject"))}">⌫</button>
         </div>
       </aside>
-      <div class="floor-plan-canvas-stage"><div class="floor-plan-canvas-wrap"><canvas id="floorPlanCanvas"></canvas></div><p class="floor-plan-canvas-hint">${esc(LANG === "en" ? "Drag to move · use the handles to resize · arrow keys move precisely" : "Ziehen zum Verschieben · Griffe zum Skalieren · Pfeiltasten bewegen präzise")}</p></div>
+      <div class="floor-plan-canvas-stage">
+        <div class="floor-plan-canvas-toolbar">
+          <div class="floor-plan-zoom-controls" role="group" aria-label="${esc(tr("floorPlanZoom"))}">
+            <button type="button" id="floorPlanZoomOut" title="${esc(tr("floorPlanZoomOut"))}" aria-label="${esc(tr("floorPlanZoomOut"))}">−</button>
+            <output id="floorPlanZoomValue" aria-live="polite">100 %</output>
+            <button type="button" id="floorPlanZoomIn" title="${esc(tr("floorPlanZoomIn"))}" aria-label="${esc(tr("floorPlanZoomIn"))}">＋</button>
+            <button type="button" id="floorPlanZoomFit" class="floor-plan-zoom-fit">${esc(tr("floorPlanZoomFit"))}</button>
+            <button type="button" id="floorPlanGridToggle" class="floor-plan-grid-toggle" aria-pressed="${String(floorPlanGridVisible)}" title="${esc(tr("floorPlanGridToggle"))}">▦ ${esc(tr("floorPlanGrid"))}</button>
+            <button type="button" id="floorPlanSnapToggle" class="floor-plan-grid-toggle" aria-pressed="${String(floorPlanSnapEnabled)}" title="${esc(tr("floorPlanSnapHint"))}">↔ ${esc(tr("floorPlanSnap"))}</button>
+          </div>
+          <div class="floor-plan-trace-controls">
+            <input id="floorPlanTraceInput" class="sr-only" type="file" accept="image/png,image/jpeg,image/webp,application/pdf">
+            <button type="button" id="floorPlanTraceChoose">▧ ${esc(tr("floorPlanTraceChoose"))}</button>
+            <span id="floorPlanTraceName" class="floor-plan-trace-name" hidden></span>
+            <label id="floorPlanTracePageLabel" hidden>${esc(tr("floorPlanTracePage"))}<select id="floorPlanTracePage"></select></label>
+            <label id="floorPlanTraceOpacityLabel" hidden>${esc(tr("floorPlanTraceOpacity"))}<input id="floorPlanTraceOpacity" type="range" min="10" max="80" step="5" value="35"></label>
+            <button type="button" id="floorPlanTraceRemove" class="danger" hidden>${esc(tr("floorPlanTraceRemove"))}</button>
+          </div>
+        </div>
+        <p id="floorPlanTraceHint" class="floor-plan-trace-hint">${esc(tr("floorPlanTraceHint"))}</p>
+        <div class="floor-plan-canvas-wrap"><canvas id="floorPlanCanvas"></canvas></div>
+        <p class="floor-plan-canvas-hint">${esc(LANG === "en" ? "Drag to move · use the handles to resize · arrow keys move precisely" : "Ziehen zum Verschieben · Griffe zum Skalieren · Pfeiltasten bewegen präzise")}</p>
+      </div>
       <aside class="floor-plan-inspector" id="floorPlanInspector"><p class="hint">${esc(LANG === "en" ? "Select an item to edit it." : "Wähle ein Element aus, um es zu bearbeiten.")}</p></aside>
     </div>
   </div>`;
 }
 
 function disposeFloorPlanEditor() {
+  floorPlanTraceRenderToken += 1;
   floorPlanEditorAbortController?.abort();
   floorPlanEditorAbortController = null;
   if (floorPlanCanvas) {
@@ -161,18 +204,23 @@ function disposeFloorPlanEditor() {
 
 async function mountFloorPlanSetup() {
   disposeFloorPlanEditor();
-  document.querySelectorAll("[data-floor-plan-source]").forEach(button => button.addEventListener("click", async () => {
-    const mode = button.dataset.floorPlanSource;
+  document.querySelectorAll("[data-floor-plan-source-toggle]").forEach(input => input.addEventListener("change", async () => {
+    const source = input.dataset.floorPlanSourceToggle;
     const msg = document.getElementById("floorPlanSetupMsg");
-    if (mode === "external" && !floorPlanUrl()) {
-      S.con.floor_plan_mode = "external";
+    if (source === "external" && input.checked && !floorPlanUrl()) {
+      floorPlanExternalEditing = true;
       renderActive({ animate: false });
+      requestAnimationFrame(() => document.getElementById("floorPlanUrl")?.focus());
       return;
     }
     try {
       msg.textContent = tr("floorPlanSaving");
+      const external = source === "external" ? input.checked : floorPlanExternalEnabled();
+      const interactive = source === "interactive" ? input.checked : floorPlanInteractiveEnabled();
+      const mode = floorPlanModeForSources({ external, interactive });
       await S.store.setFloorPlanSource(mode, S.con.floor_plan_url || null);
       S.con.floor_plan_mode = mode;
+      floorPlanExternalEditing = false;
       renderActive({ animate: false });
     } catch (error) {
       msg.className = "msg err";
@@ -226,11 +274,13 @@ function floorPlanFabricRoom(object) {
   const room = floorPlanRoom(object.roomId);
   const label = room?.name || object.fallbackLabel || tr("floorPlanUnlinkedRoom");
   const color = floorPlanObjectRoomColor(object, room);
-  const locationLabel = room?.floor || object.customLocation || "";
+  const labelVisible = object.labelVisible !== false;
+  const locationLabel = labelVisible ? room?.floor || object.customLocation || "" : "";
   const layout = floorPlanRoomLayout(object, label, locationLabel);
-  const rect = new fabric.Rect({ left: 0, top: 0, originX: "center", originY: "center", width: object.width, height: object.height, rx: 18, ry: 18, fill: `${color}26`, stroke: color, strokeWidth: 4 });
-  const text = new fabric.Textbox(label, { left: 0, top: layout.labelCenterY - object.height / 2, originX: "center", originY: "center", width: Math.max(80, object.width - 40), textAlign: "center", fontSize: layout.labelFontSize, lineHeight: layout.lineHeight / layout.labelFontSize, fontWeight: "700", fill: "#172033", fontFamily: "Arial", editable: false });
-  const marker = new fabric.FabricText(floorPlanObjectRoomGlyph(object, room), { left: 0, top: layout.markerCenterY - object.height / 2, originX: "center", originY: "center", fontSize: layout.markerSize, fontWeight: "800", fill: color, fontFamily: "Arial" });
+  const cornerRadius = Math.min(object.cornerRadius ?? 18, object.width / 2, object.height / 2);
+  const rect = new fabric.Rect({ left: 0, top: 0, originX: "center", originY: "center", width: object.width, height: object.height, rx: cornerRadius, ry: cornerRadius, fill: `${color}26`, stroke: color, strokeWidth: 4 });
+  const text = new fabric.Textbox(label, { left: 0, top: layout.labelCenterY - object.height / 2, originX: "center", originY: "center", width: Math.max(80, object.width - 40), textAlign: "center", fontSize: layout.labelFontSize, lineHeight: layout.lineHeight / layout.labelFontSize, fontWeight: "700", fill: "#172033", fontFamily: "Arial", editable: false, visible: labelVisible });
+  const marker = new fabric.FabricText(floorPlanObjectRoomGlyph(object, room), { left: 0, top: layout.markerCenterY - object.height / 2, originX: "center", originY: "center", fontSize: layout.markerSize, fontWeight: "800", fill: color, fontFamily: "Arial", visible: object.markerVisible !== false });
   const location = new fabric.FabricText(locationLabel, { left: 0, top: layout.locationY - object.height / 2, originX: "center", originY: "center", fontSize: 13, fill: "#596579", fontFamily: "Arial" });
   const group = new fabric.Group([rect, marker, text, location], { left: object.x, top: object.y, originX: "left", originY: "top", angle: object.rotation || 0 });
   Object.assign(group, {
@@ -241,6 +291,9 @@ function floorPlanFabricRoom(object) {
     fpCustomLocation: object.customLocation || "",
     fpCustomColor: object.customColor || "#64748b",
     fpCustomMarker: object.customMarker || "square",
+    fpLabelVisible: object.labelVisible !== false,
+    fpMarkerVisible: object.markerVisible !== false,
+    fpCornerRadius: object.cornerRadius ?? 18,
     fpRect: rect,
     fpMarkerText: marker,
     fpRoomLabelText: text,
@@ -254,17 +307,27 @@ function floorPlanFabricRoom(object) {
 function floorPlanFabricObject(object) {
   if (object.type === "room") return floorPlanFabricRoom(object);
   if (object.type === "text") {
-    const text = new fabric.Textbox(object.text, { left: object.x, top: object.y, width: object.width, fontSize: 28, fontWeight: "600", fill: "#172033", fontFamily: "Arial", textAlign: "center", angle: object.rotation || 0 });
-    Object.assign(text, { fpId: object.id, fpType: "text" });
+    const text = new fabric.Textbox(object.text, { left: object.x, top: object.y, width: object.width, fontSize: object.fontSize || 28, fontWeight: "600", fill: object.color || "#172033", fontFamily: "Arial", textAlign: "center", angle: object.rotation || 0 });
+    Object.assign(text, { fpId: object.id, fpType: "text", fpColor: object.color || "#172033", fpFontSize: object.fontSize || 28 });
     return floorPlanFabricStyles(text);
   }
   if (object.type === "image") {
     const element = new Image();
-    const image = new fabric.FabricImage(element, { left: object.x, top: object.y, width: object.width, height: object.height, angle: object.rotation || 0 });
-    Object.assign(image, { fpId: object.id, fpType: "image", fpSrc: object.src, fpAlt: object.alt || "", fpWidth: object.width, fpHeight: object.height });
+    const image = new fabric.FabricImage(element, {
+      left: object.x, top: object.y, width: 1, height: 1,
+      scaleX: object.width, scaleY: object.height, angle: object.rotation || 0,
+    });
+    Object.assign(image, { fpId: object.id, fpType: "image", fpSrc: object.src, fpAlt: object.alt || "", fpWidth: 1, fpHeight: 1 });
     image.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false });
     element.addEventListener("load", () => {
-      image.set({ width: object.width, height: object.height, dirty: true });
+      const naturalWidth = Math.max(1, element.naturalWidth || element.width || 1);
+      const naturalHeight = Math.max(1, element.naturalHeight || element.height || 1);
+      const targetWidth = Math.max(24, image.fpWidth * Math.abs(image.scaleX || 1));
+      const targetHeight = Math.max(24, image.fpHeight * Math.abs(image.scaleY || 1));
+      const scale = Math.max(.001, Math.min(targetWidth / naturalWidth, targetHeight / naturalHeight));
+      image.set({ width: naturalWidth, height: naturalHeight, scaleX: scale, scaleY: scale, dirty: true });
+      image.fpWidth = naturalWidth;
+      image.fpHeight = naturalHeight;
       image.setCoords();
       floorPlanCanvas?.requestRenderAll();
     }, { once: true });
@@ -275,12 +338,177 @@ function floorPlanFabricObject(object) {
   const labelSpace = 30;
   const iconDiameter = Math.max(64, Math.min(object.width, object.height - labelSpace));
   const iconY = -labelSpace / 2;
-  const circle = new fabric.Circle({ left: 0, top: iconY, originX: "center", originY: "center", radius: iconDiameter / 2 - 4, fill: "#ffffff", stroke: "#62708a", strokeWidth: 4 });
-  const glyph = new fabric.FabricText(symbol.glyph, { left: 0, top: iconY, originX: "center", originY: "center", fontSize: Math.max(30, iconDiameter * .38), fill: "#27344d", fontWeight: "700", fontFamily: "Arial" });
+  const backgroundVisible = object.backgroundVisible !== false;
+  const circle = new fabric.Circle({ left: 0, top: iconY, originX: "center", originY: "center", radius: iconDiameter / 2 - 4, fill: backgroundVisible ? "#ffffff" : "rgba(255,255,255,0)", stroke: backgroundVisible ? "#62708a" : "rgba(98,112,138,0)", strokeWidth: 4 });
+  const glyph = new fabric.FabricText(symbol.glyph, { left: 0, top: iconY, originX: "center", originY: "center", fontSize: backgroundVisible ? Math.max(30, iconDiameter * .38) : Math.max(42, iconDiameter * .58), fill: "#27344d", fontWeight: "700", fontFamily: "Arial" });
   const label = new fabric.FabricText(object.label || "", { left: 0, top: iconDiameter / 2 + 1, originX: "center", originY: "top", fontSize: 15, fill: "#596579", fontWeight: "600", fontFamily: "Arial" });
   const group = new fabric.Group([circle, glyph, label], { left: object.x, top: object.y, originX: "left", originY: "top", angle: object.rotation || 0 });
-  Object.assign(group, { fpId: object.id, fpType: "symbol", fpSymbol: object.symbol, fpLabel: object.label || "", fpLabelText: label, fpWidth: object.width, fpHeight: object.height });
+  Object.assign(group, { fpId: object.id, fpType: "symbol", fpSymbol: object.symbol, fpLabel: object.label || "", fpLabelText: label, fpBackgroundVisible: backgroundVisible, fpWidth: object.width, fpHeight: object.height });
   return floorPlanFabricStyles(group);
+}
+
+function setFloorPlanEditorZoom(value) {
+  floorPlanEditorZoom = Math.min(2, Math.max(.4, Math.round(Number(value) * 10) / 10));
+  const wrap = document.querySelector(".floor-plan-canvas-wrap");
+  if (wrap) wrap.style.width = `${floorPlanEditorZoom * 100}%`;
+  const output = document.getElementById("floorPlanZoomValue");
+  if (output) output.textContent = `${Math.round(floorPlanEditorZoom * 100)} %`;
+  const zoomOut = document.getElementById("floorPlanZoomOut");
+  const zoomIn = document.getElementById("floorPlanZoomIn");
+  if (zoomOut) zoomOut.disabled = floorPlanEditorZoom <= .4;
+  if (zoomIn) zoomIn.disabled = floorPlanEditorZoom >= 2;
+  requestAnimationFrame(() => floorPlanCanvas?.calcOffset());
+}
+
+function applyFloorPlanGridVisibility() {
+  const floor = floorPlanActiveFloor();
+  const container = document.querySelector(".floor-plan-canvas-wrap .canvas-container");
+  if (container && floor) {
+    container.classList.toggle("is-grid-visible", floorPlanGridVisible);
+    container.style.setProperty("--floor-plan-grid-x", `${(12 / floor.width) * 100}%`);
+    container.style.setProperty("--floor-plan-grid-y", `${(12 / floor.height) * 100}%`);
+  }
+  const button = document.getElementById("floorPlanGridToggle");
+  if (button) button.setAttribute("aria-pressed", String(floorPlanGridVisible));
+}
+
+function toggleFloorPlanGrid() {
+  floorPlanGridVisible = !floorPlanGridVisible;
+  try { localStorage.setItem("floorPlanEditorGridVisible", String(floorPlanGridVisible)); }
+  catch { /* Die rein lokale Komforteinstellung darf den Editor nicht blockieren. */ }
+  applyFloorPlanGridVisibility();
+}
+
+function toggleFloorPlanSnap() {
+  floorPlanSnapEnabled = !floorPlanSnapEnabled;
+  try { localStorage.setItem("floorPlanEditorSnapEnabled", String(floorPlanSnapEnabled)); }
+  catch { /* Die lokale Komforteinstellung darf den Editor nicht blockieren. */ }
+  const button = document.getElementById("floorPlanSnapToggle");
+  if (button) button.setAttribute("aria-pressed", String(floorPlanSnapEnabled));
+}
+
+function floorPlanSnapDelta(activeValues, targetValues, threshold = 8) {
+  let best = null;
+  for (const active of activeValues) for (const target of targetValues) {
+    const delta = target - active;
+    if (Math.abs(delta) <= threshold && (best == null || Math.abs(delta) < Math.abs(best))) best = delta;
+  }
+  return best;
+}
+
+function alignFloorPlanObject(object) {
+  if (!floorPlanSnapEnabled || !object || object.type === "activeSelection") return;
+  const floor = floorPlanActiveFloor();
+  if (!floor) return;
+  object.setCoords();
+  const box = object.getBoundingRect();
+  const xTargets = [0, floor.width / 2, floor.width];
+  const yTargets = [0, floor.height / 2, floor.height];
+  floorPlanCanvas.getObjects().filter(other => other !== object).forEach(other => {
+    const target = other.getBoundingRect();
+    xTargets.push(target.left, target.left + target.width / 2, target.left + target.width);
+    yTargets.push(target.top, target.top + target.height / 2, target.top + target.height);
+  });
+  const dx = floorPlanSnapDelta([box.left, box.left + box.width / 2, box.left + box.width], xTargets);
+  const dy = floorPlanSnapDelta([box.top, box.top + box.height / 2, box.top + box.height], yTargets);
+  if (dx != null) object.set("left", object.left + dx);
+  if (dy != null) object.set("top", object.top + dy);
+  object.setCoords();
+}
+
+function floorPlanTraceEntry() {
+  return floorPlanTraceReferences.get(S.floorPlanEditorFloorId) || null;
+}
+
+function disposeFloorPlanTraceEntry(entry) {
+  if (!entry) return;
+  if (entry.objectUrl) URL.revokeObjectURL(entry.objectUrl);
+  entry.pdfDocument?.destroy?.().catch?.(() => {});
+}
+
+function floorPlanTraceImage(elementOrUrl) {
+  if (elementOrUrl instanceof HTMLCanvasElement || elementOrUrl instanceof HTMLImageElement && elementOrUrl.complete) return Promise.resolve(elementOrUrl);
+  return new Promise((resolve, reject) => {
+    const image = elementOrUrl instanceof HTMLImageElement ? elementOrUrl : new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(tr("floorPlanTraceUnreadable")));
+    if (!(elementOrUrl instanceof HTMLImageElement)) image.src = elementOrUrl;
+  });
+}
+
+async function createFloorPlanTraceEntry(file) {
+  if (!file || file.size > FLOOR_PLAN_TRACE_MAX_BYTES) throw new Error(tr("floorPlanTraceFileError"));
+  if (!FLOOR_PLAN_TRACE_TYPES.has(file.type)) throw new Error(tr("floorPlanTraceTypeError"));
+  if (file.type === "application/pdf") {
+    const pdfjsLib = await loadFloorPlanPdf();
+    const pdfDocument = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    if (!pdfDocument.numPages) { await pdfDocument.destroy(); throw new Error(tr("floorPlanTraceUnreadable")); }
+    return { kind: "pdf", name: file.name, opacity: .35, page: 1, pageCount: pdfDocument.numPages, pdfDocument };
+  }
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    await floorPlanTraceImage(objectUrl);
+    return { kind: "image", name: file.name, opacity: .35, objectUrl };
+  } catch (error) {
+    URL.revokeObjectURL(objectUrl);
+    throw error;
+  }
+}
+
+async function floorPlanTraceSource(entry, floor) {
+  if (entry.kind === "image") {
+    const image = await floorPlanTraceImage(entry.objectUrl);
+    return { element: image, width: image.naturalWidth || image.width, height: image.naturalHeight || image.height };
+  }
+  const page = await entry.pdfDocument.getPage(entry.page);
+  const initialViewport = page.getViewport({ scale: 1 });
+  const scale = Math.min(3, Math.max(1, floor.width / initialViewport.width, floor.height / initialViewport.height));
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport }).promise;
+  return { element: canvas, width: canvas.width, height: canvas.height };
+}
+
+async function applyFloorPlanTraceReference() {
+  const canvas = floorPlanCanvas;
+  const floor = floorPlanActiveFloor();
+  const entry = floorPlanTraceEntry();
+  const token = ++floorPlanTraceRenderToken;
+  if (!canvas || !floor || !entry) {
+    if (canvas) { canvas.backgroundImage = undefined; canvas.requestRenderAll(); }
+    return;
+  }
+  const source = await floorPlanTraceSource(entry, floor);
+  if (token !== floorPlanTraceRenderToken || canvas !== floorPlanCanvas || entry !== floorPlanTraceEntry()) return;
+  const scale = Math.min(floor.width / source.width, floor.height / source.height);
+  const background = new fabric.FabricImage(source.element, {
+    left: (floor.width - source.width * scale) / 2,
+    top: (floor.height - source.height * scale) / 2,
+    originX: "left", originY: "top", scaleX: scale, scaleY: scale,
+    opacity: entry.opacity, selectable: false, evented: false, excludeFromExport: true,
+  });
+  canvas.backgroundImage = background;
+  canvas.requestRenderAll();
+}
+
+function updateFloorPlanTraceControls(message = "", isError = false) {
+  const entry = floorPlanTraceEntry();
+  const name = document.getElementById("floorPlanTraceName");
+  const pageLabel = document.getElementById("floorPlanTracePageLabel");
+  const pageSelect = document.getElementById("floorPlanTracePage");
+  const opacityLabel = document.getElementById("floorPlanTraceOpacityLabel");
+  const opacity = document.getElementById("floorPlanTraceOpacity");
+  const remove = document.getElementById("floorPlanTraceRemove");
+  const hint = document.getElementById("floorPlanTraceHint");
+  if (name) { name.hidden = !entry; name.textContent = entry?.name || ""; name.title = entry?.name || ""; }
+  if (opacityLabel) opacityLabel.hidden = !entry;
+  if (opacity && entry) opacity.value = String(Math.round(entry.opacity * 100));
+  if (remove) remove.hidden = !entry;
+  if (pageLabel) pageLabel.hidden = !entry || entry.kind !== "pdf" || entry.pageCount <= 1;
+  if (pageSelect && entry?.kind === "pdf") pageSelect.innerHTML = Array.from({ length: entry.pageCount }, (_, index) => `<option value="${index + 1}"${entry.page === index + 1 ? " selected" : ""}>${index + 1} / ${entry.pageCount}</option>`).join("");
+  if (hint) { hint.className = `floor-plan-trace-hint${isError ? " is-error" : ""}`; hint.textContent = message || tr(entry ? "floorPlanTraceActiveHint" : "floorPlanTraceHint"); }
 }
 
 function initializeFloorPlanCanvas() {
@@ -288,7 +516,8 @@ function initializeFloorPlanCanvas() {
   floorPlanEditorDocument = normalizeFloorPlanDocument(S.floorPlanDraft.document);
   const floor = floorPlanActiveFloor();
   floorPlanCanvas = new fabric.Canvas("floorPlanCanvas", {
-    width: floor.width, height: floor.height, backgroundColor: "#ffffff", preserveObjectStacking: true,
+    width: floor.width, height: floor.height, backgroundColor: "transparent", preserveObjectStacking: true,
+    uniformScaling: true,
     selectionColor: "rgba(91,141,239,.12)", selectionBorderColor: "#5b8def", selectionLineWidth: 2,
   });
   floorPlanCanvas.add(...floor.objects.map(floorPlanFabricObject));
@@ -297,7 +526,8 @@ function initializeFloorPlanCanvas() {
   floorPlanCanvas.on("selection:cleared", renderFloorPlanInspector);
   floorPlanCanvas.on("object:moving", event => {
     const object = event.target;
-    object.set({ left: Math.round(object.left / 12) * 12, top: Math.round(object.top / 12) * 12 });
+    if (floorPlanGridVisible) object.set({ left: Math.round(object.left / 12) * 12, top: Math.round(object.top / 12) * 12 });
+    alignFloorPlanObject(object);
   });
   floorPlanCanvas.on("object:scaling", event => {
     const object = event.target;
@@ -310,6 +540,10 @@ function initializeFloorPlanCanvas() {
   floorPlanHistory = [JSON.stringify(floorPlanEditorDocument)];
   floorPlanFuture = [];
   updateFloorPlanHistoryButtons();
+  updateFloorPlanTraceControls();
+  setFloorPlanEditorZoom(floorPlanEditorZoom);
+  applyFloorPlanGridVisibility();
+  applyFloorPlanTraceReference().catch(error => updateFloorPlanTraceControls(error.message, true));
   requestAnimationFrame(() => floorPlanCanvas.calcOffset());
 }
 
@@ -329,10 +563,13 @@ function floorPlanObjectFromFabric(object) {
     customLocation: object.fpCustomLocation || "",
     customColor: object.fpCustomColor || "#64748b",
     customMarker: object.fpCustomMarker || "square",
+    labelVisible: object.fpLabelVisible !== false,
+    markerVisible: object.fpMarkerVisible !== false,
+    cornerRadius: Number.isFinite(object.fpCornerRadius) ? object.fpCornerRadius : 18,
   };
-  if (object.fpType === "text") return { ...base, text: object.text || "Text" };
+  if (object.fpType === "text") return { ...base, text: object.text || "Text", color: object.fpColor || "#172033", fontSize: Number.isFinite(object.fpFontSize) ? object.fpFontSize : 28 };
   if (object.fpType === "image") return { ...base, src: object.fpSrc || "", alt: object.fpAlt || "" };
-  return { ...base, symbol: object.fpSymbol || "info", label: object.fpLabel || "" };
+  return { ...base, symbol: object.fpSymbol || "info", label: object.fpLabel || "", backgroundVisible: object.fpBackgroundVisible !== false };
 }
 
 function normalizeFloorPlanFabricScale(object) {
@@ -435,6 +672,71 @@ function addFloorPlanObject(object) {
   floorPlanCanvasChanged();
 }
 
+function floorPlanCornerRadiusHtml(object) {
+  const radius = Math.round(Number.isFinite(object.fpCornerRadius) ? object.fpCornerRadius : 18);
+  return `<label class="floor-plan-radius-control"><span>${esc(tr("floorPlanCornerRadius"))}<output id="floorPlanCornerRadiusValue">${radius} px</output></span><input id="floorPlanCornerRadius" type="range" min="0" max="60" step="1" value="${radius}"></label>`;
+}
+
+function floorPlanMarkerVisibilityHtml(object) {
+  return `<label class="floor-plan-property-toggle"><input id="floorPlanMarkerVisible" type="checkbox"${object.fpMarkerVisible === false ? "" : " checked"}><span>${esc(tr("floorPlanShowMarker"))}</span></label>`;
+}
+
+function floorPlanLabelVisibilityHtml(object) {
+  return `<label class="floor-plan-property-toggle"><input id="floorPlanLabelVisible" type="checkbox"${object.fpLabelVisible === false ? "" : " checked"}><span>${esc(tr("floorPlanShowLabel"))}</span></label>`;
+}
+
+function floorPlanRoomGeometryHtml(object) {
+  const floor = floorPlanActiveFloor();
+  const geometry = floorPlanObjectFromFabric(object);
+  const fields = [
+    ["X", "x", geometry.x, Math.max(0, floor.width - geometry.width)],
+    ["Y", "y", geometry.y, Math.max(0, floor.height - geometry.height)],
+    [tr("floorPlanWidth"), "width", geometry.width, floor.width],
+    [tr("floorPlanHeight"), "height", geometry.height, floor.height],
+  ];
+  return `<fieldset class="floor-plan-geometry"><legend>${esc(tr("floorPlanGeometry"))}</legend><div>${fields.map(([label, key, value, max]) => `<label><span>${esc(label)}</span><span class="floor-plan-number-input"><input type="number" inputmode="numeric" id="floorPlanGeometry${key.charAt(0).toUpperCase()}${key.slice(1)}" data-floor-plan-geometry="${key}" min="${key === "width" || key === "height" ? 24 : 0}" max="${Math.round(max)}" step="1" value="${Math.round(value)}"><small aria-hidden="true">px</small></span></label>`).join("")}</div><p>${esc(tr("floorPlanGeometryHint"))}</p></fieldset>`;
+}
+
+function updateSelectedRoomGeometry() {
+  const selected = floorPlanCanvas?.getActiveObject();
+  const floor = floorPlanActiveFloor();
+  if (!selected || selected.fpType !== "room" || !floor) return;
+  const current = floorPlanObjectFromFabric(selected);
+  const read = key => {
+    const input = document.querySelector(`[data-floor-plan-geometry="${key}"]`);
+    if (!input?.value.trim()) return current[key];
+    const value = Number(input.value);
+    return Number.isFinite(value) ? Math.round(value) : current[key];
+  };
+  const width = Math.min(floor.width, Math.max(24, read("width")));
+  const height = Math.min(floor.height, Math.max(24, read("height")));
+  const x = Math.min(Math.max(0, floor.width - width), Math.max(0, read("x")));
+  const y = Math.min(Math.max(0, floor.height - height), Math.max(0, read("y")));
+  rebuildSelectedFloorPlanObject({ x, y, width, height });
+}
+
+function updateSelectedFloorPlanTextStyle(patch) {
+  const selected = floorPlanCanvas?.getActiveObject();
+  if (!selected || selected.fpType !== "text") return;
+  if (Object.hasOwn(patch, "color") && /^#[0-9a-f]{6}$/i.test(patch.color)) {
+    selected.fpColor = patch.color;
+    selected.set("fill", patch.color);
+  }
+  if (Object.hasOwn(patch, "fontSize") && Number.isFinite(Number(patch.fontSize))) {
+    const fontSize = Math.min(96, Math.max(12, Math.round(Number(patch.fontSize))));
+    selected.fpFontSize = fontSize;
+    selected.set("fontSize", fontSize);
+    const input = document.getElementById("floorPlanInspectorTextSize");
+    if (input) input.value = String(fontSize);
+  }
+  selected.initDimensions?.();
+  selected.dirty = true;
+  selected.setCoords();
+  floorPlanCanvas.requestRenderAll();
+  syncFloorPlanCanvasToDocument();
+  scheduleFloorPlanSave();
+}
+
 function renderFloorPlanInspector() {
   const inspector = document.getElementById("floorPlanInspector");
   if (!inspector || !floorPlanCanvas) return;
@@ -445,18 +747,21 @@ function renderFloorPlanInspector() {
   }
   if (object.fpType === "room") {
     if (object.fpRoomId) {
-      inspector.innerHTML = `<div class="floor-plan-inspector-title"><span aria-hidden="true">▭</span><div><strong>${esc(tr("floorPlanObjectRoom"))}</strong><small>${esc(tr("floorPlanLinkedRoom"))}</small></div></div><label>${esc(tr("floorPlanLinkedRoom"))}<select id="floorPlanInspectorRoom">${S.rooms.map(room => `<option value="${esc(room.id)}"${room.id === object.fpRoomId ? " selected" : ""}>${esc(room.name)}</option>`).join("")}</select></label><p class="hint">${esc(LANG === "en" ? "Name, colour and symbol come from the linked room." : "Name, Farbe und Symbol kommen aus dem verknüpften Raum.")}</p>`;
+      inspector.innerHTML = `<div class="floor-plan-inspector-title"><span aria-hidden="true">▭</span><div><strong>${esc(tr("floorPlanObjectRoom"))}</strong><small>${esc(tr("floorPlanLinkedRoom"))}</small></div></div><label>${esc(tr("floorPlanLinkedRoom"))}<select id="floorPlanInspectorRoom">${S.rooms.map(room => `<option value="${esc(room.id)}"${room.id === object.fpRoomId ? " selected" : ""}>${esc(room.name)}</option>`).join("")}</select></label><p class="hint">${esc(LANG === "en" ? "Name, colour and symbol come from the linked room." : "Name, Farbe und Symbol kommen aus dem verknüpften Raum.")}</p>${floorPlanRoomGeometryHtml(object)}${floorPlanLabelVisibilityHtml(object)}${floorPlanMarkerVisibilityHtml(object)}${floorPlanCornerRadiusHtml(object)}`;
     } else {
       inspector.innerHTML = `<div class="floor-plan-inspector-title"><span aria-hidden="true">▭</span><div><strong>${esc(tr("floorPlanObjectRoom"))}</strong><small>${esc(tr("floorPlanCustomRoom"))}</small></div></div>
         <label>${esc(tr("floorPlanRoomName"))}<input id="floorPlanInspectorRoomName" type="text" maxlength="80" value="${esc(object.fpFallbackLabel || "")}"></label>
         <label>${esc(tr("floorPlanRoomLocation"))}<input id="floorPlanInspectorRoomLocation" type="text" maxlength="80" value="${esc(object.fpCustomLocation || "")}" placeholder="${esc(tr("floorPlanRoomLocationPlaceholder"))}"></label>
         <label>${esc(tr("floorPlanRoomColor"))}<input id="floorPlanInspectorRoomColor" class="floor-plan-color-input" type="color" value="${esc(object.fpCustomColor || "#64748b")}"></label>
-        <fieldset class="floor-plan-marker-picker"><legend>${esc(tr("floorPlanRoomMarker"))}</legend><div>${FLOOR_PLAN_CUSTOM_MARKERS.map(marker => `<button type="button" data-inspector-marker="${marker}" class="${marker === object.fpCustomMarker ? "is-selected" : ""}" aria-pressed="${String(marker === object.fpCustomMarker)}" aria-label="${esc(floorPlanMarkerLabel(marker))}" title="${esc(floorPlanMarkerLabel(marker))}">${esc(FLOOR_PLAN_ROOM_GLYPHS[marker])}</button>`).join("")}</div></fieldset>`;
+        ${floorPlanRoomGeometryHtml(object)}
+        ${floorPlanLabelVisibilityHtml(object)}
+        ${floorPlanCornerRadiusHtml(object)}
+        <fieldset class="floor-plan-marker-picker"><legend>${esc(tr("floorPlanRoomMarker"))}</legend><div><button type="button" data-inspector-marker="none" class="${object.fpMarkerVisible === false ? "is-selected" : ""}" aria-pressed="${String(object.fpMarkerVisible === false)}" aria-label="${esc(tr("floorPlanNoMarker"))}" title="${esc(tr("floorPlanNoMarker"))}">∅</button>${FLOOR_PLAN_CUSTOM_MARKERS.map(marker => `<button type="button" data-inspector-marker="${marker}" class="${object.fpMarkerVisible !== false && marker === object.fpCustomMarker ? "is-selected" : ""}" aria-pressed="${String(object.fpMarkerVisible !== false && marker === object.fpCustomMarker)}" aria-label="${esc(floorPlanMarkerLabel(marker))}" title="${esc(floorPlanMarkerLabel(marker))}">${esc(FLOOR_PLAN_ROOM_GLYPHS[marker])}</button>`).join("")}</div></fieldset>`;
     }
   } else if (object.fpType === "text") {
-    inspector.innerHTML = `<div class="floor-plan-inspector-title"><span aria-hidden="true">T</span><div><strong>${esc(tr("floorPlanAddText"))}</strong><small>${esc(tr("floorPlanLabelsToolHint"))}</small></div></div><label>${esc(tr("floorPlanTextLabel"))}<textarea id="floorPlanInspectorText" rows="4" maxlength="240">${esc(object.text || "")}</textarea></label>`;
+    inspector.innerHTML = `<div class="floor-plan-inspector-title"><span aria-hidden="true">T</span><div><strong>${esc(tr("floorPlanAddText"))}</strong><small>${esc(tr("floorPlanLabelsToolHint"))}</small></div></div><label>${esc(tr("floorPlanTextLabel"))}<textarea id="floorPlanInspectorText" rows="4" maxlength="240">${esc(object.text || "")}</textarea></label><div class="floor-plan-text-style"><label><span>${esc(tr("floorPlanTextColor"))}</span><input id="floorPlanInspectorTextColor" class="floor-plan-color-input" type="color" value="${esc(object.fpColor || "#172033")}"></label><label><span>${esc(tr("floorPlanTextSize"))}</span><span class="floor-plan-number-input"><input id="floorPlanInspectorTextSize" type="number" inputmode="numeric" min="12" max="96" step="1" value="${Math.round(object.fpFontSize || 28)}"><small aria-hidden="true">px</small></span></label></div>`;
   } else if (object.fpType === "symbol") {
-    inspector.innerHTML = `<div class="floor-plan-inspector-title"><span aria-hidden="true">⌖</span><div><strong>${esc(tr("floorPlanSymbolLabel"))}</strong><small>${esc(tr("floorPlanSymbolsToolHint"))}</small></div></div><div class="floor-plan-symbol-palette is-inspector">${floorPlanSymbolPaletteHtml({ selected: object.fpSymbol, inspector: true })}</div><label>${esc(tr("floorPlanTextLabel"))}<input id="floorPlanInspectorLabel" type="text" maxlength="80" value="${esc(object.fpLabel || "")}"></label>`;
+    inspector.innerHTML = `<div class="floor-plan-inspector-title"><span aria-hidden="true">⌖</span><div><strong>${esc(tr("floorPlanSymbolLabel"))}</strong><small>${esc(tr("floorPlanSymbolsToolHint"))}</small></div></div><div class="floor-plan-symbol-palette is-inspector">${floorPlanSymbolPaletteHtml({ selected: object.fpSymbol, inspector: true })}</div><label>${esc(tr("floorPlanTextLabel"))}<input id="floorPlanInspectorLabel" type="text" maxlength="80" value="${esc(object.fpLabel || "")}"></label><label class="floor-plan-property-toggle"><input id="floorPlanSymbolBackgroundVisible" type="checkbox"${object.fpBackgroundVisible === false ? "" : " checked"}><span>${esc(tr("floorPlanShowSymbolCircle"))}</span></label>`;
   } else {
     inspector.innerHTML = `<div class="floor-plan-inspector-title"><span aria-hidden="true">▧</span><div><strong>${esc(tr("floorPlanGraphic"))}</strong><small>${esc(tr("floorPlanGraphicsToolHint"))}</small></div></div>
       <label>${esc(tr("floorPlanGraphicAlt"))}<input id="floorPlanInspectorGraphicAlt" type="text" maxlength="120" value="${esc(object.fpAlt || "")}"></label>
@@ -578,9 +883,10 @@ function restoreFloorPlanHistory(serialized) {
   floorPlanEditorDocument = normalizeFloorPlanDocument(JSON.parse(serialized));
   const floor = floorPlanActiveFloor();
   floorPlanCanvas.clear();
-  floorPlanCanvas.backgroundColor = "#ffffff";
+  floorPlanCanvas.backgroundColor = "transparent";
   floorPlanCanvas.add(...floor.objects.map(floorPlanFabricObject));
   floorPlanCanvas.requestRenderAll();
+  applyFloorPlanGridVisibility();
   updateFloorPlanHistoryButtons();
   scheduleFloorPlanSave();
 }
@@ -593,19 +899,65 @@ async function switchFloorPlanFloor(floorId, { sync = true } = {}) {
 }
 
 function wireFloorPlanEditorControls() {
+  document.getElementById("floorPlanZoomOut")?.addEventListener("click", () => setFloorPlanEditorZoom(floorPlanEditorZoom - .1));
+  document.getElementById("floorPlanZoomIn")?.addEventListener("click", () => setFloorPlanEditorZoom(floorPlanEditorZoom + .1));
+  document.getElementById("floorPlanZoomFit")?.addEventListener("click", () => setFloorPlanEditorZoom(1));
+  document.getElementById("floorPlanGridToggle")?.addEventListener("click", toggleFloorPlanGrid);
+  document.getElementById("floorPlanSnapToggle")?.addEventListener("click", toggleFloorPlanSnap);
+  const traceInput = document.getElementById("floorPlanTraceInput");
+  document.getElementById("floorPlanTraceChoose")?.addEventListener("click", () => traceInput?.click());
+  traceInput?.addEventListener("change", async () => {
+    const file = traceInput.files?.[0];
+    traceInput.value = "";
+    if (!file) return;
+    const floorId = S.floorPlanEditorFloorId;
+    updateFloorPlanTraceControls(tr("floorPlanTracePreparing"));
+    try {
+      const entry = await createFloorPlanTraceEntry(file);
+      disposeFloorPlanTraceEntry(floorPlanTraceReferences.get(floorId));
+      floorPlanTraceReferences.set(floorId, entry);
+      updateFloorPlanTraceControls();
+      if (floorId === S.floorPlanEditorFloorId) await applyFloorPlanTraceReference();
+    } catch (error) {
+      updateFloorPlanTraceControls(error.message, true);
+    }
+  });
+  document.getElementById("floorPlanTracePage")?.addEventListener("change", async event => {
+    const entry = floorPlanTraceEntry();
+    if (!entry || entry.kind !== "pdf") return;
+    entry.page = Math.min(entry.pageCount, Math.max(1, Number(event.target.value) || 1));
+    try { await applyFloorPlanTraceReference(); }
+    catch (error) { updateFloorPlanTraceControls(error.message, true); }
+  });
+  document.getElementById("floorPlanTraceOpacity")?.addEventListener("input", event => {
+    const entry = floorPlanTraceEntry();
+    if (!entry) return;
+    entry.opacity = Math.min(.8, Math.max(.1, Number(event.target.value) / 100));
+    floorPlanCanvas.backgroundImage?.set("opacity", entry.opacity);
+    floorPlanCanvas.requestRenderAll();
+  });
+  document.getElementById("floorPlanTraceRemove")?.addEventListener("click", () => {
+    const floorId = S.floorPlanEditorFloorId;
+    disposeFloorPlanTraceEntry(floorPlanTraceReferences.get(floorId));
+    floorPlanTraceReferences.delete(floorId);
+    floorPlanTraceRenderToken += 1;
+    floorPlanCanvas.backgroundImage = undefined;
+    floorPlanCanvas.requestRenderAll();
+    updateFloorPlanTraceControls();
+  });
   document.getElementById("floorPlanAddLinkedRoomBtn")?.addEventListener("click", () => {
     const roomId = document.getElementById("floorPlanRoomSelect").value;
     const room = floorPlanRoom(roomId);
     const floor = floorPlanActiveFloor();
-    addFloorPlanObject({ id: floorPlanId("room"), type: "room", roomId, fallbackLabel: room?.name || "", x: floor.width / 2 - 135, y: floor.height / 2 - 80, width: 270, height: 160, rotation: 0 });
+    addFloorPlanObject({ id: floorPlanId("room"), type: "room", roomId, fallbackLabel: room?.name || "", labelVisible: true, markerVisible: true, cornerRadius: 18, x: floor.width / 2 - 135, y: floor.height / 2 - 80, width: 270, height: 160, rotation: 0 });
   });
   document.getElementById("floorPlanAddCustomRoomBtn")?.addEventListener("click", () => {
     const floor = floorPlanActiveFloor();
-    addFloorPlanObject({ id: floorPlanId("room"), type: "room", roomId: null, fallbackLabel: tr("floorPlanCustomRoomDefault"), customLocation: "", customColor: "#64748b", customMarker: "square", x: floor.width / 2 - 135, y: floor.height / 2 - 80, width: 270, height: 160, rotation: 0 });
+    addFloorPlanObject({ id: floorPlanId("room"), type: "room", roomId: null, fallbackLabel: tr("floorPlanCustomRoomDefault"), customLocation: "", customColor: "#64748b", customMarker: "square", labelVisible: true, markerVisible: true, cornerRadius: 18, x: floor.width / 2 - 135, y: floor.height / 2 - 80, width: 270, height: 160, rotation: 0 });
   });
   document.getElementById("floorPlanAddTextBtn")?.addEventListener("click", () => {
     const floor = floorPlanActiveFloor();
-    addFloorPlanObject({ id: floorPlanId("text"), type: "text", text: tr("floorPlanAddText"), x: floor.width / 2 - 110, y: floor.height / 2 - 30, width: 220, height: 60, rotation: 0 });
+    addFloorPlanObject({ id: floorPlanId("text"), type: "text", text: tr("floorPlanAddText"), color: "#172033", fontSize: 28, x: floor.width / 2 - 110, y: floor.height / 2 - 30, width: 220, height: 60, rotation: 0 });
   });
   const symbolMenuButton = document.getElementById("floorPlanSymbolMenuBtn");
   const symbolPalette = document.getElementById("floorPlanSymbolPalette");
@@ -617,7 +969,7 @@ function wireFloorPlanEditorControls() {
   symbolPalette?.querySelectorAll("[data-floor-plan-symbol]").forEach(button => button.addEventListener("click", () => {
     const floor = floorPlanActiveFloor();
     const symbol = FLOOR_PLAN_SYMBOLS[button.dataset.floorPlanSymbol];
-    addFloorPlanObject({ id: floorPlanId("symbol"), type: "symbol", symbol: button.dataset.floorPlanSymbol, label: floorPlanSymbolName(symbol), x: floor.width / 2 - 52, y: floor.height / 2 - 62, width: 104, height: 124, rotation: 0 });
+    addFloorPlanObject({ id: floorPlanId("symbol"), type: "symbol", symbol: button.dataset.floorPlanSymbol, label: floorPlanSymbolName(symbol), backgroundVisible: false, x: floor.width / 2 - 52, y: floor.height / 2 - 62, width: 104, height: 124, rotation: 0 });
     symbolPalette.hidden = true;
     symbolMenuButton.setAttribute("aria-expanded", "false");
   }));
@@ -661,6 +1013,8 @@ function wireFloorPlanEditorControls() {
   });
   document.getElementById("floorPlanDeleteFloorBtn")?.addEventListener("click", async () => {
     if (floorPlanEditorDocument.floors.length <= 1 || !confirm(tr("floorPlanDeleteFloor") + "?")) return;
+    disposeFloorPlanTraceEntry(floorPlanTraceReferences.get(S.floorPlanEditorFloorId));
+    floorPlanTraceReferences.delete(S.floorPlanEditorFloorId);
     floorPlanEditorDocument.floors = floorPlanEditorDocument.floors.filter(floor => floor.id !== S.floorPlanEditorFloorId);
     await switchFloorPlanFloor(floorPlanEditorDocument.floors[0].id, { sync: false });
   });
@@ -689,7 +1043,7 @@ function wireFloorPlanEditorControls() {
       await S.store.publishFloorPlan(S.floorPlanDraft.revision);
       S.floorPlanPublic = { document: structuredClone(S.floorPlanDraft.document), revision: S.floorPlanDraft.revision, published_at: new Date().toISOString() };
       S.floorPlanDraft.published_at = S.floorPlanPublic.published_at;
-      S.con.floor_plan_mode = "editor";
+      S.con.floor_plan_mode = floorPlanModeForSources({ external: floorPlanExternalEnabled(), interactive: true });
       button.textContent = `✓ ${tr("floorPlanPublished")}`;
       button.disabled = false;
     } catch (error) {
@@ -714,12 +1068,26 @@ function wireFloorPlanEditorControls() {
   const inspector = document.getElementById("floorPlanInspector");
   inspector?.addEventListener("change", event => {
     if (event.target.id === "floorPlanInspectorRoom") rebuildSelectedFloorPlanObject({ roomId: event.target.value, fallbackLabel: floorPlanRoom(event.target.value)?.name || "" });
+    if (event.target.matches("[data-floor-plan-geometry]")) updateSelectedRoomGeometry();
+    if (event.target.id === "floorPlanLabelVisible") rebuildSelectedFloorPlanObject({ labelVisible: event.target.checked });
+    if (event.target.id === "floorPlanMarkerVisible") rebuildSelectedFloorPlanObject({ markerVisible: event.target.checked });
+    if (event.target.id === "floorPlanSymbolBackgroundVisible") rebuildSelectedFloorPlanObject({ backgroundVisible: event.target.checked });
+    if (event.target.id === "floorPlanInspectorTextSize") updateSelectedFloorPlanTextStyle({ fontSize: event.target.value });
+  });
+  inspector?.addEventListener("keydown", event => {
+    if (event.key !== "Enter" || !event.target.matches("[data-floor-plan-geometry], #floorPlanInspectorTextSize")) return;
+    event.preventDefault();
+    if (event.target.id === "floorPlanInspectorTextSize") updateSelectedFloorPlanTextStyle({ fontSize: event.target.value });
+    else updateSelectedRoomGeometry();
   });
   inspector?.addEventListener("click", event => {
     const symbolButton = event.target.closest("[data-inspector-symbol]");
     if (symbolButton) rebuildSelectedFloorPlanObject({ symbol: symbolButton.dataset.inspectorSymbol });
     const markerButton = event.target.closest("[data-inspector-marker]");
-    if (markerButton) rebuildSelectedFloorPlanObject({ roomId: null, customMarker: markerButton.dataset.inspectorMarker });
+    if (markerButton) {
+      const marker = markerButton.dataset.inspectorMarker;
+      rebuildSelectedFloorPlanObject(marker === "none" ? { roomId: null, markerVisible: false } : { roomId: null, customMarker: marker, markerVisible: true });
+    }
     if (event.target.id === "floorPlanGraphicToBack") {
       const selected = floorPlanCanvas.getActiveObject();
       if (selected?.fpType === "image") { floorPlanCanvas.sendObjectToBack(selected); floorPlanCanvas.requestRenderAll(); floorPlanCanvasChanged(); }
@@ -727,13 +1095,25 @@ function wireFloorPlanEditorControls() {
   });
   inspector?.addEventListener("input", event => {
     if (event.target.id === "floorPlanInspectorText") {
-      const selected = floorPlanCanvas.getActiveObject(); selected.set("text", event.target.value); floorPlanCanvas.requestRenderAll(); floorPlanCanvasChanged();
+      const selected = floorPlanCanvas.getActiveObject(); selected.set("text", event.target.value); selected.initDimensions?.(); selected.setCoords(); floorPlanCanvas.requestRenderAll(); floorPlanCanvasChanged();
+    } else if (event.target.id === "floorPlanInspectorTextColor") {
+      updateSelectedFloorPlanTextStyle({ color: event.target.value });
     } else if (event.target.id === "floorPlanInspectorRoomName") {
       updateSelectedCustomRoom({ fallbackLabel: event.target.value });
     } else if (event.target.id === "floorPlanInspectorRoomLocation") {
       updateSelectedCustomRoom({ customLocation: event.target.value });
     } else if (event.target.id === "floorPlanInspectorRoomColor") {
       updateSelectedCustomRoom({ customColor: event.target.value });
+    } else if (event.target.id === "floorPlanCornerRadius") {
+      const selected = floorPlanCanvas.getActiveObject();
+      if (!selected || selected.fpType !== "room") return;
+      const radius = Math.min(60, Math.max(0, Number(event.target.value) || 0));
+      selected.fpCornerRadius = radius;
+      const renderedRadius = Math.min(radius, (selected.fpRect?.width || 0) / 2, (selected.fpRect?.height || 0) / 2);
+      selected.fpRect?.set({ rx: renderedRadius, ry: renderedRadius });
+      selected.dirty = true;
+      document.getElementById("floorPlanCornerRadiusValue").textContent = `${Math.round(radius)} px`;
+      floorPlanCanvas.requestRenderAll(); syncFloorPlanCanvasToDocument(); scheduleFloorPlanSave();
     } else if (event.target.id === "floorPlanInspectorLabel") {
       const selected = floorPlanCanvas.getActiveObject();
       selected.fpLabel = event.target.value;

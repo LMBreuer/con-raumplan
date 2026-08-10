@@ -255,13 +255,12 @@ function requestContextHtml(matchedGame) {
   return `<div class="req-context">${esc(text)}</div>`;
 }
 function wuenscheHtml() {
-  const list = S.requests;
-  const rowsHtml = list.map(r => {
+  const requestRow = (r, { archived = false } = {}) => {
     const matchedGame = findGameByRef(r.game_ref);
     const requestGameTitle = matchedGame ? matchedGame.title : String(r.game_ref || tr("general")).replace(/\s+\([^()]+\)\s*$/, "");
     const jumpBtn = matchedGame ? `<button type="button" class="small jumpToGameBtn" data-game="${esc(matchedGame.key)}" data-slot="${esc(matchedGame.slotKey)}" data-msg="${esc(r.message)}">${esc(tr("jumpToGameBtn"))}</button>` : "";
     return `
-    <div class="request-row">
+    <div class="request-row${archived ? " is-archived" : ""}">
       <div class="request-copy">
         <div class="manage-title">${esc(requestGameTitle)} <span class="badge ${REQ_STATUS_BADGE[r.status] || "muted"}">${esc(tr(REQ_STATUS_KEY[r.status] || r.status))}</span></div>
         <div class="rmsg">${esc(r.message)}</div>
@@ -270,14 +269,18 @@ function wuenscheHtml() {
       </div>
       <div class="manage-actions">
         ${jumpBtn}
-        <button type="button" class="small reqStatus request-status-done" data-id="${r.id}" data-status="erledigt">${esc(tr("markDoneShort"))}</button>
-        <button type="button" class="small reqStatus request-status-rejected" data-id="${r.id}" data-status="abgelehnt">${esc(tr("rejectShort"))}</button>
+        ${archived ? `<button type="button" class="small reqStatus" data-id="${r.id}" data-status="offen">${esc(tr("statusOpenBtn"))}</button>` : `<button type="button" class="small reqStatus request-status-done" data-id="${r.id}" data-status="erledigt">${esc(tr("markDoneShort"))}</button><button type="button" class="small reqStatus request-status-rejected" data-id="${r.id}" data-status="abgelehnt">${esc(tr("rejectShort"))}</button>`}
       </div>
     </div>`;
-  }).join("") || `<p class="hint">${esc(tr("noOpenRequests"))}</p>`;
+  };
+  const open = S.requests.filter(request => request.status === "offen");
+  const processed = S.requests.filter(request => request.status !== "offen");
+  const rowsHtml = open.map(request => requestRow(request)).join("") || `<p class="hint">${esc(tr("noOpenRequests"))}</p>`;
+  const archiveHtml = processed.length ? `<details class="requests-archive"><summary>${esc(tr("processedRequests"))} <span class="badge muted">${processed.length}</span></summary><div>${processed.map(request => requestRow(request, { archived: true })).join("")}</div></details>` : "";
   return `<div class="card setup-card requests-card">
-    <div class="setup-head-title"><h2>${esc(tr("requestsInfoTitle"))}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("requestsInfoAriaLabel"))}" data-info-text="${esc(tr("requestsInfoText"))}">i</span></div>
+    <div class="setup-head-title"><h2>${esc(tr("requestsInfoTitle"))}${open.length ? ` <span class="badge warn">${open.length}</span>` : ""}</h2><span class="icon-btn info-tip-trigger" tabindex="0" role="button" aria-label="${esc(tr("requestsInfoAriaLabel"))}" data-info-text="${esc(tr("requestsInfoText"))}">i</span></div>
     ${rowsHtml}
+    ${archiveHtml}
   </div>`;
 }
 

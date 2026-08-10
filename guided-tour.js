@@ -4,7 +4,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "1";
+  const VERSION = "2";
   const ACTIVE_KEY = "raumplan-guided-tour-active";
   const teaserKey = `guided-tour-teaser-v${VERSION}`;
   const completeKey = type => `guided-tour-${type}-complete-v${VERSION}`;
@@ -328,12 +328,14 @@
     }
     const tour = config.tours?.[type];
     if (!tour?.steps?.length || (type === "crew" && !config.canCrew?.())) return;
+    const availableSteps = tour.steps.filter(step => typeof step.when === "function" ? step.when() : step.when !== false);
+    if (!availableSteps.length) return;
     if (active) stop("switch", { restore: true, clearSession: false });
     const focused = document.activeElement;
     const focusIsInsideTour = focused?.closest?.(".guided-tour-chooser, .guided-tour-teaser, .guided-tour-followup");
     active = {
       type,
-      steps: tour.steps,
+      steps: availableSteps,
       index: 0,
       originalState: config.captureState?.(),
       target: null,

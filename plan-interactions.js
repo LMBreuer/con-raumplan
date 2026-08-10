@@ -136,9 +136,11 @@ document.addEventListener("submit", async e => {
   msg.className = "msg";
   msg.textContent = tr("savingFloorPlan");
   try {
+    const mode = floorPlanModeForSources({ external: !!value, interactive: floorPlanInteractiveEnabled() });
     await S.store.saveFloorPlanUrl(value);
     S.con.floor_plan_url = value || null;
-    S.con.floor_plan_mode = value ? "external" : "none";
+    S.con.floor_plan_mode = mode;
+    floorPlanExternalEditing = false;
     renderActive();
     const updatedMsg = document.getElementById("floorPlanMsg");
     if (updatedMsg) { updatedMsg.className = "msg ok"; updatedMsg.textContent = tr("floorPlanSaved"); }
@@ -198,6 +200,7 @@ document.addEventListener("click", async e => {
     renderActive();
   }
   else if (t.matches("[data-view]")) { S.mode = "view"; S.view = t.dataset.view; renderActive(); }
+  else if (t.matches("[data-floor-plan-room-link]")) { jumpToFloorPlanRoom(t.dataset.floorPlanRoomLink); }
   else if (t.matches("[data-crewview]")) {
     S.mode = "crew";
     S.crewView = t.dataset.crewview;

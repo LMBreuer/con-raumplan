@@ -170,11 +170,13 @@ function remapFloorPlanDocument(documentValue, sourceRooms, mapping) {
 
 async function replaceFloorPlanDraft(documentValue) {
   if (floorPlanCanvas) await saveFloorPlanNow();
+  const keepExternalSource = floorPlanExternalEnabled() && !!floorPlanUrl();
   const normalized = normalizeFloorPlanDocument(documentValue);
   const revision = Number(await S.store.replaceFloorPlanDocument(normalized, Number(S.floorPlanDraft?.revision || 0)));
+  if (keepExternalSource) await S.store.setFloorPlanSource("both", S.con.floor_plan_url);
   S.floorPlanDraft = { ...S.floorPlanDraft, document: normalized, revision, updated_at: new Date().toISOString() };
   S.floorPlanEditorFloorId = normalized.floors[0]?.id || null;
-  S.con.floor_plan_mode = "editor";
+  S.con.floor_plan_mode = keepExternalSource ? "both" : "editor";
   return revision;
 }
 
