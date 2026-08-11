@@ -2852,11 +2852,15 @@ dialog {
 .floor-plan-personal-route-head p { margin: 6px 0 0; color: var(--text-secondary); font-size: var(--fs-sm); line-height: 1.45; }
 .floor-plan-personal-route-list { display: grid; gap: var(--sp-2); }
 .floor-plan-personal-game {
-  position: relative; display: flex; flex-direction: column; align-items: stretch; width: 100%; gap: 4px; padding: 12px 34px 12px 13px;
+  position: relative; display: flex; flex-direction: column; align-items: stretch; width: 100%; gap: 4px; padding: 12px 34px 12px 48px;
   border: var(--card-border); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); text-align: left; box-shadow: none;
 }
 button.floor-plan-personal-game:hover, button.floor-plan-personal-game:focus-visible { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface-1)); transform: none; }
 .floor-plan-personal-game.is-unlinked { padding-right: 13px; opacity: .72; }
+.floor-plan-personal-game-number {
+  position: absolute; left: 13px; top: 13px; display: inline-grid; place-items: center; min-width: 25px; height: 25px; padding: 0 6px;
+  border-radius: var(--r-pill); background: var(--accent); color: var(--accent-contrast, #fff); font-size: .72rem; font-weight: 850; line-height: 1;
+}
 .floor-plan-personal-game-time, .floor-plan-personal-game-place { color: var(--text-secondary); font-size: var(--fs-xs); line-height: 1.35; }
 .floor-plan-personal-game strong { font-size: var(--fs-sm); line-height: 1.28; }
 .floor-plan-personal-role { align-self: flex-start; margin-top: 3px; padding: 3px 7px; border-radius: var(--r-pill); background: var(--band); color: var(--text-secondary); font-size: .67rem; font-weight: 800; }

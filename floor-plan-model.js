@@ -417,7 +417,34 @@ function floorPlanRotation(object) {
   return object.rotation ? ` transform="rotate(${object.rotation} ${cx} ${cy})"` : "";
 }
 
-function floorPlanRoomSvg(object, { interactive = false } = {}) {
+function floorPlanRoomPersonalSvg(object, layout, numbers) {
+  if (!numbers?.length) return "";
+  const numberText = numbers.join(",");
+  const inset = Math.min(6, object.width * .08, object.height * .08);
+  const outline = object.shape === "ellipse"
+    ? `<ellipse class="floor-plan-personal-outline" cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" rx="${Math.max(1, object.width / 2 - inset)}" ry="${Math.max(1, object.height / 2 - inset)}" />`
+    : `<rect class="floor-plan-personal-outline" x="${object.x + inset}" y="${object.y + inset}" width="${Math.max(1, object.width - inset * 2)}" height="${Math.max(1, object.height - inset * 2)}" rx="${Math.max(0, Math.min(object.cornerRadius ?? 0, object.width / 2, object.height / 2) - inset / 2)}" />`;
+  const badgeHeight = Math.max(18, Math.min(25, object.height * .22));
+  const badgeFontSize = Math.max(11, Math.min(15, badgeHeight * .62));
+  const badgeWidth = Math.max(badgeHeight, numberText.length * badgeFontSize * .58 + 12);
+  const longestLabel = layout.lines.reduce((longest, line) => line.length > longest.length ? line : longest, "");
+  const labelWidth = longestLabel.length * layout.labelFontSize * .55;
+  const roomCenterX = object.x + object.width / 2;
+  const besideLabelX = roomCenterX + labelWidth / 2 + badgeWidth / 2 + 6;
+  const minBadgeX = object.x + badgeWidth / 2 + inset + 2;
+  const maxBadgeX = object.x + object.width - badgeWidth / 2 - inset - 2;
+  const fitsBesideLabel = labelWidth + badgeWidth + 18 <= object.width;
+  const badgeX = Math.max(minBadgeX, Math.min(maxBadgeX, fitsBesideLabel ? besideLabelX : maxBadgeX));
+  const desiredBadgeY = object.y + layout.labelCenterY - layout.labelFontSize * .7;
+  const badgeY = Math.max(object.y + badgeHeight / 2 + inset + 2, Math.min(object.y + object.height - badgeHeight / 2 - inset - 2, desiredBadgeY));
+  return `<g class="floor-plan-personal-reference" pointer-events="none"${floorPlanRotation(object)} aria-hidden="true">
+    ${outline}
+    <rect class="floor-plan-personal-number-bg" x="${badgeX - badgeWidth / 2}" y="${badgeY - badgeHeight / 2}" width="${badgeWidth}" height="${badgeHeight}" rx="${badgeHeight / 2}" />
+    <text class="floor-plan-personal-number" x="${badgeX}" y="${badgeY}" text-anchor="middle" dominant-baseline="central" style="font-size:${badgeFontSize}px">${esc(numberText)}</text>
+  </g>`;
+}
+
+function floorPlanRoomSvg(object, { interactive = false, personalRoomNumbers = null } = {}) {
   const room = floorPlanRoom(object.roomId);
   const label = room?.name || object.fallbackLabel || tr("floorPlanUnlinkedRoom");
   const color = floorPlanObjectRoomColor(object, room);
@@ -437,12 +464,13 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
   const shape = object.shape === "ellipse"
     ? `<ellipse class="floor-plan-room-shape" cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" rx="${object.width / 2}" ry="${object.height / 2}" />`
     : `<rect class="floor-plan-room-shape" x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" rx="${cornerRadius}" />`;
-  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}${object.outlineVisible === false ? " is-outline-hidden" : ""}${object.foregroundColor ? " has-custom-foreground" : ""}"${attrs}${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} style="--floor-plan-room-color:${color};--floor-plan-room-foreground:${foreground};--floor-plan-room-fill-opacity:${floorPlanNumber(object.fillOpacity, .15, 0, 1)}">
+  const personalNumbers = room ? personalRoomNumbers?.get(room.id) || [] : [];
+  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}${object.outlineVisible === false ? " is-outline-hidden" : ""}${object.foregroundColor ? " has-custom-foreground" : ""}${personalNumbers.length ? " has-personal-reference" : ""}"${attrs}${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} style="--floor-plan-room-color:${color};--floor-plan-room-foreground:${foreground};--floor-plan-room-fill-opacity:${floorPlanNumber(object.fillOpacity, .15, 0, 1)}">
     ${shape}
     ${labelVisible ? `<text class="floor-plan-map-label" x="${object.x + object.width / 2}" y="${textStart}" text-anchor="middle" dominant-baseline="middle" style="font-size:${layout.labelFontSize}px">${text}</text>` : ""}
     ${object.markerVisible === false ? "" : `<text class="floor-plan-map-marker" x="${object.x + object.width / 2}" y="${object.y + layout.markerCenterY}" text-anchor="middle" dominant-baseline="central" style="font-size:${layout.markerSize * markerScale}px">${esc(glyph)}</text>`}
     ${layout.locationText ? `<text class="floor-plan-map-location" x="${object.x + object.width / 2}" y="${object.y + layout.locationY}" text-anchor="middle" style="font-size:${layout.locationFontSize}px">${esc(layout.locationText)}</text>` : ""}
-  </g>`;
+  </g>${floorPlanRoomPersonalSvg(object, layout, personalNumbers)}`;
 }
 
 function floorPlanSvgViewport(floor) {
@@ -484,12 +512,13 @@ function floorPlanObjectSvg(object, options) {
   </g>`;
 }
 
-function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id = "" } = {}) {
+function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id = "", personalRoomNumbers = null } = {}) {
   const document = normalizeFloorPlanDocument(documentValue);
   const floor = document.floors.find(item => item.id === floorValue?.id) || document.floors[0];
   const title = `${document.title || S.con?.name || tr("floorPlan")} · ${floor.name}`;
   const viewport = floorPlanSvgViewport(floor);
-  return `<svg${id ? ` id="${esc(id)}"` : ""} class="floor-plan-map" viewBox="${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}" data-floor-plan-width="${viewport.width}" data-floor-plan-height="${viewport.height}" role="img" aria-label="${esc(title)}" xmlns="http://www.w3.org/2000/svg">
+  const personalMode = !!personalRoomNumbers?.size;
+  return `<svg${id ? ` id="${esc(id)}"` : ""} class="floor-plan-map${personalMode ? " is-personal-map" : ""}" viewBox="${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}" data-floor-plan-width="${viewport.width}" data-floor-plan-height="${viewport.height}" role="img" aria-label="${esc(title)}" xmlns="http://www.w3.org/2000/svg">
     <title>${esc(title)}</title>
     <style>
       .floor-plan-map-page{fill:var(--floor-plan-page-bg,#fff)}.floor-plan-map-room .floor-plan-room-shape{fill:var(--floor-plan-room-color);fill-opacity:var(--floor-plan-room-fill-opacity,.15);stroke:var(--floor-plan-room-color);stroke-width:4}
@@ -497,9 +526,10 @@ function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id =
       .floor-plan-map-location{fill:var(--floor-plan-room-foreground);font:500 13px Arial,sans-serif}.floor-plan-map-text text{fill:#172033;font:600 28px Arial,sans-serif}
       .floor-plan-map-symbol circle{fill:var(--floor-plan-symbol-bg,#fff);stroke:var(--floor-plan-symbol-border,#62708a);stroke-width:4}.floor-plan-map-symbol.is-outline-hidden circle{stroke:none}.floor-plan-map-symbol>text{fill:var(--floor-plan-symbol-text,#27344d);font-family:Arial,sans-serif;font-weight:700}.floor-plan-map-symbol-label{fill:var(--floor-plan-symbol-label,#596579)!important;font-family:Arial,sans-serif!important;font-weight:600!important}
       .floor-plan-map-room.is-orphan .floor-plan-room-shape{stroke:#b45309;stroke-dasharray:10 7;fill:#fef3c7}.floor-plan-map-room.is-outline-hidden .floor-plan-room-shape{stroke:none;stroke-dasharray:none}
+      .floor-plan-map.is-personal-map .floor-plan-map-room:not(.has-personal-reference){opacity:.34}.floor-plan-personal-outline{fill:none;stroke:#8e2d35;stroke-width:6;vector-effect:non-scaling-stroke}.floor-plan-personal-number-bg{fill:#8e2d35;stroke:#fff;stroke-width:2;vector-effect:non-scaling-stroke}.floor-plan-personal-number{fill:#fff;font-family:Arial,sans-serif;font-weight:800}
     </style>
     <rect class="floor-plan-map-page" x="0" y="0" width="${floor.width}" height="${floor.height}" />
-    <g class="floor-plan-map-content">${floor.objects.map(object => floorPlanObjectSvg(object, { interactive })).join("")}</g>
+    <g class="floor-plan-map-content">${floor.objects.map(object => floorPlanObjectSvg(object, { interactive, personalRoomNumbers })).join("")}</g>
   </svg>`;
 }
 

@@ -11,7 +11,7 @@ function activeFloorPlanDocument() {
 function floorPlanPersonalEntries(documentValue) {
   if (!S.personalProfile) return [];
   const slotOrder = new Map(S.slots.map((slot, index) => [slot.key, index]));
-  return personalGames().map(game => {
+  const entries = personalGames().map(game => {
     const assignment = asgFor(game);
     const table = assignment && S.tables.find(item => item.id === assignment.table_id);
     const room = table && floorPlanRoom(table.room_id);
@@ -24,14 +24,25 @@ function floorPlanPersonalEntries(documentValue) {
     const slotDifference = (slotOrder.get(a.game.slotKey) ?? Number.MAX_SAFE_INTEGER) - (slotOrder.get(b.game.slotKey) ?? Number.MAX_SAFE_INTEGER);
     return slotDifference || a.game.title.localeCompare(b.game.title, LANG === "en" ? "en" : "de");
   });
+  return entries.map((entry, index) => ({ ...entry, number: index + 1 }));
+}
+
+function floorPlanPersonalRoomNumbers(entries) {
+  return entries.reduce((numbers, entry) => {
+    if (!entry.room || !entry.floor) return numbers;
+    const roomNumbers = numbers.get(entry.room.id) || [];
+    roomNumbers.push(entry.number);
+    numbers.set(entry.room.id, roomNumbers);
+    return numbers;
+  }, new Map());
 }
 
 function floorPlanPersonalRouteHtml(entries) {
   const name = S.personalProfile?.username || "";
-  const body = entries.length ? entries.map(({ game, state, table, room, floor }) => {
+  const body = entries.length ? entries.map(({ number, game, state, table, room, floor }) => {
     const where = room ? `${room.name}${table ? ` · ${table.name}` : ""}` : tr("floorPlanPersonalUnassigned");
     const floorMeta = floor ? floor.name : room ? tr("floorPlanPersonalNotOnMap") : "";
-    const content = `<span class="floor-plan-personal-game-time">${esc([game.slotLabel, game.time].filter(Boolean).join(" · "))}</span>
+    const content = `<span class="floor-plan-personal-game-number" aria-hidden="true">${number}</span><span class="floor-plan-personal-game-time">${esc([game.slotLabel, game.time].filter(Boolean).join(" · "))}</span>
       <strong>${esc(game.title)}</strong>
       <span class="floor-plan-personal-game-place">${esc([where, floorMeta].filter(Boolean).join(" · "))}</span>
       <span class="floor-plan-personal-role" data-state="${esc(state)}">${esc(tr(`floorPlanPersonalRole_${state}`))}</span>`;
@@ -49,6 +60,7 @@ function floorPlanViewerHtml() {
   const personalMode = !!(S.personalFilterActive && S.personalProfile);
   const personalEntries = personalMode ? floorPlanPersonalEntries(document) : [];
   const personalRoomIds = new Set(personalEntries.filter(entry => entry.floor).map(entry => entry.room.id));
+  const personalRoomNumbers = floorPlanPersonalRoomNumbers(personalEntries);
   const personalFloorCounts = personalEntries.reduce((counts, entry) => {
     if (entry.floor) counts.set(entry.floor.id, (counts.get(entry.floor.id) || 0) + 1);
     return counts;
@@ -68,10 +80,10 @@ function floorPlanViewerHtml() {
     <section class="card floor-plan-public-card">
       <div class="floor-plan-public-head">
         <div><span class="floor-plan-editor-kicker">${esc(tr("floorPlan"))}</span><h2>${esc(document.title || S.con?.name || tr("floorPlan"))}</h2></div>
-        <div class="floor-plan-public-actions"><button type="button" id="floorPlanDownloadPdfBtn">⇩ ${esc(tr("floorPlanDownloadPdf"))}</button><button type="button" id="floorPlanPrintBtn">⎙ ${esc(tr("printBtn"))}</button></div>
+        <div class="floor-plan-public-actions"><button type="button" id="floorPlanDownloadPdfBtn">⇩ ${esc(tr("floorPlanDownloadPdf"))}</button>${personalEntries.length ? `<button type="button" id="floorPlanDownloadPersonalPdfBtn">⇩ ${esc(tr("floorPlanPersonalDownloadPdf"))}</button>` : ""}<button type="button" id="floorPlanPrintBtn">⎙ ${esc(tr("printBtn"))}</button></div>
       </div>
       <div class="floor-plan-floor-tabs slot-tabs" role="group" aria-label="${esc(tr("floorPlanFloor"))}">${floorTabs}</div>
-      <div class="floor-plan-public-stage${personalMode ? " is-personal-route" : ""}" data-personal-room-ids="${esc([...personalRoomIds].join(" "))}">${floorPlanSvgHtml(document, activeFloor, { interactive: true, id: "publicFloorPlanSvg" })}</div>
+      <div class="floor-plan-public-stage${personalMode ? " is-personal-route" : ""}" data-personal-room-ids="${esc([...personalRoomIds].join(" "))}">${floorPlanSvgHtml(document, activeFloor, { interactive: true, id: "publicFloorPlanSvg", personalRoomNumbers })}</div>
       <p class="floor-plan-public-hint">${esc(personalMode ? tr("floorPlanPersonalMapHint") : tr("floorPlanPublicHint"))}</p>
     </section>
     <aside class="card floor-plan-room-detail" id="floorPlanRoomDetail" aria-live="polite">
@@ -106,6 +118,7 @@ function mountFloorPlanViewer() {
   });
   globalThis.document.querySelectorAll("[data-floor-plan-personal-room]").forEach(button => button.addEventListener("click", () => jumpToFloorPlanRoom(button.dataset.floorPlanPersonalRoom)));
   globalThis.document.getElementById("floorPlanDownloadPdfBtn")?.addEventListener("click", event => downloadFloorPlanPdf(document, event.currentTarget));
+  globalThis.document.getElementById("floorPlanDownloadPersonalPdfBtn")?.addEventListener("click", event => downloadPersonalFloorPlanPdf(document, event.currentTarget));
   globalThis.document.getElementById("floorPlanPrintBtn")?.addEventListener("click", () => {
     S.printMode = "lageplan"; S.printReturnMode = S.mode; S.printReturnView = S.view; S.mode = "print"; renderActive();
   });
@@ -252,9 +265,9 @@ function mountFloorPlanPrintView() {
   globalThis.document.getElementById("floorPlanPrintDownloadBtn")?.addEventListener("click", event => downloadFloorPlanPdf(document, event.currentTarget));
 }
 
-function floorPlanSvgForExport(documentValue, floor) {
+function floorPlanSvgForExport(documentValue, floor, options = {}) {
   const wrapper = globalThis.document.createElement("div");
-  wrapper.innerHTML = floorPlanSvgHtml(documentValue, floor);
+  wrapper.innerHTML = floorPlanSvgHtml(documentValue, floor, options);
   const svg = wrapper.firstElementChild;
   const viewport = floorPlanSvgViewport(floor);
   svg.setAttribute("width", String(viewport.width));
@@ -262,9 +275,9 @@ function floorPlanSvgForExport(documentValue, floor) {
   return new XMLSerializer().serializeToString(svg);
 }
 
-function floorPlanSvgToPng(documentValue, floor, scale = 3) {
+function floorPlanSvgToPng(documentValue, floor, scale = 3, options = {}) {
   return new Promise((resolve, reject) => {
-    const svg = floorPlanSvgForExport(documentValue, floor);
+    const svg = floorPlanSvgForExport(documentValue, floor, options);
     const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const image = new Image();
@@ -330,6 +343,181 @@ async function downloadFloorPlanPdf(documentValue, button) {
     }
     const name = `${(S.con?.name || "Lageplan").replace(/[^a-z0-9äöüß_-]+/gi, "-")}-Lageplan.pdf`;
     pdf.save(name);
+  } catch (error) {
+    button.textContent = error.message || tr("floorPlanSaveFailed", { err: "PDF" });
+    return;
+  } finally {
+    button.disabled = false;
+    setTimeout(() => { button.textContent = original; }, 1400);
+  }
+}
+
+function floorPlanPersonalPdfTime(entry) {
+  return [entry.game.slotLabel, entry.game.time].filter(Boolean).join(" - ") || tr("noSlot");
+}
+
+function floorPlanPersonalPdfPlace(entry) {
+  if (!entry.room) return tr("floorPlanPersonalUnassigned");
+  return [entry.room.name, entry.table?.name, entry.floor?.name || tr("floorPlanPersonalNotOnMap")].filter(Boolean).join(" - ");
+}
+
+function floorPlanDrawPersonalScheduleHeader(pdf, documentValue, { continuation = false } = {}) {
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const margin = 11;
+  pdf.setTextColor(142, 45, 53);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(7.5);
+  pdf.text(tr("personalLabel").toUpperCase(), margin, 10.5);
+  pdf.setTextColor(29, 36, 51);
+  pdf.setFontSize(17);
+  pdf.text(tr("floorPlanPersonalPdfTitle"), margin, 18);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8.5);
+  pdf.setTextColor(91, 101, 121);
+  const subtitle = [documentValue.title || S.con?.name || tr("floorPlan"), S.personalProfile?.username].filter(Boolean).join(" - ");
+  pdf.text(continuation ? `${subtitle} - ${tr("floorPlanPersonalPdfContinued")}` : subtitle, margin, 24);
+  pdf.setDrawColor(142, 45, 53);
+  pdf.setLineWidth(.65);
+  pdf.line(margin, 28.5, pageWidth - margin, 28.5);
+  return 34;
+}
+
+function floorPlanDrawPersonalScheduleTableHeader(pdf, y, columns) {
+  const { x, numberWidth, timeWidth, gameWidth, placeWidth } = columns;
+  const height = 8;
+  pdf.setFillColor(239, 229, 216);
+  pdf.roundedRect(x, y, numberWidth + timeWidth + gameWidth + placeWidth, height, 1.2, 1.2, "F");
+  pdf.setTextColor(72, 62, 53);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(7.2);
+  const baseline = y + 5.2;
+  pdf.text(tr("floorPlanPersonalPdfNumber"), x + 2, baseline);
+  pdf.text(tr("floorPlanPersonalPdfTime"), x + numberWidth + 2, baseline);
+  pdf.text(tr("floorPlanPersonalPdfGame"), x + numberWidth + timeWidth + 2, baseline);
+  pdf.text(tr("floorPlanPersonalPdfPlace"), x + numberWidth + timeWidth + gameWidth + 2, baseline);
+  return y + height + 1.5;
+}
+
+function floorPlanDrawPersonalSchedule(pdf, documentValue, entries, pdfFormat) {
+  const margin = 11;
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const tableWidth = pageWidth - margin * 2;
+  const columns = {
+    x: margin,
+    numberWidth: Math.max(9, tableWidth * .06),
+    timeWidth: tableWidth * .22,
+    gameWidth: tableWidth * .38,
+    placeWidth: 0,
+  };
+  columns.placeWidth = tableWidth - columns.numberWidth - columns.timeWidth - columns.gameWidth;
+  let y = floorPlanDrawPersonalScheduleHeader(pdf, documentValue);
+  y = floorPlanDrawPersonalScheduleTableHeader(pdf, y, columns);
+  entries.forEach((entry, index) => {
+    const cellPadding = 2;
+    const lineHeight = 3.7;
+    const timeLines = pdf.splitTextToSize(floorPlanPersonalPdfTime(entry), columns.timeWidth - cellPadding * 2);
+    const titleLines = pdf.splitTextToSize(entry.game.title, columns.gameWidth - cellPadding * 2);
+    const placeLines = pdf.splitTextToSize(floorPlanPersonalPdfPlace(entry), columns.placeWidth - cellPadding * 2);
+    const role = tr(`floorPlanPersonalRole_${entry.state}`);
+    const gameLines = [...titleLines, role];
+    const rowHeight = Math.max(11, Math.max(timeLines.length, gameLines.length, placeLines.length) * lineHeight + cellPadding * 2);
+    if (y + rowHeight > pageHeight - 12) {
+      pdf.addPage(pdfFormat, documentValue.orientation);
+      y = floorPlanDrawPersonalScheduleHeader(pdf, documentValue, { continuation: true });
+      y = floorPlanDrawPersonalScheduleTableHeader(pdf, y, columns);
+    }
+    if (index % 2 === 0) {
+      pdf.setFillColor(249, 247, 243);
+      pdf.roundedRect(columns.x, y, tableWidth, rowHeight, 1, 1, "F");
+    }
+    const baseline = y + cellPadding + 3;
+    pdf.setTextColor(142, 45, 53);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(9);
+    pdf.text(String(entry.number), columns.x + columns.numberWidth / 2, baseline, { align: "center" });
+    pdf.setTextColor(59, 67, 83);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7.4);
+    pdf.text(timeLines, columns.x + columns.numberWidth + cellPadding, baseline, { lineHeightFactor: 1.35 });
+    pdf.setTextColor(29, 36, 51);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(8.1);
+    pdf.text(titleLines, columns.x + columns.numberWidth + columns.timeWidth + cellPadding, baseline, { lineHeightFactor: 1.25 });
+    pdf.setTextColor(110, 75, 78);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(6.7);
+    pdf.text(role, columns.x + columns.numberWidth + columns.timeWidth + cellPadding, baseline + titleLines.length * lineHeight, { lineHeightFactor: 1.2 });
+    pdf.setTextColor(59, 67, 83);
+    pdf.setFontSize(7.4);
+    pdf.text(placeLines, columns.x + columns.numberWidth + columns.timeWidth + columns.gameWidth + cellPadding, baseline, { lineHeightFactor: 1.35 });
+    y += rowHeight + 1;
+  });
+}
+
+async function createPersonalFloorPlanPdf(documentValue) {
+  floorPlanPdfPromise ||= loadFloorPlanScript(FLOOR_PLAN_JSPDF_URL, "jspdf");
+  await floorPlanPdfPromise;
+  const document = normalizeFloorPlanDocument(documentValue);
+  const entries = floorPlanPersonalEntries(document);
+  const roomNumbers = floorPlanPersonalRoomNumbers(entries);
+  const relevantFloorIds = new Set(entries.filter(entry => entry.floor).map(entry => entry.floor.id));
+  const relevantFloors = document.floors.filter(floor => relevantFloorIds.has(floor.id));
+  const { jsPDF } = globalThis.jspdf;
+  const pdfFormat = floorPlanPdfFormat(document);
+  const pdf = new jsPDF({ orientation: document.orientation, unit: "mm", format: pdfFormat, compress: true });
+  floorPlanDrawPersonalSchedule(pdf, document, entries, pdfFormat);
+  for (const floor of relevantFloors) {
+    pdf.addPage(pdfFormat, document.orientation);
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 11;
+    const viewport = floorPlanSvgViewport(floor);
+    const image = await floorPlanSvgToPng(document, floor, 3, { personalRoomNumbers: roomNumbers });
+    pdf.setTextColor(142, 45, 53);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7.5);
+    pdf.text(tr("floorPlanPersonalPdfMap").toUpperCase(), margin, 10.5);
+    pdf.setTextColor(29, 36, 51);
+    pdf.setFontSize(12);
+    pdf.text(document.title || S.con?.name || tr("floorPlan"), margin, 17);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.text(floor.name, pageWidth - margin, 17, { align: "right" });
+    pdf.setDrawColor(220, 224, 232);
+    pdf.setLineWidth(.35);
+    pdf.line(margin, 20.5, pageWidth - margin, 20.5);
+    const mapTop = 24;
+    const mapBottom = pageHeight - 11;
+    const availableWidth = pageWidth - margin * 2;
+    const availableHeight = mapBottom - mapTop;
+    const scale = Math.min(availableWidth / viewport.width, availableHeight / viewport.height);
+    const mapWidth = viewport.width * scale;
+    const mapHeight = viewport.height * scale;
+    pdf.addImage(image, "PNG", (pageWidth - mapWidth) / 2, mapTop + (availableHeight - mapHeight) / 2, mapWidth, mapHeight, undefined, "FAST");
+  }
+  const totalPages = pdf.getNumberOfPages();
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+    pdf.setPage(pageNumber);
+    pdf.setTextColor(120, 127, 141);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(6.5);
+    pdf.text(`${pageNumber} / ${totalPages}`, pdf.internal.pageSize.getWidth() - 11, pdf.internal.pageSize.getHeight() - 4, { align: "right" });
+  }
+  return pdf;
+}
+
+async function downloadPersonalFloorPlanPdf(documentValue, button) {
+  if (!documentValue || !button || !S.personalProfile) return;
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = tr("floorPlanSaving");
+  try {
+    const pdf = await createPersonalFloorPlanPdf(documentValue);
+    const conName = S.con?.name || "Lageplan";
+    const profileName = S.personalProfile?.username || tr("personalLabel");
+    const fileName = `${conName}-${profileName}-Lageplan`.replace(/[^a-z0-9äöüß_-]+/gi, "-");
+    pdf.save(`${fileName}.pdf`);
   } catch (error) {
     button.textContent = error.message || tr("floorPlanSaveFailed", { err: "PDF" });
     return;
