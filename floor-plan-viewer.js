@@ -8,14 +8,61 @@ function activeFloorPlanDocument() {
   return value ? normalizeFloorPlanDocument(value) : null;
 }
 
+function floorPlanPersonalEntries(documentValue) {
+  if (!S.personalProfile) return [];
+  const slotOrder = new Map(S.slots.map((slot, index) => [slot.key, index]));
+  return personalGames().map(game => {
+    const assignment = asgFor(game);
+    const table = assignment && S.tables.find(item => item.id === assignment.table_id);
+    const room = table && floorPlanRoom(table.room_id);
+    const floor = room && floorPlanFloorForRoom(documentValue, room.id);
+    return { game, state: personalGameState(game), table, room, floor };
+  }).sort((a, b) => {
+    const aStart = Date.parse(a.game.start) || 0;
+    const bStart = Date.parse(b.game.start) || 0;
+    if (aStart && bStart && aStart !== bStart) return aStart - bStart;
+    const slotDifference = (slotOrder.get(a.game.slotKey) ?? Number.MAX_SAFE_INTEGER) - (slotOrder.get(b.game.slotKey) ?? Number.MAX_SAFE_INTEGER);
+    return slotDifference || a.game.title.localeCompare(b.game.title, LANG === "en" ? "en" : "de");
+  });
+}
+
+function floorPlanPersonalRouteHtml(entries) {
+  const name = S.personalProfile?.username || "";
+  const body = entries.length ? entries.map(({ game, state, table, room, floor }) => {
+    const where = room ? `${room.name}${table ? ` · ${table.name}` : ""}` : tr("floorPlanPersonalUnassigned");
+    const floorMeta = floor ? floor.name : room ? tr("floorPlanPersonalNotOnMap") : "";
+    const content = `<span class="floor-plan-personal-game-time">${esc([game.slotLabel, game.time].filter(Boolean).join(" · "))}</span>
+      <strong>${esc(game.title)}</strong>
+      <span class="floor-plan-personal-game-place">${esc([where, floorMeta].filter(Boolean).join(" · "))}</span>
+      <span class="floor-plan-personal-role" data-state="${esc(state)}">${esc(tr(`floorPlanPersonalRole_${state}`))}</span>`;
+    return floor
+      ? `<button type="button" class="floor-plan-personal-game" data-floor-plan-personal-room="${esc(room.id)}" aria-label="${esc(tr("floorPlanPersonalJump", { title: game.title, room: room.name }))}">${content}<span class="floor-plan-personal-game-arrow" aria-hidden="true">→</span></button>`
+      : `<div class="floor-plan-personal-game is-unlinked">${content}</div>`;
+  }).join("") : `<p class="hint">${esc(tr("noPersonalGames", { name }))}</p>`;
+  return `<div class="floor-plan-personal-route-head"><span class="floor-plan-editor-kicker">${esc(tr("personalLabel"))}</span><h2>${esc(tr("myRooms"))}</h2><p>${esc(tr("floorPlanPersonalRouteHint", { name }))}</p></div>
+    <div class="floor-plan-personal-route-list">${body}</div>`;
+}
+
 function floorPlanViewerHtml() {
   const document = activeFloorPlanDocument();
   if (!document) return emptyState(tr("floorPlanEmptyPublic"));
+  const personalMode = !!(S.personalFilterActive && S.personalProfile);
+  const personalEntries = personalMode ? floorPlanPersonalEntries(document) : [];
+  const personalRoomIds = new Set(personalEntries.filter(entry => entry.floor).map(entry => entry.room.id));
+  const personalFloorCounts = personalEntries.reduce((counts, entry) => {
+    if (entry.floor) counts.set(entry.floor.id, (counts.get(entry.floor.id) || 0) + 1);
+    return counts;
+  }, new Map());
   const pendingFloor = floorPlanPendingRoomHighlight ? floorPlanFloorForRoom(document, floorPlanPendingRoomHighlight) : null;
   if (pendingFloor) S.floorPlanViewerFloorId = pendingFloor.id;
   const activeFloor = document.floors.find(floor => floor.id === S.floorPlanViewerFloorId) || document.floors[0];
   S.floorPlanViewerFloorId = activeFloor.id;
-  const floorTabs = document.floors.map(floor => `<button type="button" data-public-floor-plan-floor="${esc(floor.id)}" aria-pressed="${String(floor.id === activeFloor.id)}">${esc(floor.name)}</button>`).join("");
+  const floorTabs = document.floors.map(floor => {
+    const count = personalFloorCounts.get(floor.id) || 0;
+    const relevant = personalMode && count > 0;
+    const aria = relevant ? tr("floorPlanPersonalFloorGames", { floor: floor.name, n: count }) : floor.name;
+    return `<button type="button" class="${relevant ? "is-personal" : ""}" data-public-floor-plan-floor="${esc(floor.id)}" aria-pressed="${String(floor.id === activeFloor.id)}" aria-label="${esc(aria)}">${esc(floor.name)}${relevant ? `<span class="floor-plan-personal-floor-count" aria-hidden="true">${count}</span>` : ""}</button>`;
+  }).join("");
   const preview = S.floorPlanPreviewDocument ? `<div class="banner floor-plan-preview-banner">${esc(LANG === "en" ? "Draft preview – only you can see this version." : "Entwurfsvorschau – nur du siehst diesen Stand.")} <button type="button" id="floorPlanBackToEditor" class="small">${esc(LANG === "en" ? "Back to editor" : "Zurück zum Editor")}</button></div>` : "";
   return `${preview}<div class="floor-plan-public-layout">
     <section class="card floor-plan-public-card">
@@ -24,13 +71,13 @@ function floorPlanViewerHtml() {
         <div class="floor-plan-public-actions"><button type="button" id="floorPlanDownloadPdfBtn">⇩ ${esc(tr("floorPlanDownloadPdf"))}</button><button type="button" id="floorPlanPrintBtn">⎙ ${esc(tr("printBtn"))}</button></div>
       </div>
       <div class="floor-plan-floor-tabs slot-tabs" role="group" aria-label="${esc(tr("floorPlanFloor"))}">${floorTabs}</div>
-      <div class="floor-plan-public-stage">${floorPlanSvgHtml(document, activeFloor, { interactive: true, id: "publicFloorPlanSvg" })}</div>
-      <p class="floor-plan-public-hint">${esc(LANG === "en" ? "Select a room for current games, location and direct navigation." : "Raum auswählen für aktuelle Spiele, Lagehinweis und direkte Navigation.")}</p>
+      <div class="floor-plan-public-stage${personalMode ? " is-personal-route" : ""}" data-personal-room-ids="${esc([...personalRoomIds].join(" "))}">${floorPlanSvgHtml(document, activeFloor, { interactive: true, id: "publicFloorPlanSvg" })}</div>
+      <p class="floor-plan-public-hint">${esc(personalMode ? tr("floorPlanPersonalMapHint") : tr("floorPlanPublicHint"))}</p>
     </section>
     <aside class="card floor-plan-room-detail" id="floorPlanRoomDetail" aria-live="polite">
-      <span class="floor-plan-empty-glyph" aria-hidden="true">⌖</span>
+      ${personalMode ? floorPlanPersonalRouteHtml(personalEntries) : `<span class="floor-plan-empty-glyph" aria-hidden="true">⌖</span>
       <h2>${esc(tr("floorPlanRoomDetails"))}</h2>
-      <p class="hint">${esc(LANG === "en" ? "Select a coloured room on the map." : "Wähle einen farbigen Raum im Lageplan aus.")}</p>
+      <p class="hint">${esc(tr("floorPlanSelectRoomHint"))}</p>`}
     </aside>
   </div>`;
 }
@@ -38,18 +85,26 @@ function floorPlanViewerHtml() {
 function mountFloorPlanViewer() {
   const document = activeFloorPlanDocument();
   if (!document) return;
+  const personalMode = !!(S.personalFilterActive && S.personalProfile);
+  const personalRoomIds = new Set(personalMode ? floorPlanPersonalEntries(document).filter(entry => entry.floor).map(entry => entry.room.id) : []);
   globalThis.document.querySelectorAll("[data-public-floor-plan-floor]").forEach(button => button.addEventListener("click", () => {
     floorPlanPendingRoomHighlight = null;
     S.floorPlanViewerFloorId = button.dataset.publicFloorPlanFloor;
     renderActive({ animate: false });
   }));
   globalThis.document.querySelectorAll("[data-floor-plan-room]").forEach(element => {
-    element.addEventListener("click", () => showFloorPlanRoomDetails(element.dataset.floorPlanRoom));
+    element.classList.toggle("is-personal", personalRoomIds.has(element.dataset.floorPlanRoom));
+    element.addEventListener("click", () => personalMode
+      ? activateFloorPlanRoom(element.dataset.floorPlanRoom, { highlight: true })
+      : showFloorPlanRoomDetails(element.dataset.floorPlanRoom));
     element.addEventListener("keydown", event => {
       if (!["Enter", " "].includes(event.key)) return;
-      event.preventDefault(); showFloorPlanRoomDetails(element.dataset.floorPlanRoom);
+      event.preventDefault();
+      if (personalMode) activateFloorPlanRoom(element.dataset.floorPlanRoom, { highlight: true });
+      else showFloorPlanRoomDetails(element.dataset.floorPlanRoom);
     });
   });
+  globalThis.document.querySelectorAll("[data-floor-plan-personal-room]").forEach(button => button.addEventListener("click", () => jumpToFloorPlanRoom(button.dataset.floorPlanPersonalRoom)));
   globalThis.document.getElementById("floorPlanDownloadPdfBtn")?.addEventListener("click", event => downloadFloorPlanPdf(document, event.currentTarget));
   globalThis.document.getElementById("floorPlanPrintBtn")?.addEventListener("click", () => {
     S.printMode = "lageplan"; S.printReturnMode = S.mode; S.printReturnView = S.view; S.mode = "print"; renderActive();
@@ -60,7 +115,8 @@ function mountFloorPlanViewer() {
   if (floorPlanPendingRoomHighlight && floorPlanRoom(floorPlanPendingRoomHighlight)) {
     const roomId = floorPlanPendingRoomHighlight;
     floorPlanPendingRoomHighlight = null;
-    showFloorPlanRoomDetails(roomId, { highlight: true });
+    if (personalMode) activateFloorPlanRoom(roomId, { highlight: true, scroll: true });
+    else showFloorPlanRoomDetails(roomId, { highlight: true });
   }
 }
 
@@ -118,22 +174,23 @@ function showFloorPlanRoomDetails(roomId, { highlight = false } = {}) {
     <div class="floor-plan-room-schedule">${floorPlanRoomScheduleHtml(entries)}</div>
     <button type="button" class="primary" id="floorPlanJumpRoomBtn" data-room-id="${esc(room.id)}">${esc(tr("floorPlanShowInRooms"))} →</button>`;
   detail.querySelector("#floorPlanJumpRoomBtn").addEventListener("click", () => jumpFromFloorPlanToRoom(room.id));
-  globalThis.document.querySelectorAll("[data-floor-plan-room]").forEach(element => element.classList.toggle("is-active", element.dataset.floorPlanRoom === room.id));
-  if (highlight) {
-    const element = globalThis.document.querySelector(`[data-floor-plan-room="${CSS.escape(room.id)}"]`);
-    if (element) {
-      element.classList.remove("is-jump-highlight");
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        const reducedMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-        element.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center", inline: "center" });
-        element.focus?.({ preventScroll: true });
-        element.classList.add("is-jump-highlight");
-        const clearHighlight = () => element.classList.remove("is-jump-highlight");
-        element.addEventListener("animationend", clearHighlight, { once: true });
-        globalThis.setTimeout(clearHighlight, 1600);
-      }));
-    }
-  }
+  activateFloorPlanRoom(room.id, { highlight, scroll: highlight });
+}
+
+function activateFloorPlanRoom(roomId, { highlight = false, scroll = false } = {}) {
+  globalThis.document.querySelectorAll("[data-floor-plan-room]").forEach(element => element.classList.toggle("is-active", element.dataset.floorPlanRoom === roomId));
+  const element = globalThis.document.querySelector(`[data-floor-plan-room="${CSS.escape(roomId)}"]`);
+  if (!element || !highlight) return;
+  element.classList.remove("is-jump-highlight");
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const reducedMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (scroll) element.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center", inline: "center" });
+    element.focus?.({ preventScroll: true });
+    element.classList.add("is-jump-highlight");
+    const clearHighlight = () => element.classList.remove("is-jump-highlight");
+    element.addEventListener("animationend", clearHighlight, { once: true });
+    globalThis.setTimeout(clearHighlight, 1600);
+  }));
 }
 
 function jumpFromFloorPlanToRoom(roomId) {

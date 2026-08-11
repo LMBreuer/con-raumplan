@@ -2747,6 +2747,9 @@ dialog {
 .floor-plan-map-room.is-linked:focus-visible,
 .floor-plan-map-room.is-linked.is-active { filter: saturate(1.2) drop-shadow(0 5px 7px rgba(20,30,50,.16)); }
 .floor-plan-map-room.is-linked.is-active rect { fill-opacity: .3; stroke-width: 7; }
+.floor-plan-public-stage.is-personal-route .floor-plan-map-room.is-linked:not(.is-personal):not(.is-active) { opacity: .34; filter: saturate(.55); }
+.floor-plan-public-stage.is-personal-route .floor-plan-map-room.is-linked.is-personal { filter: saturate(1.18) drop-shadow(0 4px 6px rgba(20,30,50,.15)); }
+.floor-plan-public-stage.is-personal-route .floor-plan-map-room.is-linked.is-personal rect { fill-opacity: .3; stroke-width: 6; }
 .floor-plan-map-room.is-jump-highlight { animation: floor-plan-room-jump 1.15s ease-out; }
 @keyframes floor-plan-room-jump {
   0%, 100% { filter: none; }
@@ -2767,6 +2770,25 @@ dialog {
 .floor-plan-room-schedule section + section { margin-top: var(--sp-4); }
 .floor-plan-room-game { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2) 0; border-bottom: var(--border-w) solid var(--border); font-size: var(--fs-sm); }
 .floor-plan-room-game span { color: var(--text-secondary); font-size: var(--fs-xs); }
+.floor-plan-floor-tabs button.is-personal { color: var(--text-primary); }
+.floor-plan-personal-floor-count {
+  display: inline-grid; place-items: center; min-width: 19px; height: 19px; margin-left: 7px; padding: 0 5px;
+  border-radius: var(--r-pill); background: var(--accent); color: var(--accent-contrast, #fff); font-size: .68rem; font-weight: 800;
+}
+.floor-plan-personal-route-head { margin-bottom: var(--sp-3); }
+.floor-plan-personal-route-head p { margin: 6px 0 0; color: var(--text-secondary); font-size: var(--fs-sm); line-height: 1.45; }
+.floor-plan-personal-route-list { display: grid; gap: var(--sp-2); }
+.floor-plan-personal-game {
+  position: relative; display: flex; flex-direction: column; align-items: stretch; width: 100%; gap: 4px; padding: 12px 34px 12px 13px;
+  border: var(--card-border); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); text-align: left; box-shadow: none;
+}
+button.floor-plan-personal-game:hover, button.floor-plan-personal-game:focus-visible { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface-1)); transform: none; }
+.floor-plan-personal-game.is-unlinked { padding-right: 13px; opacity: .72; }
+.floor-plan-personal-game-time, .floor-plan-personal-game-place { color: var(--text-secondary); font-size: var(--fs-xs); line-height: 1.35; }
+.floor-plan-personal-game strong { font-size: var(--fs-sm); line-height: 1.28; }
+.floor-plan-personal-role { align-self: flex-start; margin-top: 3px; padding: 3px 7px; border-radius: var(--r-pill); background: var(--band); color: var(--text-secondary); font-size: .67rem; font-weight: 800; }
+.floor-plan-personal-role[data-state="facilitator"] { background: color-mix(in srgb, var(--accent) 14%, var(--surface-1)); color: var(--accent); }
+.floor-plan-personal-game-arrow { position: absolute; right: 13px; top: 50%; color: var(--accent); font-size: 1.1rem; transform: translateY(-50%); }
 .floor-plan-preview-banner { display: flex; align-items: center; justify-content: center; gap: var(--sp-3); }
 
 .floor-plan-print-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-3); }
@@ -2787,6 +2809,12 @@ dialog {
 :root[data-theme="contrast"] .floor-plan-map-room rect { fill-opacity: .08; stroke-width: 7; }
 
 @media (min-width: 981px) {
+  .floor-plan-public-stage {
+    display: grid; place-items: center;
+    height: clamp(460px, calc(100vh - 220px), 900px);
+    height: clamp(460px, calc(100dvh - 220px), 900px);
+  }
+  .floor-plan-public-stage .floor-plan-map { width: 100%; height: 100%; }
   .floor-plan-editor-shell {
     height: clamp(620px, calc(100vh - 112px), 880px);
     height: clamp(620px, calc(100dvh - 112px), 880px);
@@ -2815,6 +2843,7 @@ dialog {
   .floor-plan-inspector { min-height: 80px; }
   .floor-plan-public-layout { grid-template-columns: 1fr; }
   .floor-plan-room-detail { position: static; max-height: none; overflow: visible; scrollbar-gutter: auto; }
+  .floor-plan-public-stage .floor-plan-map { width: 100%; height: auto; }
 }
 
 @media (max-width: 680px) {

@@ -23,6 +23,9 @@ const personalGamesForm = document.getElementById("personalGamesForm");
 const personalGamesInput = document.getElementById("personalGamesIdentity");
 const personalGamesMessage = document.getElementById("personalGamesMsg");
 function openPersonalGamesDialog() {
+  const floorPlanMode = S.mode === "view" && S.view === "lageplan";
+  document.getElementById("personalGamesDlgH").textContent = tr(floorPlanMode ? "myRooms" : "myGames");
+  document.getElementById("personalGamesSave").textContent = tr(floorPlanMode ? "showMyRooms" : "showMyGames");
   personalGamesMessage.className = "msg";
   personalGamesMessage.textContent = "";
   personalGamesInput.value = S.personalProfile?.username || "";

@@ -151,17 +151,17 @@ function renderNav() {
   const personalGroup = document.getElementById("personalGroup");
   const personalDivider = document.getElementById("personalDivider");
   const hasPlayablEvent = !!S.con?.playabl_event_id;
-  personalGroup.hidden = !hasPlayablEvent || isFloorPlanView;
-  personalDivider.hidden = !hasPlayablEvent || isFloorPlanView;
+  personalGroup.hidden = !hasPlayablEvent;
+  personalDivider.hidden = !hasPlayablEvent;
   document.querySelector(".public-toolbar .toolbar-search-group").hidden = isFloorPlanView;
   if (hasPlayablEvent) {
     const personalToggle = document.getElementById("myGamesFilter");
     const personalProfileButton = document.getElementById("personalGamesProfile");
-    personalToggle.textContent = tr("myGames");
+    personalToggle.textContent = tr(isFloorPlanView ? "myRooms" : "myGames");
     personalToggle.setAttribute("aria-pressed", String(S.personalFilterActive));
     personalToggle.setAttribute("aria-label", S.personalProfile
-      ? tr("myGamesFilterAria", { name: S.personalProfile.username })
-      : tr("myGamesSetupAria"));
+      ? tr(isFloorPlanView ? "myRoomsFilterAria" : "myGamesFilterAria", { name: S.personalProfile.username })
+      : tr(isFloorPlanView ? "myRoomsSetupAria" : "myGamesSetupAria"));
     personalProfileButton.hidden = !S.personalProfile;
     if (S.personalProfile) {
       personalProfileButton.textContent = S.personalProfile.username;
