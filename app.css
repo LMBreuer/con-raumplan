@@ -2617,6 +2617,10 @@ dialog {
 .floor-plan-page-controls .floor-plan-floor-tabs { margin-right: auto; }
 .floor-plan-page-controls label { display: flex; align-items: center; gap: var(--sp-2); }
 .floor-plan-page-controls input { width: 150px; background: var(--surface-1); }
+.floor-plan-custom-page-size { display: flex; align-items: center; gap: var(--sp-2); padding-left: var(--sp-2); border-left: var(--border-w) solid var(--border); }
+.floor-plan-custom-page-size[hidden] { display: none; }
+.floor-plan-custom-page-size label { color: var(--text-muted); font-size: var(--fs-xs); }
+.floor-plan-custom-page-size input { width: 96px; }
 .floor-plan-editor-shell { display: grid; grid-template-columns: 240px minmax(0, 1fr) 270px; gap: var(--sp-3); align-items: start; }
 .floor-plan-toolbox,
 .floor-plan-inspector {
@@ -2720,6 +2724,26 @@ dialog {
 .floor-plan-zoom-fit svg, .floor-plan-pan-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .floor-plan-zoom-controls .floor-plan-grid-toggle { min-width: 0; }
 .floor-plan-zoom-controls .floor-plan-editor-help { width: 24px; height: 24px; min-width: 24px; padding: 0; margin-left: 2px; }
+.floor-plan-help-dialog { width: min(820px, calc(100vw - 32px)); max-height: min(820px, calc(100dvh - 32px)); padding: 0; overflow: auto; border: var(--border-w) solid var(--border); border-radius: var(--r-lg); background: var(--surface-1); color: var(--text-primary); box-shadow: var(--shadow-dialog, 0 28px 80px rgba(15,23,42,.3)); }
+.floor-plan-help-dialog::backdrop { background: rgba(15,23,42,.48); backdrop-filter: blur(3px); }
+.floor-plan-help-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-5); border-bottom: var(--border-w) solid var(--border); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--surface-1)), var(--surface-1)); }
+.floor-plan-help-head h2 { margin: 4px 0 5px; font-size: var(--fs-xl); }
+.floor-plan-help-head p { max-width: 58ch; margin: 0; color: var(--text-secondary); font-size: var(--fs-sm); line-height: 1.5; }
+.floor-plan-help-head .icon-btn { flex: 0 0 auto; }
+.floor-plan-help-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); padding: var(--sp-5); }
+.floor-plan-help-groups section { min-width: 0; padding: var(--sp-3); border: var(--border-w) solid var(--border); border-radius: var(--r-md); background: var(--surface-2); }
+.floor-plan-help-groups h3 { margin: 0 0 var(--sp-3); font-size: var(--fs-sm); }
+.floor-plan-help-groups dl, .floor-plan-help-groups dd { margin: 0; }
+.floor-plan-help-groups dl { display: grid; gap: 9px; }
+.floor-plan-help-groups dl > div { display: grid; grid-template-columns: minmax(92px, auto) 1fr; gap: 9px; align-items: center; }
+.floor-plan-help-groups dt { min-width: 0; }
+.floor-plan-help-groups kbd { display: inline-block; max-width: 100%; padding: 4px 7px; overflow: hidden; border: var(--border-w) solid var(--border); border-bottom-width: 2px; border-radius: 6px; background: var(--surface-1); color: var(--text-primary); font: 700 .68rem/1.25 var(--font-mono, monospace); text-overflow: ellipsis; white-space: nowrap; }
+.floor-plan-help-groups dd { color: var(--text-secondary); font-size: var(--fs-xs); line-height: 1.35; }
+.floor-plan-help-note { margin: 0 var(--sp-5); padding: var(--sp-3); border-radius: var(--r-md); background: color-mix(in srgb, var(--accent) 9%, var(--surface-2)); color: var(--text-secondary); font-size: var(--fs-sm); line-height: 1.45; }
+.floor-plan-help-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); padding: var(--sp-4) var(--sp-5) var(--sp-5); }
+.floor-plan-help-popout { min-height: 100vh; margin: 0; padding: var(--sp-5); background: var(--page); color: var(--text-primary); }
+.floor-plan-help-popout main { max-width: 980px; margin: 0 auto; border: var(--border-w) solid var(--border); border-radius: var(--r-lg); background: var(--surface-1); box-shadow: var(--shadow-card); overflow: hidden; }
+.floor-plan-help-popout .floor-plan-help-head .icon-btn { display: none; }
 .floor-plan-grid-toggle[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface-1)); color: var(--accent); }
 .floor-plan-trace-controls { flex: 1 1 420px; justify-content: flex-end; }
 .floor-plan-trace-controls label { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); font-size: .68rem; white-space: nowrap; }
@@ -2755,8 +2779,23 @@ dialog {
 .floor-plan-public-card { min-width: 0; }
 .floor-plan-public-head { margin-bottom: var(--sp-3); }
 .floor-plan-public-head h2 { font-size: var(--fs-lg); }
-.floor-plan-public-stage { margin-top: var(--sp-3); overflow: hidden; border: var(--border-w) solid var(--border); border-radius: var(--r-md); background: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.6); }
-.floor-plan-map { display: block; width: 100%; height: auto; background: #fff; }
+.floor-plan-public-stage { margin-top: var(--sp-3); overflow: hidden; padding: clamp(8px, 1.4vw, 18px); border: var(--border-w) solid var(--border); border-radius: var(--r-md); background: color-mix(in srgb, var(--band) 62%, var(--surface-2)); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent); }
+.floor-plan-map { display: block; width: 100%; height: auto; background: var(--floor-plan-page-bg, #fff); }
+.floor-plan-public-stage > .floor-plan-map { background: transparent; filter: drop-shadow(0 10px 20px rgba(20,30,50,.12)); }
+.floor-plan-public-stage > .floor-plan-map .floor-plan-map-page { stroke: color-mix(in srgb, var(--border) 78%, transparent); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+:root[data-theme="dark"] .floor-plan-public-stage {
+  --floor-plan-page-bg: #10141b;
+  --floor-plan-symbol-bg: #1b2230;
+  --floor-plan-symbol-border: #8491a7;
+  --floor-plan-symbol-text: #f3f4f2;
+  --floor-plan-symbol-label: #c2c9d5;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+:root[data-theme="dark"] .floor-plan-public-stage .floor-plan-map-room:not(.has-custom-foreground) {
+  --floor-plan-room-foreground: #f3f4f2 !important;
+}
+:root[data-theme="dark"] .floor-plan-public-stage .floor-plan-map-text.is-default-color text { fill: #f3f4f2 !important; }
+:root[data-theme="dark"] .floor-plan-public-stage .floor-plan-map-room.is-orphan .floor-plan-room-shape { fill: #3b2a12; }
 .floor-plan-map-room.is-linked { cursor: pointer; outline: none; transform-box: fill-box; transform-origin: center; transition: filter .16s ease, opacity .16s ease; }
 .floor-plan-map-room.is-linked:hover,
 .floor-plan-map-room.is-linked:focus-visible,
@@ -2811,13 +2850,7 @@ button.floor-plan-personal-game:hover, button.floor-plan-personal-game:focus-vis
 .floor-plan-print-toolbar p { margin: 3px 0 0; }
 .floor-plan-print-map { width: 100%; flex: 1 1 auto; display: grid; place-items: center; min-height: 0; }
 .floor-plan-print-map .floor-plan-map { max-width: 100%; max-height: 100%; }
-.floor-plan-print-page { display: flex; flex-direction: column; aspect-ratio: 210 / 297; }
-.floor-plan-print-page[data-orientation="landscape"] { aspect-ratio: 297 / 210; }
-.floor-plan-print-legend { margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; color: #222; }
-.floor-plan-print-legend h3 { margin: 0 0 5px; color: #555; font: 700 10px Arial,sans-serif; }
-.floor-plan-print-legend > div { display: flex; flex-wrap: wrap; gap: 5px 14px; }
-.floor-plan-print-legend span { display: inline-flex; align-items: center; gap: 5px; font: 600 9px Arial,sans-serif; }
-.floor-plan-print-legend b { color: var(--floor-plan-room-color); font-size: 11px; }
+.floor-plan-print-page { display: flex; flex-direction: column; aspect-ratio: var(--floor-plan-page-ratio, 210 / 297); }
 
 :root[data-theme="contrast"] .floor-plan-canvas-stage,
 :root[data-theme="contrast"] .floor-plan-public-stage { border-width: 3px; }
@@ -2859,6 +2892,7 @@ button.floor-plan-personal-game:hover, button.floor-plan-personal-game:focus-vis
   .floor-plan-public-layout { grid-template-columns: 1fr; }
   .floor-plan-room-detail { position: static; max-height: none; overflow: visible; scrollbar-gutter: auto; }
   .floor-plan-public-stage .floor-plan-map { width: 100%; height: auto; }
+  .floor-plan-help-groups { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 680px) {
@@ -2879,6 +2913,10 @@ button.floor-plan-personal-game:hover, button.floor-plan-personal-game:focus-vis
   .floor-plan-page-controls { align-items: stretch; }
   .floor-plan-page-controls label { width: 100%; justify-content: space-between; }
   .floor-plan-page-controls label input, .floor-plan-page-controls label select { flex: 1; }
+  .floor-plan-custom-page-size { width: 100%; padding: var(--sp-2) 0 0; border-left: 0; border-top: var(--border-w) solid var(--border); }
+  .floor-plan-help-head, .floor-plan-help-groups { padding: var(--sp-4); }
+  .floor-plan-help-note { margin-inline: var(--sp-4); }
+  .floor-plan-help-actions { align-items: stretch; flex-direction: column; padding: var(--sp-4); }
   .floor-plan-toolbox { display: flex; }
   .floor-plan-tool-section { padding-inline: var(--sp-1); }
   .floor-plan-symbol-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -3013,12 +3051,10 @@ button.floor-plan-personal-game:hover, button.floor-plan-personal-game:focus-vis
   }
   .floor-plan-print-stage { break-after: page; }
   .floor-plan-print-stage:last-child { break-after: auto; }
-  .floor-plan-print-page { width: 180mm; height: 267mm; aspect-ratio: auto; }
-  .floor-plan-print-page[data-orientation="landscape"] { width: 267mm; height: 180mm; }
+  .floor-plan-print-page { width: var(--floor-plan-print-width, 180mm); height: var(--floor-plan-print-height, 267mm); aspect-ratio: auto; }
   .floor-plan-print-page .doc-page-header,
   .floor-plan-print-page .doc-page-footer { position: static; flex: 0 0 auto; }
   .floor-plan-print-map { overflow: hidden; }
-  .floor-plan-print-legend { flex: 0 0 auto; }
   .print-page-wrap { max-width: none; }
   /* !important auf jeder Property nötig: Themes setzen dieselben Custom
      Properties über :root[data-theme="x"] (Spezifität 0,2,0,0), das schlägt

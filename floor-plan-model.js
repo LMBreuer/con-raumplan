@@ -1,9 +1,10 @@
 /* Fachliches Lageplan-Modell und bibliotheksunabhängiges SVG-Rendering. */
 const FLOOR_PLAN_SCHEMA_VERSION = 1;
-const FLOOR_PLAN_SIZE = {
-  landscape: { width: 1120, height: 792 },
-  portrait: { width: 792, height: 1120 },
+const FLOOR_PLAN_PAGE_SIZES = {
+  a4: { portrait: { width: 792, height: 1120 }, landscape: { width: 1120, height: 792 } },
+  letter: { portrait: { width: 816, height: 1056 }, landscape: { width: 1056, height: 816 } },
 };
+const FLOOR_PLAN_SIZE = FLOOR_PLAN_PAGE_SIZES.a4;
 const FLOOR_PLAN_GRAPHIC_LIMITS = {
   count: 4,
   inputBytes: 2 * 1024 * 1024,
@@ -56,8 +57,16 @@ function floorPlanId(prefix = "fp") {
   return `${prefix}-${id}`;
 }
 
-function newFloorPlanFloor(name, orientation = "landscape") {
-  const size = FLOOR_PLAN_SIZE[orientation] || FLOOR_PLAN_SIZE.landscape;
+function floorPlanPageSize(pageFormat = "a4", orientation = "landscape", customWidth, customHeight) {
+  if (pageFormat === "custom") return {
+    width: floorPlanNumber(customWidth, orientation === "portrait" ? 792 : 1120, 320, 2400),
+    height: floorPlanNumber(customHeight, orientation === "portrait" ? 1120 : 792, 320, 2400),
+  };
+  return FLOOR_PLAN_PAGE_SIZES[pageFormat]?.[orientation] || FLOOR_PLAN_PAGE_SIZES.a4[orientation] || FLOOR_PLAN_PAGE_SIZES.a4.landscape;
+}
+
+function newFloorPlanFloor(name, orientation = "landscape", pageFormat = "a4", customWidth, customHeight) {
+  const size = floorPlanPageSize(pageFormat, orientation, customWidth, customHeight);
   return { id: floorPlanId("floor"), name: name || tr("floorPlanDefaultFloor"), width: size.width, height: size.height, objects: [] };
 }
 
@@ -65,6 +74,9 @@ function newFloorPlanDocument() {
   return {
     schemaVersion: FLOOR_PLAN_SCHEMA_VERSION,
     orientation: "landscape",
+    pageFormat: "a4",
+    pageWidth: FLOOR_PLAN_SIZE.landscape.width,
+    pageHeight: FLOOR_PLAN_SIZE.landscape.height,
     title: "",
     floors: [newFloorPlanFloor(tr("floorPlanDefaultFloor"), "landscape")],
   };
@@ -115,7 +127,8 @@ function normalizeFloorPlanObject(raw, floor) {
   }
   if (raw.type === "text") {
     const color = /^#[0-9a-f]{6}$/i.test(String(raw.color || "")) ? String(raw.color) : "#172033";
-    return { ...base, text: String(raw.text || "Text").slice(0, 240), color, fontSize: floorPlanNumber(raw.fontSize, 28, 12, 96) };
+    const textAlign = ["left", "center", "right"].includes(raw.textAlign) ? raw.textAlign : "center";
+    return { ...base, text: String(raw.text || "Text").slice(0, 240), color, fontSize: floorPlanNumber(raw.fontSize, 28, 12, 96), textAlign };
   }
   if (raw.type === "image") {
     const src = String(raw.src || "");
@@ -135,7 +148,17 @@ function normalizeFloorPlanObject(raw, floor) {
 function normalizeFloorPlanDocument(raw) {
   const source = raw && typeof raw === "object" ? raw : {};
   const orientation = source.orientation === "portrait" ? "portrait" : "landscape";
-  const expectedSize = FLOOR_PLAN_SIZE[orientation];
+  const firstFloor = Array.isArray(source.floors) ? source.floors[0] : null;
+  const firstWidth = floorPlanNumber(firstFloor?.width, FLOOR_PLAN_SIZE[orientation].width, 320, 2400);
+  const firstHeight = floorPlanNumber(firstFloor?.height, FLOOR_PLAN_SIZE[orientation].height, 320, 2400);
+  const matches = (format, tolerance = 2) => {
+    const size = FLOOR_PLAN_PAGE_SIZES[format][orientation];
+    return Math.abs(firstWidth - size.width) <= tolerance && Math.abs(firstHeight - size.height) <= tolerance;
+  };
+  const pageFormat = ["a4", "letter", "custom"].includes(source.pageFormat)
+    ? source.pageFormat
+    : matches("a4") ? "a4" : matches("letter") ? "letter" : "custom";
+  const expectedSize = floorPlanPageSize(pageFormat, orientation, source.pageWidth ?? firstWidth, source.pageHeight ?? firstHeight);
   let graphicCount = 0;
   const floors = (Array.isArray(source.floors) ? source.floors : []).slice(0, 20).map((item, index) => {
     const floor = {
@@ -157,8 +180,11 @@ function normalizeFloorPlanDocument(raw) {
   return {
     schemaVersion: FLOOR_PLAN_SCHEMA_VERSION,
     orientation,
+    pageFormat,
+    pageWidth: expectedSize.width,
+    pageHeight: expectedSize.height,
     title: String(source.title || "").slice(0, 120),
-    floors: floors.length ? floors : [newFloorPlanFloor(tr("floorPlanDefaultFloor"), orientation)],
+    floors: floors.length ? floors : [newFloorPlanFloor(tr("floorPlanDefaultFloor"), orientation, pageFormat, expectedSize.width, expectedSize.height)],
   };
 }
 
@@ -285,24 +311,66 @@ function floorPlanSymbolLayout(object, symbol) {
 }
 
 function floorPlanTextLines(text, maxChars = 22, maxLines = 3) {
+  const limit = Math.max(1, Math.floor(maxChars));
+  const lineLimit = Math.max(1, Math.floor(maxLines));
   const words = String(text || "").trim().split(/\s+/).filter(Boolean);
+  const segments = words.flatMap(word => {
+    if (word.length <= limit) return [word];
+    return Array.from({ length: Math.ceil(word.length / limit) }, (_, index) => word.slice(index * limit, (index + 1) * limit));
+  });
   const lines = [];
-  for (const word of words) {
+  let truncated = false;
+  for (const word of segments) {
     const current = lines.at(-1);
-    if (!current || (current.length + 1 + word.length > maxChars && lines.length < maxLines)) lines.push(word);
-    else lines[lines.length - 1] = `${current} ${word}`;
+    if (!current) lines.push(word);
+    else if (current.length + 1 + word.length <= limit) lines[lines.length - 1] = `${current} ${word}`;
+    else if (lines.length < lineLimit) lines.push(word);
+    else { truncated = true; break; }
   }
-  if (lines.length > maxLines) lines.splice(maxLines);
+  if (truncated && lines.length) {
+    const last = lines.length - 1;
+    lines[last] = `${lines[last].slice(0, Math.max(1, limit - 1)).trimEnd()}…`;
+  }
   return lines.length ? lines : [""];
+}
+
+function floorPlanTextLayout(object) {
+  const width = Math.max(24, Number(object.width) || 120);
+  const height = Math.max(24, Number(object.height) || 56);
+  const padding = Math.max(4, Math.min(14, Math.min(width, height) * .1));
+  const requestedFontSize = floorPlanNumber(object.fontSize, 28, 12, 96);
+  const fontSize = Math.max(8, Math.min(requestedFontSize, (height - padding * 2) / 1.2));
+  const lineHeight = fontSize * 1.2;
+  const contentWidth = Math.max(8, width - padding * 2);
+  const maxChars = Math.max(1, Math.floor(contentWidth / Math.max(1, fontSize * .58)));
+  const maxLines = Math.max(1, Math.floor((height - padding * 2) / lineHeight));
+  const paragraphs = String(object.text || "").replace(/\r/g, "").split("\n");
+  const lines = [];
+  for (const paragraph of paragraphs) {
+    if (lines.length >= maxLines) break;
+    const wrapped = floorPlanTextLines(paragraph, maxChars, maxLines - lines.length);
+    lines.push(...wrapped);
+  }
+  const visibleLines = lines.slice(0, maxLines);
+  const textAlign = ["left", "center", "right"].includes(object.textAlign) ? object.textAlign : "center";
+  const anchor = textAlign === "left" ? "start" : textAlign === "right" ? "end" : "middle";
+  const anchorX = textAlign === "left" ? object.x + padding : textAlign === "right" ? object.x + width - padding : object.x + width / 2;
+  return { lines: visibleLines.length ? visibleLines : [""], padding, contentWidth, fontSize, lineHeight, textAlign, anchor, anchorX };
 }
 
 function floorPlanRoomLayout(object, label, location) {
   const labelVisible = object.labelVisible !== false;
   const markerVisible = object.markerVisible !== false;
   const labelFontSize = Math.max(8, Math.min(26, object.width / 10, object.height * .25));
+  const horizontalInset = Math.min(16, Math.max(4, object.width * .08));
+  const labelWidth = Math.max(4, object.width - horizontalInset * 2);
   const lineHeight = Math.max(9, Math.min(30, labelFontSize * 1.12));
-  const lines = labelVisible ? floorPlanTextLines(label, Math.max(10, Math.floor(object.width / 11)), 3) : [];
+  const labelMaxChars = Math.max(1, Math.floor(labelWidth / Math.max(1, labelFontSize * .62)));
+  const lines = labelVisible ? floorPlanTextLines(label, labelMaxChars, 3) : [];
   const markerSize = markerVisible ? Math.max(8, Math.min(64, object.width * .2, object.height * .34)) : 0;
+  const locationFontSize = Math.min(13, Math.max(7, object.height * .1));
+  const locationMaxChars = Math.max(1, Math.floor(labelWidth / Math.max(1, locationFontSize * .58)));
+  const locationText = location ? floorPlanTextLines(location, locationMaxChars, 1)[0] : "";
   const topInset = Math.min(12, object.height * .1);
   const contentBottom = object.height - (labelVisible && location ? Math.min(34, object.height * .28) : Math.min(12, object.height * .1));
   const labelHeight = lines.length * lineHeight;
@@ -311,11 +379,14 @@ function floorPlanRoomLayout(object, label, location) {
   const contentTop = topInset + Math.max(0, (contentBottom - topInset - contentHeight) / 2);
   return {
     lines,
+    labelWidth,
     labelFontSize,
     lineHeight,
     labelCenterY: labelVisible ? contentTop + labelHeight / 2 : contentTop,
     markerCenterY: markerVisible ? contentTop + labelHeight + gap + markerSize / 2 : contentTop + labelHeight / 2,
     markerSize,
+    locationText,
+    locationFontSize,
     locationY: object.height - Math.min(16, object.height * .14),
   };
 }
@@ -351,11 +422,11 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
   const shape = object.shape === "ellipse"
     ? `<ellipse class="floor-plan-room-shape" cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" rx="${object.width / 2}" ry="${object.height / 2}" />`
     : `<rect class="floor-plan-room-shape" x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" rx="${cornerRadius}" />`;
-  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}${object.outlineVisible === false ? " is-outline-hidden" : ""}"${attrs}${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} style="--floor-plan-room-color:${color};--floor-plan-room-foreground:${foreground};--floor-plan-room-fill-opacity:${floorPlanNumber(object.fillOpacity, .15, 0, 1)}">
+  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}${object.outlineVisible === false ? " is-outline-hidden" : ""}${object.foregroundColor ? " has-custom-foreground" : ""}"${attrs}${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} style="--floor-plan-room-color:${color};--floor-plan-room-foreground:${foreground};--floor-plan-room-fill-opacity:${floorPlanNumber(object.fillOpacity, .15, 0, 1)}">
     ${shape}
     ${labelVisible ? `<text class="floor-plan-map-label" x="${object.x + object.width / 2}" y="${textStart}" text-anchor="middle" dominant-baseline="middle" style="font-size:${layout.labelFontSize}px">${text}</text>` : ""}
     ${object.markerVisible === false ? "" : `<text class="floor-plan-map-marker" x="${object.x + object.width / 2}" y="${object.y + layout.markerCenterY}" text-anchor="middle" dominant-baseline="central" style="font-size:${layout.markerSize * markerScale}px">${esc(glyph)}</text>`}
-    ${location ? `<text class="floor-plan-map-location" x="${object.x + object.width / 2}" y="${object.y + layout.locationY}" text-anchor="middle">${esc(location)}</text>` : ""}
+    ${layout.locationText ? `<text class="floor-plan-map-location" x="${object.x + object.width / 2}" y="${object.y + layout.locationY}" text-anchor="middle" style="font-size:${layout.locationFontSize}px">${esc(layout.locationText)}</text>` : ""}
   </g>`;
 }
 
@@ -366,11 +437,10 @@ function floorPlanSvgViewport(floor) {
 function floorPlanObjectSvg(object, options) {
   if (object.type === "room") return floorPlanRoomSvg(object, options);
   if (object.type === "text") {
-    const fontSize = object.fontSize || 28;
-    const lines = floorPlanTextLines(object.text, Math.max(6, Math.floor(object.width / Math.max(7, fontSize * .55))), 5);
-    const lineHeight = fontSize * 1.2;
-    const text = lines.map((line, index) => `<tspan x="${object.x + object.width / 2}" dy="${index ? lineHeight : 0}">${esc(line)}</tspan>`).join("");
-    return `<g class="floor-plan-map-text"${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)}><text x="${object.x + object.width / 2}" y="${object.y + object.height / 2 - ((lines.length - 1) * lineHeight) / 2}" text-anchor="middle" dominant-baseline="middle" style="fill:${object.color || "#172033"};font-size:${fontSize}px">${text}</text></g>`;
+    const layout = floorPlanTextLayout(object);
+    const text = layout.lines.map((line, index) => `<tspan x="${layout.anchorX}" dy="${index ? layout.lineHeight : 0}">${esc(line)}</tspan>`).join("");
+    const defaultColor = !object.color || object.color.toLowerCase() === "#172033";
+    return `<g class="floor-plan-map-text${defaultColor ? " is-default-color" : ""}"${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)}><text x="${layout.anchorX}" y="${object.y + object.height / 2 - ((layout.lines.length - 1) * layout.lineHeight) / 2}" text-anchor="${layout.anchor}" dominant-baseline="middle" style="fill:${object.color || "#172033"};font-size:${layout.fontSize}px">${text}</text></g>`;
   }
   if (object.type === "image") return `<g class="floor-plan-map-image"${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} aria-label="${esc(object.alt || tr("floorPlanGraphic"))}">
     <image href="${esc(object.src)}" x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" preserveAspectRatio="xMidYMid meet" />
@@ -398,10 +468,10 @@ function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id =
   return `<svg${id ? ` id="${esc(id)}"` : ""} class="floor-plan-map" viewBox="${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}" data-floor-plan-width="${viewport.width}" data-floor-plan-height="${viewport.height}" role="img" aria-label="${esc(title)}" xmlns="http://www.w3.org/2000/svg">
     <title>${esc(title)}</title>
     <style>
-      .floor-plan-map-page{fill:#fff}.floor-plan-map-room .floor-plan-room-shape{fill:var(--floor-plan-room-color);fill-opacity:var(--floor-plan-room-fill-opacity,.15);stroke:var(--floor-plan-room-color);stroke-width:4}
+      .floor-plan-map-page{fill:var(--floor-plan-page-bg,#fff)}.floor-plan-map-room .floor-plan-room-shape{fill:var(--floor-plan-room-color);fill-opacity:var(--floor-plan-room-fill-opacity,.15);stroke:var(--floor-plan-room-color);stroke-width:4}
       .floor-plan-map-label{fill:var(--floor-plan-room-foreground);font:700 25px Arial,sans-serif}.floor-plan-map-marker{fill:var(--floor-plan-room-foreground);font:800 48px Arial,sans-serif}
       .floor-plan-map-location{fill:var(--floor-plan-room-foreground);font:500 13px Arial,sans-serif}.floor-plan-map-text text{fill:#172033;font:600 28px Arial,sans-serif}
-      .floor-plan-map-symbol circle{fill:#fff;stroke:#62708a;stroke-width:4}.floor-plan-map-symbol.is-outline-hidden circle{stroke:none}.floor-plan-map-symbol>text{fill:#27344d;font-family:Arial,sans-serif;font-weight:700}.floor-plan-map-symbol-label{fill:#596579!important;font-family:Arial,sans-serif!important;font-weight:600!important}
+      .floor-plan-map-symbol circle{fill:var(--floor-plan-symbol-bg,#fff);stroke:var(--floor-plan-symbol-border,#62708a);stroke-width:4}.floor-plan-map-symbol.is-outline-hidden circle{stroke:none}.floor-plan-map-symbol>text{fill:var(--floor-plan-symbol-text,#27344d);font-family:Arial,sans-serif;font-weight:700}.floor-plan-map-symbol-label{fill:var(--floor-plan-symbol-label,#596579)!important;font-family:Arial,sans-serif!important;font-weight:600!important}
       .floor-plan-map-room.is-orphan .floor-plan-room-shape{stroke:#b45309;stroke-dasharray:10 7;fill:#fef3c7}.floor-plan-map-room.is-outline-hidden .floor-plan-room-shape{stroke:none;stroke-dasharray:none}
     </style>
     <rect class="floor-plan-map-page" x="0" y="0" width="${floor.width}" height="${floor.height}" />

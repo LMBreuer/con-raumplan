@@ -207,21 +207,32 @@ function jumpFromFloorPlanToRoom(roomId) {
   });
 }
 
-function floorPlanLegendHtml(document) {
-  const items = floorPlanLegendItems(document);
-  if (!items.length) return "";
-  return `<div class="floor-plan-print-legend"><h3>${esc(tr("floorPlanLegend"))}</h3><div>${items.map(item => `<span style="--floor-plan-room-color:${item.color}"><b aria-hidden="true">${esc(item.glyph)}</b>${esc(item.name)}</span>`).join("")}</div></div>`;
+function floorPlanPageDimensionsMm(documentValue) {
+  const document = normalizeFloorPlanDocument(documentValue);
+  if (document.pageFormat === "a4") return document.orientation === "landscape" ? { width: 297, height: 210 } : { width: 210, height: 297 };
+  if (document.pageFormat === "letter") return document.orientation === "landscape" ? { width: 279.4, height: 215.9 } : { width: 215.9, height: 279.4 };
+  return { width: document.pageWidth * 25.4 / 96, height: document.pageHeight * 25.4 / 96 };
+}
+
+function floorPlanPdfFormat(documentValue) {
+  const document = normalizeFloorPlanDocument(documentValue);
+  if (document.pageFormat === "a4" || document.pageFormat === "letter") return document.pageFormat;
+  const size = floorPlanPageDimensionsMm(document);
+  return [size.width, size.height];
 }
 
 function floorPlanPrintPagesHtml() {
   const document = activeFloorPlanDocument();
   if (!document) return emptyState(tr("floorPlanEmptyPublic"));
   const orientation = document.orientation;
+  const pageSize = floorPlanPageDimensionsMm(document);
+  const pageRatio = `${document.pageWidth} / ${document.pageHeight}`;
+  const printWidth = Math.max(60, pageSize.width - 30);
+  const printHeight = Math.max(60, pageSize.height - 30);
   const liveUrl = `${location.origin}${location.pathname}?con=${encodeURIComponent(S.con?.slug || S.con?.id || "")}&view=lageplan`;
-  return document.floors.map((floor, index) => `<div class="doc-page-stage floor-plan-print-stage"${index ? ' style="break-before:page"' : ""}><div class="doc-page floor-plan-print-page" data-orientation="${orientation}">
+  return `<style id="floorPlanPrintPageStyle">@page { size: ${pageSize.width.toFixed(2)}mm ${pageSize.height.toFixed(2)}mm; margin: 15mm; }</style>` + document.floors.map((floor, index) => `<div class="doc-page-stage floor-plan-print-stage"${index ? ' style="break-before:page"' : ""}><div class="doc-page floor-plan-print-page" data-orientation="${orientation}" data-page-format="${esc(document.pageFormat)}" style="--floor-plan-page-ratio:${pageRatio};--floor-plan-print-width:${printWidth.toFixed(2)}mm;--floor-plan-print-height:${printHeight.toFixed(2)}mm">
     <div class="doc-page-header"><span>${esc(document.title || S.con?.name || tr("floorPlan"))}</span><span>${esc(floor.name)}</span></div>
     <div class="floor-plan-print-map">${floorPlanSvgHtml(document, floor)}</div>
-    ${floorPlanLegendHtml(document)}
     <div class="doc-page-footer"><span>${esc(tr("printCreatedOn", { time: new Date().toLocaleString(LANG === "en" ? "en-GB" : "de-AT", { dateStyle: "medium", timeStyle: "short" }) }))}</span><span>${esc(tr("printLiveVersion", { url: liveUrl }))}</span></div>
   </div></div>`).join("");
 }
@@ -231,7 +242,7 @@ function floorPlanPrintPageHtml() {
   if (!document) return emptyState(tr("floorPlanEmptyPublic"));
   return `<div class="print-page-wrap floor-plan-print-wrap">
     <p class="no-print" style="margin:0 0 var(--sp-3)"><button type="button" id="printBackLink" class="link-btn">${esc(tr("printBackLink"))}</button></p>
-    <div class="card toolbar-card no-print floor-plan-print-toolbar"><div><span class="toolbar-label">${esc(tr("floorPlanPrintTitle"))}</span><p class="hint">${esc(LANG === "en" ? "Each floor is printed on its own A4 page." : "Jede Ebene wird auf einer eigenen A4-Seite ausgegeben.")}</p></div><button type="button" id="floorPlanPrintDownloadBtn">⇩ ${esc(tr("floorPlanDownloadPdf"))}</button><button type="button" id="doPrintBtn" class="primary">${esc(tr("printBtn"))}</button></div>
+    <div class="card toolbar-card no-print floor-plan-print-toolbar"><div><span class="toolbar-label">${esc(tr("floorPlanPrintTitle"))}</span><p class="hint">${esc(tr("floorPlanPrintPageHint", { format: document.pageFormat === "custom" ? tr("floorPlanPageFormatCustom") : document.pageFormat.toUpperCase() }))}</p></div><button type="button" id="floorPlanPrintDownloadBtn">⇩ ${esc(tr("floorPlanDownloadPdf"))}</button><button type="button" id="doPrintBtn" class="primary">${esc(tr("printBtn"))}</button></div>
     ${floorPlanPrintPagesHtml()}
   </div>`;
 }
@@ -281,16 +292,13 @@ async function downloadFloorPlanPdf(documentValue, button) {
     await floorPlanPdfPromise;
     const document = normalizeFloorPlanDocument(documentValue);
     const { jsPDF } = globalThis.jspdf;
-    const pdf = new jsPDF({ orientation: document.orientation, unit: "mm", format: "a4", compress: true });
+    const pdfFormat = floorPlanPdfFormat(document);
+    const pdf = new jsPDF({ orientation: document.orientation, unit: "mm", format: pdfFormat, compress: true });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 11;
-    const allLegendRooms = floorPlanLegendItems(document);
-    const legendRooms = allLegendRooms.slice(0, 9);
-    const legendRows = Math.ceil(legendRooms.length / 3);
-    const legendHeight = legendRooms.length ? Math.min(24, 7 + legendRows * 5) : 0;
     for (let index = 0; index < document.floors.length; index += 1) {
-      if (index) pdf.addPage("a4", document.orientation);
+      if (index) pdf.addPage(pdfFormat, document.orientation);
       const floor = document.floors[index];
       const viewport = floorPlanSvgViewport(floor);
       const image = await floorPlanSvgToPng(document, floor, 3);
@@ -305,7 +313,7 @@ async function downloadFloorPlanPdf(documentValue, button) {
       pdf.line(margin, 13, pageWidth - margin, 13);
 
       const mapTop = 17;
-      const mapBottom = pageHeight - 11 - legendHeight;
+      const mapBottom = pageHeight - 11;
       const availableWidth = pageWidth - margin * 2;
       const availableHeight = mapBottom - mapTop;
       const scale = Math.min(availableWidth / viewport.width, availableHeight / viewport.height);
@@ -314,37 +322,6 @@ async function downloadFloorPlanPdf(documentValue, button) {
       const mapX = (pageWidth - mapWidth) / 2;
       const mapY = mapTop + (availableHeight - mapHeight) / 2;
       pdf.addImage(image, "PNG", mapX, mapY, mapWidth, mapHeight, undefined, "FAST");
-
-      if (legendRooms.length) {
-        const legendTop = pageHeight - 8 - legendHeight;
-        pdf.setDrawColor(220, 224, 232);
-        pdf.line(margin, legendTop, pageWidth - margin, legendTop);
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(7.5);
-        pdf.setTextColor(89, 98, 115);
-        pdf.text(tr("floorPlanLegend"), margin, legendTop + 4);
-        const columnWidth = (pageWidth - margin * 2) / 3;
-        legendRooms.forEach((room, roomIndex) => {
-          const column = roomIndex % 3;
-          const row = Math.floor(roomIndex / 3);
-          const x = margin + column * columnWidth;
-          const y = legendTop + 9 + row * 5;
-          const color = room.color.replace("#", "");
-          if (/^[0-9a-f]{6}$/i.test(color)) {
-            pdf.setFillColor(parseInt(color.slice(0, 2), 16), parseInt(color.slice(2, 4), 16), parseInt(color.slice(4, 6), 16));
-          } else pdf.setFillColor(91, 103, 123);
-          pdf.roundedRect(x, y - 2.8, 3, 3, 0.7, 0.7, "F");
-          pdf.setFont("helvetica", "normal");
-          pdf.setFontSize(7.5);
-          pdf.setTextColor(29, 36, 51);
-          pdf.text(room.name, x + 5, y, { maxWidth: columnWidth - 7 });
-        });
-        if (allLegendRooms.length > legendRooms.length) {
-          pdf.setFontSize(6.5);
-          pdf.setTextColor(120, 127, 141);
-          pdf.text(`+ ${allLegendRooms.length - legendRooms.length}`, pageWidth - margin, legendTop + 4, { align: "right" });
-        }
-      }
 
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(6.5);
