@@ -115,6 +115,7 @@ function normalizeFloorPlanObject(raw, floor) {
       ...base,
       roomId: raw.roomId ? String(raw.roomId) : null,
       fallbackLabel: String(raw.fallbackLabel || "").slice(0, 80),
+      labelOverride: String(raw.labelOverride || "").replace(/\r/g, "").slice(0, 120),
       customLocation: String(raw.customLocation || "").slice(0, 80),
       customColor,
       foregroundColor,
@@ -330,8 +331,27 @@ function floorPlanTextLines(text, maxChars = 22, maxLines = 3) {
   const lineLimit = Math.max(1, Math.floor(maxLines));
   const words = String(text || "").trim().split(/\s+/).filter(Boolean);
   const segments = words.flatMap(word => {
-    if (word.length <= limit) return [word];
-    return Array.from({ length: Math.ceil(word.length / limit) }, (_, index) => word.slice(index * limit, (index + 1) * limit));
+    const breakPositions = [];
+    let cleanWord = "";
+    for (const character of word) {
+      if (character === "\u00ad") breakPositions.push(cleanWord.length);
+      else cleanWord += character;
+    }
+    if (cleanWord.length <= limit) return [cleanWord];
+    const parts = [];
+    let offset = 0;
+    while (cleanWord.length - offset > limit) {
+      const softBreak = breakPositions.filter(position => position > offset && position - offset + 1 <= limit).at(-1);
+      if (softBreak) {
+        parts.push(`${cleanWord.slice(offset, softBreak)}-`);
+        offset = softBreak;
+      } else {
+        parts.push(cleanWord.slice(offset, offset + limit));
+        offset += limit;
+      }
+    }
+    if (offset < cleanWord.length) parts.push(cleanWord.slice(offset));
+    return parts;
   });
   const lines = [];
   let truncated = false;
@@ -349,6 +369,20 @@ function floorPlanTextLines(text, maxChars = 22, maxLines = 3) {
   return lines.length ? lines : [""];
 }
 
+function floorPlanParagraphLines(text, maxChars = 22, maxLines = 3) {
+  const lines = [];
+  const paragraphs = String(text || "").replace(/\r/g, "").split("\n");
+  for (const paragraph of paragraphs) {
+    if (lines.length >= maxLines) break;
+    if (!paragraph.trim()) {
+      lines.push("");
+      continue;
+    }
+    lines.push(...floorPlanTextLines(paragraph, maxChars, maxLines - lines.length));
+  }
+  return lines.slice(0, maxLines).length ? lines.slice(0, maxLines) : [""];
+}
+
 function floorPlanTextLayout(object) {
   const width = Math.max(24, Number(object.width) || 120);
   const height = Math.max(24, Number(object.height) || 56);
@@ -359,14 +393,7 @@ function floorPlanTextLayout(object) {
   const contentWidth = Math.max(8, width - padding * 2);
   const maxChars = Math.max(1, Math.floor(contentWidth / Math.max(1, fontSize * .58)));
   const maxLines = Math.max(1, Math.floor((height - padding * 2) / lineHeight));
-  const paragraphs = String(object.text || "").replace(/\r/g, "").split("\n");
-  const lines = [];
-  for (const paragraph of paragraphs) {
-    if (lines.length >= maxLines) break;
-    const wrapped = floorPlanTextLines(paragraph, maxChars, maxLines - lines.length);
-    lines.push(...wrapped);
-  }
-  const visibleLines = lines.slice(0, maxLines);
+  const visibleLines = floorPlanParagraphLines(object.text, maxChars, maxLines);
   const textAlign = ["left", "center", "right"].includes(object.textAlign) ? object.textAlign : "center";
   const anchor = textAlign === "left" ? "start" : textAlign === "right" ? "end" : "middle";
   const anchorX = textAlign === "left" ? object.x + padding : textAlign === "right" ? object.x + width - padding : object.x + width / 2;
@@ -381,7 +408,7 @@ function floorPlanRoomLayout(object, label, location) {
   const labelWidth = Math.max(4, object.width - horizontalInset * 2);
   const lineHeight = Math.max(9, Math.min(30, labelFontSize * 1.12));
   const labelMaxChars = Math.max(1, Math.floor(labelWidth / Math.max(1, labelFontSize * .62)));
-  const lines = labelVisible ? floorPlanTextLines(label, labelMaxChars, 3) : [];
+  const lines = labelVisible ? floorPlanParagraphLines(label, labelMaxChars, 3) : [];
   const markerSize = markerVisible ? Math.max(8, Math.min(64, object.width * .2, object.height * .34)) : 0;
   const locationFontSize = Math.min(13, Math.max(7, object.height * .1));
   const locationMaxChars = Math.max(1, Math.floor(labelWidth / Math.max(1, locationFontSize * .58)));
@@ -424,29 +451,27 @@ function floorPlanRoomPersonalSvg(object, layout, numbers) {
   const outline = object.shape === "ellipse"
     ? `<ellipse class="floor-plan-personal-outline" cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" rx="${Math.max(1, object.width / 2 - inset)}" ry="${Math.max(1, object.height / 2 - inset)}" />`
     : `<rect class="floor-plan-personal-outline" x="${object.x + inset}" y="${object.y + inset}" width="${Math.max(1, object.width - inset * 2)}" height="${Math.max(1, object.height - inset * 2)}" rx="${Math.max(0, Math.min(object.cornerRadius ?? 0, object.width / 2, object.height / 2) - inset / 2)}" />`;
-  const badgeHeight = Math.max(18, Math.min(25, object.height * .22));
-  const badgeFontSize = Math.max(11, Math.min(15, badgeHeight * .62));
-  const badgeWidth = Math.max(badgeHeight, numberText.length * badgeFontSize * .58 + 12);
+  const numberFontSize = Math.max(12, Math.min(17, object.height * .14));
+  const numberWidth = Math.max(numberFontSize, numberText.length * numberFontSize * .58);
   const longestLabel = layout.lines.reduce((longest, line) => line.length > longest.length ? line : longest, "");
   const labelWidth = longestLabel.length * layout.labelFontSize * .55;
   const roomCenterX = object.x + object.width / 2;
-  const besideLabelX = roomCenterX + labelWidth / 2 + badgeWidth / 2 + 6;
-  const minBadgeX = object.x + badgeWidth / 2 + inset + 2;
-  const maxBadgeX = object.x + object.width - badgeWidth / 2 - inset - 2;
-  const fitsBesideLabel = labelWidth + badgeWidth + 18 <= object.width;
-  const badgeX = Math.max(minBadgeX, Math.min(maxBadgeX, fitsBesideLabel ? besideLabelX : maxBadgeX));
-  const desiredBadgeY = object.y + layout.labelCenterY - layout.labelFontSize * .7;
-  const badgeY = Math.max(object.y + badgeHeight / 2 + inset + 2, Math.min(object.y + object.height - badgeHeight / 2 - inset - 2, desiredBadgeY));
+  const besideLabelX = roomCenterX + labelWidth / 2 + numberWidth / 2 + 4;
+  const minNumberX = object.x + numberWidth / 2 + inset + 2;
+  const maxNumberX = object.x + object.width - numberWidth / 2 - inset - 2;
+  const fitsBesideLabel = labelWidth + numberWidth + 14 <= object.width;
+  const numberX = Math.max(minNumberX, Math.min(maxNumberX, fitsBesideLabel ? besideLabelX : maxNumberX));
+  const desiredNumberY = object.y + layout.labelCenterY - layout.labelFontSize * .72;
+  const numberY = Math.max(object.y + numberFontSize + inset, Math.min(object.y + object.height - numberFontSize - inset, desiredNumberY));
   return `<g class="floor-plan-personal-reference" pointer-events="none"${floorPlanRotation(object)} aria-hidden="true">
     ${outline}
-    <rect class="floor-plan-personal-number-bg" x="${badgeX - badgeWidth / 2}" y="${badgeY - badgeHeight / 2}" width="${badgeWidth}" height="${badgeHeight}" rx="${badgeHeight / 2}" />
-    <text class="floor-plan-personal-number" x="${badgeX}" y="${badgeY}" text-anchor="middle" dominant-baseline="central" style="font-size:${badgeFontSize}px">${esc(numberText)}</text>
+    <text class="floor-plan-personal-number" x="${numberX}" y="${numberY}" text-anchor="middle" dominant-baseline="central" style="font-size:${numberFontSize}px">${esc(numberText)}</text>
   </g>`;
 }
 
 function floorPlanRoomSvg(object, { interactive = false, personalRoomNumbers = null } = {}) {
   const room = floorPlanRoom(object.roomId);
-  const label = room?.name || object.fallbackLabel || tr("floorPlanUnlinkedRoom");
+  const label = object.labelOverride || room?.name || object.fallbackLabel || tr("floorPlanUnlinkedRoom");
   const color = floorPlanObjectRoomColor(object, room);
   const foreground = floorPlanObjectRoomForeground(object, room);
   const glyph = floorPlanObjectRoomGlyph(object, room);
@@ -526,7 +551,7 @@ function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id =
       .floor-plan-map-location{fill:var(--floor-plan-room-foreground);font:500 13px Arial,sans-serif}.floor-plan-map-text text{fill:#172033;font:600 28px Arial,sans-serif}
       .floor-plan-map-symbol circle{fill:var(--floor-plan-symbol-bg,#fff);stroke:var(--floor-plan-symbol-border,#62708a);stroke-width:4}.floor-plan-map-symbol.is-outline-hidden circle{stroke:none}.floor-plan-map-symbol>text{fill:var(--floor-plan-symbol-text,#27344d);font-family:Arial,sans-serif;font-weight:700}.floor-plan-map-symbol-label{fill:var(--floor-plan-symbol-label,#596579)!important;font-family:Arial,sans-serif!important;font-weight:600!important}
       .floor-plan-map-room.is-orphan .floor-plan-room-shape{stroke:#b45309;stroke-dasharray:10 7;fill:#fef3c7}.floor-plan-map-room.is-outline-hidden .floor-plan-room-shape{stroke:none;stroke-dasharray:none}
-      .floor-plan-map.is-personal-map .floor-plan-map-room:not(.has-personal-reference){opacity:.34}.floor-plan-personal-outline{fill:none;stroke:#8e2d35;stroke-width:6;vector-effect:non-scaling-stroke}.floor-plan-personal-number-bg{fill:#8e2d35;stroke:#fff;stroke-width:2;vector-effect:non-scaling-stroke}.floor-plan-personal-number{fill:#fff;font-family:Arial,sans-serif;font-weight:800}
+      .floor-plan-personal-outline{fill:none;stroke:#8e2d35;stroke-width:4;stroke-opacity:.72;vector-effect:non-scaling-stroke}.floor-plan-personal-number{fill:#8e2d35;stroke:var(--floor-plan-page-bg,#fff);stroke-width:3px;paint-order:stroke fill;stroke-linejoin:round;font-family:Arial,sans-serif;font-weight:800}
     </style>
     <rect class="floor-plan-map-page" x="0" y="0" width="${floor.width}" height="${floor.height}" />
     <g class="floor-plan-map-content">${floor.objects.map(object => floorPlanObjectSvg(object, { interactive, personalRoomNumbers })).join("")}</g>
@@ -547,7 +572,7 @@ function floorPlanLegendItems(documentValue) {
     if (room) {
       if (seenRooms.has(room.id)) return;
       seenRooms.add(room.id);
-      items.push({ id: room.id, name: room.name, color: floorPlanRoomColor(room), glyph: floorPlanRoomGlyph(room) });
+      items.push({ id: room.id, name: object.labelOverride || room.name, color: floorPlanRoomColor(room), glyph: floorPlanRoomGlyph(room) });
       return;
     }
     items.push({ id: object.id, name: object.fallbackLabel || tr("floorPlanUnlinkedRoom"), color: floorPlanObjectRoomColor(object), glyph: floorPlanObjectRoomGlyph(object) });

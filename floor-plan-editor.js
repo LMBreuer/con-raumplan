@@ -24,6 +24,7 @@ let floorPlanEditorZoom = 1;
 let floorPlanPanEnabled = false;
 let floorPlanPanGesture = null;
 let floorPlanSpacePanRestore = null;
+let floorPlanRotationSnapEnabled = false;
 let floorPlanExternalEditing = false;
 let floorPlanSnapEnabled = (() => {
   try { return localStorage.getItem("floorPlanEditorSnapEnabled") !== "false"; }
@@ -259,6 +260,7 @@ function floorPlanEditorHelpDialogHtml() {
 
 function disposeFloorPlanEditor() {
   floorPlanTraceRenderToken += 1;
+  floorPlanRotationSnapEnabled = false;
   if (floorPlanSpacePanRestore !== null) {
     floorPlanPanEnabled = floorPlanSpacePanRestore;
     floorPlanSpacePanRestore = null;
@@ -340,6 +342,8 @@ function floorPlanFabricStyles(object) {
     borderColor: "#5b8def", cornerColor: "#ffffff", cornerStrokeColor: "#5b8def",
     cornerStyle: "circle", cornerSize: Math.max(10, Math.min(16, controlExtent * .24)), transparentCorners: false, borderScaleFactor: 2,
     padding: 0, lockScalingFlip: true,
+    snapAngle: floorPlanRotationSnapEnabled ? FLOOR_PLAN_ROTATION_SNAP : 0,
+    snapThreshold: floorPlanRotationSnapEnabled ? FLOOR_PLAN_ROTATION_SNAP / 2 : 0,
     opacity: Math.min(1, Math.max(0, Number(object.fpOpacity ?? 1))),
   });
   return object;
@@ -347,7 +351,7 @@ function floorPlanFabricStyles(object) {
 
 function floorPlanFabricRoom(object) {
   const room = floorPlanRoom(object.roomId);
-  const label = room?.name || object.fallbackLabel || tr("floorPlanUnlinkedRoom");
+  const label = object.labelOverride || room?.name || object.fallbackLabel || tr("floorPlanUnlinkedRoom");
   const color = floorPlanObjectRoomColor(object, room);
   const foreground = floorPlanObjectRoomForeground(object, room);
   const labelVisible = object.labelVisible !== false;
@@ -371,6 +375,7 @@ function floorPlanFabricRoom(object) {
     fpType: "room",
     fpRoomId: object.roomId,
     fpFallbackLabel: label,
+    fpLabelOverride: object.labelOverride || "",
     fpCustomLocation: object.customLocation || "",
     fpCustomColor: object.customColor || "#64748b",
     fpForegroundColor: object.foregroundColor || null,
@@ -405,7 +410,7 @@ function floorPlanFabricObject(object) {
     const primitive = shapeKind === "ellipse"
       ? new fabric.Ellipse({ left: 0, top: 0, originX: "center", originY: "center", rx: object.width / 2, ry: object.height / 2, fill: `${color}${alpha}`, stroke: outlineVisible ? color : "rgba(0,0,0,0)", strokeWidth: outlineVisible ? 2 : 0, strokeUniform: true })
       : new fabric.Rect({ left: 0, top: 0, originX: "center", originY: "center", width: object.width, height: object.height, fill: `${color}${alpha}`, stroke: outlineVisible ? color : "rgba(0,0,0,0)", strokeWidth: outlineVisible ? 2 : 0, strokeUniform: true });
-    const group = new fabric.Group([boundary, primitive], { left: object.x, top: object.y, originX: "left", originY: "top", angle: object.rotation || 0 });
+    const group = new fabric.Group([boundary, primitive], { left: object.x + object.width / 2, top: object.y + object.height / 2, originX: "center", originY: "center", angle: object.rotation || 0 });
     Object.assign(group, {
       fpId: object.id, fpType: "shape", fpShape: shapeKind, fpName: object.name || "",
       fpColor: color, fpFillOpacity: fillOpacity, fpOutlineVisible: outlineVisible,
@@ -977,10 +982,27 @@ function initializeFloorPlanCanvas() {
 
 function snapFloorPlanRotation(event) {
   const object = event?.target;
-  if (!object || !event.e?.shiftKey) return false;
+  if (!object) return false;
+  const enabled = Boolean(event.e?.shiftKey || floorPlanRotationSnapEnabled);
+  object.set({
+    snapAngle: enabled ? FLOOR_PLAN_ROTATION_SNAP : 0,
+    snapThreshold: enabled ? FLOOR_PLAN_ROTATION_SNAP / 2 : 0,
+  });
+  if (!enabled) return false;
   object.set("angle", Math.round(Number(object.angle || 0) / FLOOR_PLAN_ROTATION_SNAP) * FLOOR_PLAN_ROTATION_SNAP);
   object.setCoords();
   return true;
+}
+
+function setFloorPlanRotationSnap(enabled) {
+  floorPlanRotationSnapEnabled = Boolean(enabled);
+  if (!floorPlanCanvas) return;
+  const active = floorPlanCanvas.getActiveObject();
+  const objects = [...floorPlanCanvas.getObjects(), ...(active && !floorPlanCanvas.getObjects().includes(active) ? [active] : [])];
+  objects.forEach(object => object.set({
+    snapAngle: floorPlanRotationSnapEnabled ? FLOOR_PLAN_ROTATION_SNAP : 0,
+    snapThreshold: floorPlanRotationSnapEnabled ? FLOOR_PLAN_ROTATION_SNAP / 2 : 0,
+  }));
 }
 
 function floorPlanObjectFromFabric(object) {
@@ -989,7 +1011,7 @@ function floorPlanObjectFromFabric(object) {
   const minDimension = object.fpType === "shape" ? 1 : 24;
   const width = Math.max(minDimension, Math.round(objectWidth * object.scaleX));
   const height = Math.max(minDimension, Math.round(objectHeight * object.scaleY));
-  const center = object.fpType === "text" ? object.getCenterPoint?.() : null;
+  const center = ["text", "shape"].includes(object.fpType) ? object.getCenterPoint?.() : null;
   const base = {
     id: object.fpId || floorPlanId(object.fpType), type: object.fpType,
     x: Math.max(0, Math.round(center ? center.x - width / 2 : object.left)),
@@ -1004,6 +1026,7 @@ function floorPlanObjectFromFabric(object) {
     ...base,
     roomId: object.fpRoomId || null,
     fallbackLabel: object.fpFallbackLabel || "",
+    labelOverride: object.fpLabelOverride || "",
     customLocation: object.fpCustomLocation || "",
     customColor: object.fpCustomColor || "#64748b",
     foregroundColor: /^#[0-9a-f]{6}$/i.test(String(object.fpForegroundColor || "")) ? object.fpForegroundColor : null,
@@ -1071,7 +1094,7 @@ function normalizeFloorPlanFabricObject(object) {
     return false;
   }
   if (!scaled) {
-    object.set(object.fpType === "text"
+    object.set(["text", "shape"].includes(object.fpType)
       ? { left: domain.x + domain.width / 2, top: domain.y + domain.height / 2, originX: "center", originY: "center" }
       : { left: domain.x, top: domain.y });
     object.setCoords();
@@ -1238,7 +1261,8 @@ function duplicateSelectedFloorPlanObjects() {
       const marker = validRoomMarker(linkedRoom?.marker) ? linkedRoom.marker : copy.customMarker || "square";
       Object.assign(copy, {
         roomId: null,
-        fallbackLabel: linkedRoom?.name || copy.fallbackLabel || tr("floorPlanCustomRoomDefault"),
+        fallbackLabel: copy.labelOverride || linkedRoom?.name || copy.fallbackLabel || tr("floorPlanCustomRoomDefault"),
+        labelOverride: "",
         customLocation: linkedRoom?.floor || copy.customLocation || "",
         customColor: floorPlanObjectRoomColor(copy, linkedRoom),
         customMarker: marker,
@@ -1356,8 +1380,16 @@ function floorPlanArrangementHtml(object) {
   </div></fieldset>`;
 }
 
+function floorPlanRoomLabelEditorHtml(object, { linked = false } = {}) {
+  const inputId = linked ? "floorPlanInspectorRoomLabel" : "floorPlanInspectorRoomName";
+  const value = linked ? object.fpLabelOverride || "" : object.fpFallbackLabel || "";
+  const label = linked ? tr("floorPlanRoomLabelOverride") : tr("floorPlanRoomName");
+  const placeholder = linked ? tr("floorPlanRoomLabelOverridePlaceholder") : "";
+  return `<div class="floor-plan-room-label-editor"><label>${esc(label)}<textarea id="${inputId}" data-floor-plan-room-label-input rows="2" maxlength="120"${placeholder ? ` placeholder="${esc(placeholder)}"` : ""}>${esc(value)}</textarea></label><div class="floor-plan-room-label-actions"><button type="button" class="small" data-floor-plan-soft-hyphen>${esc(tr("floorPlanInsertSoftHyphen"))}</button><small>${esc(tr("floorPlanRoomLabelBreakHint"))}</small></div></div>`;
+}
+
 function floorPlanObjectListMeta(object) {
-  if (object.fpType === "room") return { icon: "▭", name: floorPlanRoom(object.fpRoomId)?.name || object.fpFallbackLabel || tr("floorPlanCustomRoomDefault"), type: object.fpRoomId ? tr("floorPlanLinkedRoom") : tr("floorPlanCustomRoom") };
+  if (object.fpType === "room") return { icon: "▭", name: object.fpLabelOverride || floorPlanRoom(object.fpRoomId)?.name || object.fpFallbackLabel || tr("floorPlanCustomRoomDefault"), type: object.fpRoomId ? tr("floorPlanLinkedRoom") : tr("floorPlanCustomRoom") };
   if (object.fpType === "text") return { icon: "T", name: String(object.fpText || tr("floorPlanAddText")).trim() || tr("floorPlanAddText"), type: tr("floorPlanAddText") };
   if (object.fpType === "symbol") return { icon: "⌖", name: String(object.fpLabel || floorPlanSymbolName(FLOOR_PLAN_SYMBOLS[object.fpSymbol])).trim() || tr("floorPlanSymbolLabel"), type: tr("floorPlanSymbolLabel") };
   if (object.fpType === "image") return { icon: "▧", name: String(object.fpAlt || tr("floorPlanGraphic")).trim() || tr("floorPlanGraphic"), type: tr("floorPlanGraphic") };
@@ -1620,10 +1652,10 @@ function renderFloorPlanInspector() {
   }
   if (object.fpType === "room") {
     if (object.fpRoomId) {
-      inspector.innerHTML = `<div class="floor-plan-inspector-title"><span aria-hidden="true">▭</span><div><strong>${esc(tr("floorPlanObjectRoom"))}</strong><small>${esc(tr("floorPlanLinkedRoom"))}</small></div></div><label>${esc(tr("floorPlanLinkedRoom"))}<select id="floorPlanInspectorRoom">${floorPlanRoomOptionsHtml(floorPlanEditorDocument, { currentRoomId: object.fpRoomId, currentObjectId: object.fpId })}</select></label><p class="hint">${esc(LANG === "en" ? "Name, colour and symbol come from the linked room." : "Name, Farbe und Symbol kommen aus dem verknüpften Raum.")}</p>${floorPlanRoomFillSettingsHtml(object)}${floorPlanObjectGeometryHtml(object)}${floorPlanLabelVisibilityHtml(object)}${floorPlanMarkerVisibilityHtml(object)}${floorPlanOutlineVisibilityHtml(object)}${object.fpShape === "ellipse" ? "" : floorPlanCornerRadiusHtml(object)}`;
+      inspector.innerHTML = `<div class="floor-plan-inspector-title"><span aria-hidden="true">▭</span><div><strong>${esc(tr("floorPlanObjectRoom"))}</strong><small>${esc(tr("floorPlanLinkedRoom"))}</small></div></div><label>${esc(tr("floorPlanLinkedRoom"))}<select id="floorPlanInspectorRoom">${floorPlanRoomOptionsHtml(floorPlanEditorDocument, { currentRoomId: object.fpRoomId, currentObjectId: object.fpId })}</select></label><p class="hint">${esc(tr("floorPlanLinkedRoomAppearanceHint"))}</p>${floorPlanRoomLabelEditorHtml(object, { linked: true })}${floorPlanRoomFillSettingsHtml(object)}${floorPlanObjectGeometryHtml(object)}${floorPlanLabelVisibilityHtml(object)}${floorPlanMarkerVisibilityHtml(object)}${floorPlanOutlineVisibilityHtml(object)}${object.fpShape === "ellipse" ? "" : floorPlanCornerRadiusHtml(object)}`;
     } else {
       inspector.innerHTML = `<div class="floor-plan-inspector-title"><span aria-hidden="true">▭</span><div><strong>${esc(tr("floorPlanObjectRoom"))}</strong><small>${esc(tr("floorPlanCustomRoom"))}</small></div></div>
-        <label>${esc(tr("floorPlanRoomName"))}<input id="floorPlanInspectorRoomName" type="text" maxlength="80" value="${esc(object.fpFallbackLabel || "")}"></label>
+        ${floorPlanRoomLabelEditorHtml(object)}
         <label>${esc(tr("floorPlanRoomLocation"))}<input id="floorPlanInspectorRoomLocation" type="text" maxlength="80" value="${esc(object.fpCustomLocation || "")}" placeholder="${esc(tr("floorPlanRoomLocationPlaceholder"))}"></label>
         ${floorPlanRoomFillSettingsHtml(object, { editableColor: true })}
         ${floorPlanRoomShapeHtml(object)}
@@ -1781,6 +1813,40 @@ function updateSelectedFloorPlanCornerRadius(value) {
   scheduleFloorPlanSave();
 }
 
+function updateSelectedFloorPlanRoomContent(selected) {
+  if (!selected || selected.fpType !== "room") return;
+  const domain = floorPlanObjectFromFabric(selected);
+  const room = floorPlanRoom(selected.fpRoomId);
+  const label = selected.fpLabelOverride || room?.name || selected.fpFallbackLabel || tr("floorPlanUnlinkedRoom");
+  const location = room?.floor || selected.fpCustomLocation || "";
+  const layout = floorPlanRoomLayout(domain, label, location);
+  selected.fpRoomLabelText?.set({
+    text: layout.lines.join("\n"), width: layout.labelWidth,
+    top: layout.labelCenterY - domain.height / 2,
+    fontSize: layout.labelFontSize, lineHeight: layout.lineHeight / layout.labelFontSize,
+  });
+  selected.fpRoomLabelText?.initDimensions?.();
+  selected.fpMarkerText?.set({ top: layout.markerCenterY - domain.height / 2, fontSize: layout.markerSize * (floorPlanObjectRoomSymbol(domain, room)?.glyphScale || 1) });
+  selected.fpLocationText?.set({
+    text: layout.locationText, width: layout.labelWidth,
+    top: layout.locationY - domain.height / 2, fontSize: layout.locationFontSize,
+  });
+  selected.fpLocationText?.initDimensions?.();
+  selected.dirty = true;
+  selected.setCoords();
+}
+
+function updateSelectedRoomLabelOverride(value) {
+  const selected = floorPlanCanvas?.getActiveObject();
+  if (!selected || selected.fpType !== "room" || !selected.fpRoomId) return;
+  selected.fpLabelOverride = String(value || "").replace(/\r/g, "").slice(0, 120);
+  updateSelectedFloorPlanRoomContent(selected);
+  floorPlanCanvas.requestRenderAll();
+  syncFloorPlanCanvasToDocument();
+  scheduleFloorPlanSave();
+  renderFloorPlanObjectList();
+}
+
 function updateSelectedCustomRoom(patch) {
   const selected = floorPlanCanvas?.getActiveObject();
   if (!selected || selected.fpType !== "room" || selected.fpRoomId) return;
@@ -1790,28 +1856,13 @@ function updateSelectedCustomRoom(patch) {
   if (Object.hasOwn(patch, "customLocation")) {
     selected.fpCustomLocation = patch.customLocation;
   }
-  const domain = floorPlanObjectFromFabric(selected);
-  const layout = floorPlanRoomLayout(domain, selected.fpFallbackLabel, selected.fpCustomLocation);
-  selected.fpRoomLabelText?.set({
-    text: layout.lines.join("\n"), width: layout.labelWidth,
-    top: layout.labelCenterY - domain.height / 2,
-    fontSize: layout.labelFontSize, lineHeight: layout.lineHeight / layout.labelFontSize,
-  });
-  selected.fpRoomLabelText?.initDimensions?.();
-  selected.fpMarkerText?.set({ top: layout.markerCenterY - domain.height / 2, fontSize: layout.markerSize * (floorPlanObjectRoomSymbol(domain)?.glyphScale || 1) });
-  selected.fpLocationText?.set({
-    text: layout.locationText, width: layout.labelWidth,
-    top: layout.locationY - domain.height / 2, fontSize: layout.locationFontSize,
-  });
-  selected.fpLocationText?.initDimensions?.();
+  updateSelectedFloorPlanRoomContent(selected);
   if (Object.hasOwn(patch, "customColor") && /^#[0-9a-f]{6}$/i.test(patch.customColor)) {
     selected.fpCustomColor = patch.customColor;
     const alpha = Math.round(Math.min(1, Math.max(0, Number(selected.fpFillOpacity ?? .15))) * 255).toString(16).padStart(2, "0");
     selected.fpRect?.set({ fill: `${patch.customColor}${alpha}`, stroke: selected.fpOutlineVisible === false ? "rgba(0,0,0,0)" : patch.customColor });
     applySelectedRoomForeground(selected);
   }
-  selected.dirty = true;
-  selected.setCoords();
   floorPlanCanvas.requestRenderAll();
   syncFloorPlanCanvasToDocument();
   scheduleFloorPlanSave();
@@ -2106,6 +2157,7 @@ function wireFloorPlanEditorControls() {
   });
   document.addEventListener("keydown", floorPlanEditorKeydown, { signal: floorPlanEditorAbortController.signal });
   document.addEventListener("keyup", floorPlanEditorKeyup, { signal: floorPlanEditorAbortController.signal });
+  globalThis.addEventListener("blur", () => setFloorPlanRotationSnap(false), { signal: floorPlanEditorAbortController.signal });
   const inspector = document.getElementById("floorPlanInspector");
   inspector?.addEventListener("change", event => {
     if (event.target.id === "floorPlanInspectorRoom") {
@@ -2115,7 +2167,7 @@ function wireFloorPlanEditorControls() {
         renderFloorPlanInspector();
         return;
       }
-      rebuildSelectedFloorPlanObject({ roomId, fallbackLabel: floorPlanRoom(roomId)?.name || "" });
+      rebuildSelectedFloorPlanObject({ roomId, fallbackLabel: floorPlanRoom(roomId)?.name || "", labelOverride: "" });
     }
     if (event.target.matches("[data-floor-plan-geometry]")) updateSelectedObjectGeometry(event.target.dataset.floorPlanGeometry);
     if (event.target.id === "floorPlanLabelVisible") rebuildSelectedFloorPlanObjects({ labelVisible: event.target.checked }, object => object.fpType === "room");
@@ -2148,6 +2200,17 @@ function wireFloorPlanEditorControls() {
     else updateSelectedObjectGeometry(event.target.dataset.floorPlanGeometry);
   });
   inspector?.addEventListener("click", event => {
+    if (event.target.closest("[data-floor-plan-soft-hyphen]")) {
+      const input = inspector.querySelector("[data-floor-plan-room-label-input]");
+      if (input) {
+        const start = input.selectionStart ?? input.value.length;
+        const end = input.selectionEnd ?? start;
+        input.setRangeText("\u00ad", start, end, "end");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+      }
+      return;
+    }
     const symbolButton = event.target.closest("[data-inspector-symbol]");
     if (symbolButton) rebuildSelectedFloorPlanObject({ symbol: symbolButton.dataset.inspectorSymbol });
     const roomSymbolButton = event.target.closest("[data-inspector-room-symbol]");
@@ -2174,6 +2237,8 @@ function wireFloorPlanEditorControls() {
       updateSelectedFloorPlanTextStyle({ color: event.target.value });
     } else if (event.target.id === "floorPlanInspectorRoomName") {
       updateSelectedCustomRoom({ fallbackLabel: event.target.value });
+    } else if (event.target.id === "floorPlanInspectorRoomLabel") {
+      updateSelectedRoomLabelOverride(event.target.value);
     } else if (event.target.id === "floorPlanInspectorRoomLocation") {
       updateSelectedCustomRoom({ customLocation: event.target.value });
     } else if (event.target.id === "floorPlanInspectorRoomColor") {
@@ -2200,6 +2265,7 @@ function wireFloorPlanEditorControls() {
 }
 
 function floorPlanEditorKeydown(event) {
+  if (event.key === "Shift") setFloorPlanRotationSnap(true);
   if (!floorPlanCanvas || !document.querySelector(".floor-plan-editor") || event.target.matches("input, textarea, select")) return;
   const active = floorPlanCanvas.getActiveObject();
   if (["Backspace", "Delete"].includes(event.key) && active) {
@@ -2254,6 +2320,7 @@ function floorPlanEditorKeydown(event) {
 }
 
 function floorPlanEditorKeyup(event) {
+  if (event.key === "Shift") setFloorPlanRotationSnap(false);
   if (event.code !== "Space" || floorPlanSpacePanRestore === null) return;
   event.preventDefault();
   floorPlanPanEnabled = floorPlanSpacePanRestore;
