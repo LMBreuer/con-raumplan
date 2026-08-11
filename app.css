@@ -903,9 +903,9 @@ dialog .msg.err { color: var(--warn); }
 .ai-disclosure { position: relative; order: 99; display: inline-flex; align-items: center; margin-left: auto; }
 .credits .ai-disclosure-trigger {
   min-height: 0; padding: 2px 0; border: 0; border-bottom: 1px dotted currentColor; border-radius: 0;
-  background: none; box-shadow: none; color: var(--text-muted); font: inherit; line-height: 1.35; cursor: help;
+  background: none; box-shadow: none; color: var(--text-muted); font: inherit; line-height: 1.35; cursor: pointer;
 }
-.credits .ai-disclosure-trigger:hover { color: var(--text-secondary); background: none; box-shadow: none; transform: none; }
+.credits .ai-disclosure-trigger:hover, .credits .ai-disclosure-trigger:focus-visible { color: var(--text-secondary); background: none; box-shadow: none; transform: none; }
 .ai-disclosure-tooltip {
   position: absolute; z-index: 45; right: 0; bottom: calc(100% + 9px); width: min(360px, calc(100vw - 32px));
   padding: 10px 12px; border: var(--border-w) solid var(--border); border-radius: var(--r-md);

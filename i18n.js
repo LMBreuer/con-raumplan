@@ -138,7 +138,7 @@ const STRINGS = {
     deleteFailed: "Löschen fehlgeschlagen: {err}", pleaseLoginFirst: "Bitte zuerst einloggen oder registrieren.",
     pleaseEnterConName: "Bitte einen Namen für die Con eingeben.", createConFailed: "Anlegen fehlgeschlagen: {err}",
     dataLoadFailed: "Daten konnten nicht geladen werden ({err}).", asOf: "Stand: {date} Uhr",
-    imprint: "Impressum", aiDisclosureLabel: "Mit KI-Unterstützung entwickelt", aiDisclosureText: "Konzeption und Code entstanden teilweise mit Unterstützung generativer KI. Verantwortung und Entscheidungen bleiben menschlich. Ihr Einsatz berührt gesellschaftliche, kulturelle und politische Fragen und braucht weiterhin offene, kritische Aushandlung.",
+    imprint: "Impressum", aiDisclosureLabel: "Mit KI-Unterstützung entwickelt", aiDisclosureText: "Der Code dieser Webapplikation wurde teilweise mit Unterstützung generativer KI entwickelt. Konzeption, Verantwortung und Entscheidungen blieben dabei bei Menschen. Der Einsatz von KI berührt gesellschaftliche, kulturelle und politische Fragen und bedarf weiterhin offener, kritischer Diskussionen.",
     // plan.html — Kopfzeile/Dialoge (Teil 1)
     backToCons: "← alle Cons", switchCon: "Con wechseln", switchConAria: "Andere Crew-Con öffnen", loading: "Lädt …", loadingData: "Lade Daten …",
     skipToContent: "Zum Inhalt springen", pageNavigation: "Seite wählen",
@@ -490,7 +490,7 @@ const STRINGS = {
     deleteFailed: "Delete failed: {err}", pleaseLoginFirst: "Please log in or register first.",
     pleaseEnterConName: "Please enter a name for the con.", createConFailed: "Creating failed: {err}",
     dataLoadFailed: "Data could not be loaded ({err}).", asOf: "As of: {date}",
-    imprint: "Legal notice", aiDisclosureLabel: "Developed with AI assistance", aiDisclosureText: "Parts of the concept and code were created with the assistance of generative AI. Responsibility and decisions remain human. Its use raises social, cultural and political questions that require continued open and critical debate.",
+    imprint: "Legal notice", aiDisclosureLabel: "Developed with AI assistance", aiDisclosureText: "Part of the code for this web application was developed with the assistance of generative AI. Concept, responsibility and decisions remained with people. The use of AI raises social, cultural and political questions and continues to require open, critical discussion.",
     // plan.html — header/dialogs (part 1)
     backToCons: "← all cons", switchCon: "Switch con", switchConAria: "Open another crew con", loading: "Loading …", loadingData: "Loading data …",
     skipToContent: "Skip to content", pageNavigation: "Choose page",

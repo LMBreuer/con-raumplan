@@ -154,7 +154,7 @@ document.getElementById("credits").innerHTML = `
   <a href="https://www.3w6-podcast.com/" target="_blank" rel="noopener">3W6-Community</a> ·
   <a href="https://lmbreuer.github.io/playabl-dashboard/" target="_blank" rel="noopener">Slot-Dashboard</a> ·
   <a href="impressum.html"><span data-i18n="imprint">${esc(tr("imprint"))}</span></a> <span id="themeCatSlot"></span>
-  <span class="ai-disclosure"><button type="button" class="ai-disclosure-trigger" aria-describedby="aiDisclosurePlan" data-i18n="aiDisclosureLabel">${esc(tr("aiDisclosureLabel"))}</button><span id="aiDisclosurePlan" class="ai-disclosure-tooltip" role="tooltip" data-i18n="aiDisclosureText">${esc(tr("aiDisclosureText"))}</span></span>`;
+  <span class="ai-disclosure"><a class="ai-disclosure-trigger" href="https://de.wikipedia.org/wiki/Ethik_der_k%C3%BCnstlichen_Intelligenz" target="_blank" rel="noopener noreferrer" aria-describedby="aiDisclosurePlan" data-i18n="aiDisclosureLabel">${esc(tr("aiDisclosureLabel"))}</a><span id="aiDisclosurePlan" class="ai-disclosure-tooltip" role="tooltip" data-i18n="aiDisclosureText">${esc(tr("aiDisclosureText"))}</span></span>`;
 translateStaticDom();
 updateCatEasterEgg();
 
