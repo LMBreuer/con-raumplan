@@ -266,10 +266,14 @@ function floorPlanActiveFloor() {
 }
 
 function floorPlanFabricStyles(object) {
+  const controlWidth = Number(object.fpDomainWidth || object.fpWidth || object.width || 0) * Math.abs(object.scaleX || 1);
+  const controlHeight = Number(object.fpDomainHeight || object.fpHeight || object.height || 0) * Math.abs(object.scaleY || 1);
+  const controlExtent = Math.max(1, Math.min(controlWidth || 16, controlHeight || 16));
   object.set({
     borderColor: "#5b8def", cornerColor: "#ffffff", cornerStrokeColor: "#5b8def",
-    cornerStyle: "circle", cornerSize: 16, transparentCorners: false, borderScaleFactor: 2,
-    padding: 3, lockScalingFlip: true,
+    cornerStyle: "circle", cornerSize: Math.max(10, Math.min(16, controlExtent * .24)), transparentCorners: false, borderScaleFactor: 2,
+    padding: controlExtent < 64 ? 1 : 3, lockScalingFlip: true,
+    opacity: Math.min(1, Math.max(0, Number(object.fpOpacity ?? 1))),
   });
   return object;
 }
@@ -285,10 +289,10 @@ function floorPlanFabricRoom(object) {
   const cornerRadius = Math.min(object.cornerRadius ?? 18, object.width / 2, object.height / 2);
   const outlineVisible = object.outlineVisible !== false;
   const rect = new fabric.Rect({ left: 0, top: 0, originX: "center", originY: "center", width: object.width, height: object.height, rx: cornerRadius, ry: cornerRadius, fill: `${color}26`, stroke: outlineVisible ? color : "rgba(0,0,0,0)", strokeWidth: outlineVisible ? 4 : 0 });
-  const text = new fabric.Textbox(label, { left: 0, top: layout.labelCenterY - object.height / 2, originX: "center", originY: "center", width: Math.max(80, object.width - 40), textAlign: "center", fontSize: layout.labelFontSize, lineHeight: layout.lineHeight / layout.labelFontSize, fontWeight: "700", fill: foreground, fontFamily: "Arial", editable: false, visible: labelVisible });
-  const marker = new fabric.FabricText(floorPlanObjectRoomGlyph(object, room), { left: 0, top: layout.markerCenterY - object.height / 2, originX: "center", originY: "center", fontSize: layout.markerSize, fontWeight: "800", fill: foreground, fontFamily: "Arial", visible: object.markerVisible !== false });
-  const location = new fabric.FabricText(locationLabel, { left: 0, top: layout.locationY - object.height / 2, originX: "center", originY: "center", fontSize: 13, fill: foreground, fontFamily: "Arial" });
-  const group = new fabric.Group([rect, marker, text, location], { left: object.x, top: object.y, originX: "left", originY: "top", angle: object.rotation || 0 });
+  const text = labelVisible ? new fabric.Textbox(label, { left: 0, top: layout.labelCenterY - object.height / 2, originX: "center", originY: "center", width: Math.max(8, object.width - 16), textAlign: "center", fontSize: layout.labelFontSize, lineHeight: layout.lineHeight / layout.labelFontSize, fontWeight: "700", fill: foreground, fontFamily: "Arial", editable: false }) : null;
+  const marker = object.markerVisible === false ? null : new fabric.FabricText(floorPlanObjectRoomGlyph(object, room), { left: 0, top: layout.markerCenterY - object.height / 2, originX: "center", originY: "center", fontSize: layout.markerSize, fontWeight: "800", fill: foreground, fontFamily: "Arial" });
+  const location = locationLabel ? new fabric.FabricText(locationLabel, { left: 0, top: layout.locationY - object.height / 2, originX: "center", originY: "center", fontSize: Math.min(13, Math.max(7, object.height * .1)), fill: foreground, fontFamily: "Arial" }) : null;
+  const group = new fabric.Group([rect, marker, text, location].filter(Boolean), { left: object.x, top: object.y, originX: "left", originY: "top", angle: object.rotation || 0 });
   Object.assign(group, {
     fpId: object.id,
     fpType: "room",
@@ -302,6 +306,7 @@ function floorPlanFabricRoom(object) {
     fpMarkerVisible: object.markerVisible !== false,
     fpCornerRadius: object.cornerRadius ?? 18,
     fpOutlineVisible: outlineVisible,
+    fpOpacity: object.opacity ?? 1,
     fpRect: rect,
     fpMarkerText: marker,
     fpRoomLabelText: text,
@@ -316,7 +321,7 @@ function floorPlanFabricObject(object) {
   if (object.type === "room") return floorPlanFabricRoom(object);
   if (object.type === "text") {
     const text = new fabric.Textbox(object.text, { left: object.x, top: object.y, width: object.width, fontSize: object.fontSize || 28, fontWeight: "600", fill: object.color || "#172033", fontFamily: "Arial", textAlign: "center", angle: object.rotation || 0 });
-    Object.assign(text, { fpId: object.id, fpType: "text", fpColor: object.color || "#172033", fpFontSize: object.fontSize || 28, fpOutlineVisible: object.outlineVisible !== false });
+    Object.assign(text, { fpId: object.id, fpType: "text", fpColor: object.color || "#172033", fpFontSize: object.fontSize || 28, fpOutlineVisible: object.outlineVisible !== false, fpOpacity: object.opacity ?? 1 });
     return floorPlanFabricStyles(text);
   }
   if (object.type === "image") {
@@ -329,6 +334,7 @@ function floorPlanFabricObject(object) {
       fpId: object.id, fpType: "image", fpSrc: object.src, fpAlt: object.alt || "",
       fpWidth: 1, fpHeight: 1, fpDomainWidth: object.width, fpDomainHeight: object.height,
       fpOutlineVisible: object.outlineVisible !== false,
+      fpOpacity: object.opacity ?? 1,
     });
     image.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false });
     element.addEventListener("load", () => {
@@ -359,7 +365,7 @@ function floorPlanFabricObject(object) {
   const glyph = new fabric.FabricText(symbol.glyph, { left: 0, top: iconY, originX: "center", originY: "center", fontSize: backgroundVisible ? Math.max(30, iconDiameter * .38) : Math.max(42, iconDiameter * .58), fill: "#27344d", fontWeight: "700", fontFamily: "Arial" });
   const label = new fabric.FabricText(object.label || "", { left: 0, top: iconDiameter / 2 + 1, originX: "center", originY: "top", fontSize: 15, fill: "#596579", fontWeight: "600", fontFamily: "Arial" });
   const group = new fabric.Group([circle, glyph, label], { left: object.x, top: object.y, originX: "left", originY: "top", angle: object.rotation || 0 });
-  Object.assign(group, { fpId: object.id, fpType: "symbol", fpSymbol: object.symbol, fpLabel: object.label || "", fpLabelText: label, fpBackgroundVisible: backgroundVisible, fpOutlineVisible: outlineVisible, fpWidth: object.width, fpHeight: object.height });
+  Object.assign(group, { fpId: object.id, fpType: "symbol", fpSymbol: object.symbol, fpLabel: object.label || "", fpLabelText: label, fpBackgroundVisible: backgroundVisible, fpOutlineVisible: outlineVisible, fpOpacity: object.opacity ?? 1, fpWidth: object.width, fpHeight: object.height });
   return floorPlanFabricStyles(group);
 }
 
@@ -533,8 +539,8 @@ function floorPlanSnapContext(object) {
     yTargets.push(target.top, target.top + target.height / 2, target.top + target.height);
   });
   // Die Toleranz bleibt auch bei verkleinerter/vergrößerter Arbeitsfläche
-  // ungefähr 14 sichtbare Pixel groß und ist damit bewusst spürbar.
-  const threshold = 14 / floorPlanEditorZoom;
+  // ungefähr acht sichtbare Pixel groß: präzise, aber noch gut auffindbar.
+  const threshold = 8 / floorPlanEditorZoom;
   return { floor, xTargets, yTargets, threshold };
 }
 
@@ -799,6 +805,7 @@ function floorPlanObjectFromFabric(object) {
     width: Math.max(24, Math.round(objectWidth * object.scaleX)), height: Math.max(24, Math.round(objectHeight * object.scaleY)),
     rotation: Math.round(object.angle || 0),
     outlineVisible: object.fpOutlineVisible !== false,
+    opacity: Math.min(1, Math.max(0, Number(object.fpOpacity ?? 1))),
   };
   if (object.fpType === "room") return {
     ...base,
@@ -1037,6 +1044,25 @@ function floorPlanOutlineVisibilityHtml(object) {
   return `<label class="floor-plan-property-toggle"><input id="floorPlanOutlineVisible" type="checkbox"${object.fpOutlineVisible === false ? "" : " checked"}><span>${esc(tr("floorPlanShowOutline"))}</span></label>`;
 }
 
+function floorPlanOpacityHtml(object) {
+  const percent = Math.round(Math.min(1, Math.max(0, Number(object.fpOpacity ?? 1))) * 100);
+  return `<label class="floor-plan-radius-control"><span>${esc(tr("floorPlanOpacity"))}<output id="floorPlanOpacityValue">${percent} %</output></span><input id="floorPlanOpacity" type="range" min="0" max="100" step="5" value="${percent}"></label>`;
+}
+
+function updateSelectedFloorPlanOpacity(value) {
+  const selected = floorPlanCanvas?.getActiveObject();
+  if (!selected || selected.type === "activeSelection") return;
+  const opacity = Math.min(1, Math.max(0, Number(value) / 100));
+  selected.fpOpacity = opacity;
+  selected.set("opacity", opacity);
+  selected.dirty = true;
+  const output = document.getElementById("floorPlanOpacityValue");
+  if (output) output.textContent = `${Math.round(opacity * 100)} %`;
+  floorPlanCanvas.requestRenderAll();
+  syncFloorPlanCanvasToDocument();
+  scheduleFloorPlanSave();
+}
+
 function updateSelectedFloorPlanTextStyle(patch) {
   const selected = floorPlanCanvas?.getActiveObject();
   if (!selected || selected.fpType !== "text") return;
@@ -1129,6 +1155,7 @@ function renderFloorPlanInspector() {
       <p class="hint">${esc(tr("floorPlanGraphicResizeHint"))}</p>`;
   }
   if (object.fpType === "room") inspector.insertAdjacentHTML("beforeend", floorPlanRoomForegroundHtml(object));
+  inspector.insertAdjacentHTML("beforeend", floorPlanOpacityHtml(object));
   inspector.insertAdjacentHTML("beforeend", floorPlanArrangementHtml(object));
 }
 
@@ -1473,6 +1500,8 @@ function wireFloorPlanEditorControls() {
       updateSelectedCustomRoom({ customColor: event.target.value });
     } else if (event.target.id === "floorPlanRoomTextColor") {
       updateSelectedRoomForeground(event.target.value);
+    } else if (event.target.id === "floorPlanOpacity") {
+      updateSelectedFloorPlanOpacity(event.target.value);
     } else if (event.target.id === "floorPlanCornerRadius") {
       const selected = floorPlanCanvas.getActiveObject();
       if (!selected || selected.fpType !== "room") return;

@@ -89,6 +89,7 @@ function normalizeFloorPlanObject(raw, floor) {
     height,
     rotation: floorPlanNumber(raw.rotation, 0, -360, 360),
     outlineVisible: raw.outlineVisible !== false,
+    opacity: floorPlanNumber(raw.opacity, 1, 0, 1),
   };
   if (raw.type === "room") {
     const customColor = /^#[0-9a-f]{6}$/i.test(String(raw.customColor || "")) ? String(raw.customColor) : "#64748b";
@@ -258,12 +259,12 @@ function floorPlanTextLines(text, maxChars = 22, maxLines = 3) {
 function floorPlanRoomLayout(object, label, location) {
   const labelVisible = object.labelVisible !== false;
   const markerVisible = object.markerVisible !== false;
-  const labelFontSize = Math.max(18, Math.min(26, object.width / 10));
-  const lineHeight = Math.max(20, Math.min(30, labelFontSize * 1.12));
+  const labelFontSize = Math.max(8, Math.min(26, object.width / 10, object.height * .25));
+  const lineHeight = Math.max(9, Math.min(30, labelFontSize * 1.12));
   const lines = labelVisible ? floorPlanTextLines(label, Math.max(10, Math.floor(object.width / 11)), 3) : [];
-  const markerSize = markerVisible ? Math.max(30, Math.min(64, object.width * .2, object.height * .34)) : 0;
-  const topInset = 12;
-  const contentBottom = object.height - (labelVisible && location ? 34 : 12);
+  const markerSize = markerVisible ? Math.max(8, Math.min(64, object.width * .2, object.height * .34)) : 0;
+  const topInset = Math.min(12, object.height * .1);
+  const contentBottom = object.height - (labelVisible && location ? Math.min(34, object.height * .28) : Math.min(12, object.height * .1));
   const labelHeight = lines.length * lineHeight;
   const gap = markerVisible && labelVisible ? Math.max(6, Math.min(12, object.height * .06)) : 0;
   const contentHeight = labelHeight + gap + markerSize;
@@ -275,8 +276,13 @@ function floorPlanRoomLayout(object, label, location) {
     labelCenterY: labelVisible ? contentTop + labelHeight / 2 : contentTop,
     markerCenterY: markerVisible ? contentTop + labelHeight + gap + markerSize / 2 : contentTop + labelHeight / 2,
     markerSize,
-    locationY: object.height - 16,
+    locationY: object.height - Math.min(16, object.height * .14),
   };
+}
+
+function floorPlanOpacityAttribute(object) {
+  const opacity = floorPlanNumber(object.opacity, 1, 0, 1);
+  return opacity < 1 ? ` opacity="${opacity}"` : "";
 }
 
 function floorPlanRotation(object) {
@@ -301,7 +307,7 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
     ? ` data-floor-plan-room="${esc(room.id)}" tabindex="0" role="button" aria-label="${esc(tr("floorPlanOpenRoomAria", { name: room.name }))}"`
     : ` aria-label="${esc(label)}"`;
   const cornerRadius = Math.min(object.cornerRadius ?? 18, object.width / 2, object.height / 2);
-  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}${object.outlineVisible === false ? " is-outline-hidden" : ""}"${attrs}${floorPlanRotation(object)} style="--floor-plan-room-color:${color};--floor-plan-room-foreground:${foreground}">
+  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}${object.outlineVisible === false ? " is-outline-hidden" : ""}"${attrs}${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} style="--floor-plan-room-color:${color};--floor-plan-room-foreground:${foreground}">
     <rect x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" rx="${cornerRadius}" />
     ${labelVisible ? `<text class="floor-plan-map-label" x="${object.x + object.width / 2}" y="${textStart}" text-anchor="middle" dominant-baseline="middle" style="font-size:${layout.labelFontSize}px">${text}</text>` : ""}
     ${object.markerVisible === false ? "" : `<text class="floor-plan-map-marker" x="${object.x + object.width / 2}" y="${object.y + layout.markerCenterY}" text-anchor="middle" dominant-baseline="central" style="font-size:${layout.markerSize}px">${esc(glyph)}</text>`}
@@ -320,9 +326,9 @@ function floorPlanObjectSvg(object, options) {
     const lines = floorPlanTextLines(object.text, Math.max(6, Math.floor(object.width / Math.max(7, fontSize * .55))), 5);
     const lineHeight = fontSize * 1.2;
     const text = lines.map((line, index) => `<tspan x="${object.x + object.width / 2}" dy="${index ? lineHeight : 0}">${esc(line)}</tspan>`).join("");
-    return `<g class="floor-plan-map-text"${floorPlanRotation(object)}><text x="${object.x + object.width / 2}" y="${object.y + object.height / 2 - ((lines.length - 1) * lineHeight) / 2}" text-anchor="middle" dominant-baseline="middle" style="fill:${object.color || "#172033"};font-size:${fontSize}px">${text}</text></g>`;
+    return `<g class="floor-plan-map-text"${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)}><text x="${object.x + object.width / 2}" y="${object.y + object.height / 2 - ((lines.length - 1) * lineHeight) / 2}" text-anchor="middle" dominant-baseline="middle" style="fill:${object.color || "#172033"};font-size:${fontSize}px">${text}</text></g>`;
   }
-  if (object.type === "image") return `<g class="floor-plan-map-image"${floorPlanRotation(object)} aria-label="${esc(object.alt || tr("floorPlanGraphic"))}">
+  if (object.type === "image") return `<g class="floor-plan-map-image"${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} aria-label="${esc(object.alt || tr("floorPlanGraphic"))}">
     <image href="${esc(object.src)}" x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" preserveAspectRatio="xMidYMid meet" />
   </g>`;
   const symbol = FLOOR_PLAN_SYMBOLS[object.symbol] || FLOOR_PLAN_SYMBOLS.info;
@@ -330,7 +336,7 @@ function floorPlanObjectSvg(object, options) {
   const symbolSize = object.backgroundVisible === false
     ? Math.max(42, Math.min(96, Math.min(object.width, object.height) * .58))
     : Math.max(30, Math.min(64, Math.min(object.width, object.height) * .38));
-  return `<g class="floor-plan-map-symbol${object.outlineVisible === false ? " is-outline-hidden" : ""}"${floorPlanRotation(object)} aria-label="${esc(label)}">
+  return `<g class="floor-plan-map-symbol${object.outlineVisible === false ? " is-outline-hidden" : ""}"${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} aria-label="${esc(label)}">
     ${object.backgroundVisible === false ? "" : `<circle cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" r="${Math.max(18, Math.min(object.width, object.height) / 2 - 3)}" />`}
     <text x="${object.x + object.width / 2}" y="${object.y + object.height / 2}" text-anchor="middle" dominant-baseline="central" style="font-size:${symbolSize}px">${esc(symbol.glyph)}</text>
     ${object.label ? `<text class="floor-plan-map-symbol-label" x="${object.x + object.width / 2}" y="${object.y + object.height + 18}" text-anchor="middle">${esc(object.label)}</text>` : ""}
