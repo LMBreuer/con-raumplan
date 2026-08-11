@@ -89,9 +89,13 @@ const floorPlanNumber = (value, fallback, min = -10000, max = 10000) => {
 };
 
 function normalizeFloorPlanObject(raw, floor) {
-  if (!raw || typeof raw !== "object" || !["room", "text", "symbol", "image"].includes(raw.type)) return null;
-  const width = floorPlanNumber(raw.width, raw.type === "room" ? 250 : 120, 24, floor.width);
-  const height = floorPlanNumber(raw.height, raw.type === "room" ? 150 : 56, 24, floor.height);
+  if (!raw || typeof raw !== "object" || !["room", "text", "symbol", "image", "shape"].includes(raw.type)) return null;
+  const shapeKind = raw.type === "shape" && ["line", "rectangle", "ellipse"].includes(raw.shape) ? raw.shape : "rectangle";
+  const minDimension = raw.type === "shape" ? 1 : 24;
+  const defaultWidth = raw.type === "room" ? 250 : raw.type === "shape" ? 180 : 120;
+  const defaultHeight = raw.type === "room" ? 150 : raw.type === "shape" ? shapeKind === "line" ? 6 : 100 : 56;
+  const width = floorPlanNumber(raw.width, defaultWidth, minDimension, floor.width);
+  const height = floorPlanNumber(raw.height, defaultHeight, minDimension, floor.height);
   const legacyOpacity = floorPlanNumber(raw.opacity, 1, 0, 1);
   const base = {
     id: String(raw.id || floorPlanId(raw.type)),
@@ -129,6 +133,17 @@ function normalizeFloorPlanObject(raw, floor) {
     const color = /^#[0-9a-f]{6}$/i.test(String(raw.color || "")) ? String(raw.color) : "#172033";
     const textAlign = ["left", "center", "right"].includes(raw.textAlign) ? raw.textAlign : "center";
     return { ...base, text: String(raw.text || "Text").slice(0, 240), color, fontSize: floorPlanNumber(raw.fontSize, 28, 12, 96), textAlign };
+  }
+  if (raw.type === "shape") {
+    const color = /^#[0-9a-f]{6}$/i.test(String(raw.color || "")) ? String(raw.color) : "#64748b";
+    return {
+      ...base,
+      shape: shapeKind,
+      name: String(raw.name || "").slice(0, 80),
+      color,
+      fillOpacity: shapeKind === "line" ? 1 : floorPlanNumber(raw.fillOpacity, .15, 0, 1),
+      outlineVisible: shapeKind === "line" ? false : raw.outlineVisible !== false,
+    };
   }
   if (raw.type === "image") {
     const src = String(raw.src || "");
@@ -441,6 +456,15 @@ function floorPlanObjectSvg(object, options) {
     const text = layout.lines.map((line, index) => `<tspan x="${layout.anchorX}" dy="${index ? layout.lineHeight : 0}">${esc(line)}</tspan>`).join("");
     const defaultColor = !object.color || object.color.toLowerCase() === "#172033";
     return `<g class="floor-plan-map-text${defaultColor ? " is-default-color" : ""}"${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)}><text x="${layout.anchorX}" y="${object.y + object.height / 2 - ((layout.lines.length - 1) * layout.lineHeight) / 2}" text-anchor="${layout.anchor}" dominant-baseline="middle" style="fill:${object.color || "#172033"};font-size:${layout.fontSize}px">${text}</text></g>`;
+  }
+  if (object.type === "shape") {
+    const color = /^#[0-9a-f]{6}$/i.test(String(object.color || "")) ? object.color : "#64748b";
+    const fillOpacity = object.shape === "line" ? 1 : floorPlanNumber(object.fillOpacity, .15, 0, 1);
+    const stroke = object.shape === "line" || object.outlineVisible === false ? "none" : color;
+    const shape = object.shape === "ellipse"
+      ? `<ellipse cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" rx="${object.width / 2}" ry="${object.height / 2}" fill="${color}" fill-opacity="${fillOpacity}" stroke="${stroke}" stroke-width="${stroke === "none" ? 0 : 2}" vector-effect="non-scaling-stroke" />`
+      : `<rect x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" fill="${color}" fill-opacity="${fillOpacity}" stroke="${stroke}" stroke-width="${stroke === "none" ? 0 : 2}" vector-effect="non-scaling-stroke" />`;
+    return `<g class="floor-plan-map-shape"${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} aria-label="${esc(object.name || tr(`floorPlanShape${object.shape === "line" ? "Line" : object.shape === "ellipse" ? "Ellipse" : "Rectangle"}`))}">${shape}</g>`;
   }
   if (object.type === "image") return `<g class="floor-plan-map-image"${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} aria-label="${esc(object.alt || tr("floorPlanGraphic"))}">
     <image href="${esc(object.src)}" x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" preserveAspectRatio="xMidYMid meet" />
