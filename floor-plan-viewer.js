@@ -77,12 +77,31 @@ function jumpToFloorPlanRoom(roomId) {
 }
 
 function floorPlanRoomGames(roomId) {
-  const slotKey = S.activeSlot || S.slots[0]?.key;
-  return S.games.filter(game => game.slotKey === slotKey).map(game => {
+  const slotOrder = new Map(S.slots.map((slot, index) => [slot.key, index]));
+  return S.games.map(game => {
     const assignment = asgFor(game);
     const table = assignment && S.tables.find(item => item.id === assignment.table_id);
     return table?.room_id === roomId ? { game, table } : null;
-  }).filter(Boolean);
+  }).filter(Boolean).sort((a, b) => {
+    const slotDifference = (slotOrder.get(a.game.slotKey) ?? Number.MAX_SAFE_INTEGER) - (slotOrder.get(b.game.slotKey) ?? Number.MAX_SAFE_INTEGER);
+    if (slotDifference) return slotDifference;
+    return (a.table.sort || 0) - (b.table.sort || 0) || a.game.title.localeCompare(b.game.title, LANG === "en" ? "en" : "de");
+  });
+}
+
+function floorPlanRoomScheduleHtml(entries) {
+  if (!entries.length) return `<p class="hint">${esc(tr("floorPlanNoGamesHere"))}</p>`;
+  const groups = [];
+  entries.forEach(entry => {
+    let group = groups.find(item => item.key === entry.game.slotKey);
+    if (!group) {
+      const slot = S.slots.find(item => item.key === entry.game.slotKey);
+      group = { key: entry.game.slotKey, label: slot?.label || entry.game.slotKey || tr("slot"), entries: [] };
+      groups.push(group);
+    }
+    group.entries.push(entry);
+  });
+  return groups.map(group => `<section><h3>${esc(group.label)}</h3>${group.entries.map(({ game, table }) => `<div class="floor-plan-room-game"><strong>${esc(game.title)}</strong><span>${esc(table.name)}${game.provider ? ` · ${esc(game.provider)}` : ""}</span></div>`).join("")}</section>`).join("");
 }
 
 function showFloorPlanRoomDetails(roomId, { highlight = false } = {}) {
@@ -92,12 +111,11 @@ function showFloorPlanRoomDetails(roomId, { highlight = false } = {}) {
   const color = floorPlanRoomColor(room);
   const glyph = floorPlanRoomGlyph(room);
   const entries = floorPlanRoomGames(roomId);
-  const slot = S.slots.find(item => item.key === (S.activeSlot || S.slots[0]?.key));
   detail.innerHTML = `<div class="floor-plan-room-detail-head" style="--floor-plan-room-color:${color}"><span class="floor-plan-room-detail-symbol" aria-hidden="true">${esc(glyph)}</span><div><span class="floor-plan-editor-kicker">${esc(tr("room"))}</span><h2>${esc(room.name)}</h2></div></div>
     ${room.floor ? `<p class="room-location"><span aria-hidden="true">⌖</span> ${esc(room.floor)}</p>` : ""}
     ${room.notes ? `<p>${esc(room.notes)}</p>` : ""}
     <div class="room-badges">${roomBadgesHtml(room)}</div>
-    <div class="floor-plan-room-schedule"><h3>${esc(slot?.label || tr("slot"))}</h3>${entries.length ? entries.map(({ game, table }) => `<div class="floor-plan-room-game"><strong>${esc(game.title)}</strong><span>${esc(table.name)}${game.provider ? ` · ${esc(game.provider)}` : ""}</span></div>`).join("") : `<p class="hint">${esc(tr("floorPlanNoGamesHere"))}</p>`}</div>
+    <div class="floor-plan-room-schedule">${floorPlanRoomScheduleHtml(entries)}</div>
     <button type="button" class="primary" id="floorPlanJumpRoomBtn" data-room-id="${esc(room.id)}">${esc(tr("floorPlanShowInRooms"))} →</button>`;
   detail.querySelector("#floorPlanJumpRoomBtn").addEventListener("click", () => jumpFromFloorPlanToRoom(room.id));
   globalThis.document.querySelectorAll("[data-floor-plan-room]").forEach(element => element.classList.toggle("is-active", element.dataset.floorPlanRoom === room.id));

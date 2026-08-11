@@ -88,6 +88,7 @@ function normalizeFloorPlanObject(raw, floor) {
     width,
     height,
     rotation: floorPlanNumber(raw.rotation, 0, -360, 360),
+    outlineVisible: raw.outlineVisible !== false,
   };
   if (raw.type === "room") {
     const customColor = /^#[0-9a-f]{6}$/i.test(String(raw.customColor || "")) ? String(raw.customColor) : "#64748b";
@@ -300,7 +301,7 @@ function floorPlanRoomSvg(object, { interactive = false } = {}) {
     ? ` data-floor-plan-room="${esc(room.id)}" tabindex="0" role="button" aria-label="${esc(tr("floorPlanOpenRoomAria", { name: room.name }))}"`
     : ` aria-label="${esc(label)}"`;
   const cornerRadius = Math.min(object.cornerRadius ?? 18, object.width / 2, object.height / 2);
-  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}"${attrs}${floorPlanRotation(object)} style="--floor-plan-room-color:${color};--floor-plan-room-foreground:${foreground}">
+  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}${object.outlineVisible === false ? " is-outline-hidden" : ""}"${attrs}${floorPlanRotation(object)} style="--floor-plan-room-color:${color};--floor-plan-room-foreground:${foreground}">
     <rect x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" rx="${cornerRadius}" />
     ${labelVisible ? `<text class="floor-plan-map-label" x="${object.x + object.width / 2}" y="${textStart}" text-anchor="middle" dominant-baseline="middle" style="font-size:${layout.labelFontSize}px">${text}</text>` : ""}
     ${object.markerVisible === false ? "" : `<text class="floor-plan-map-marker" x="${object.x + object.width / 2}" y="${object.y + layout.markerCenterY}" text-anchor="middle" dominant-baseline="central" style="font-size:${layout.markerSize}px">${esc(glyph)}</text>`}
@@ -329,7 +330,7 @@ function floorPlanObjectSvg(object, options) {
   const symbolSize = object.backgroundVisible === false
     ? Math.max(42, Math.min(96, Math.min(object.width, object.height) * .58))
     : Math.max(30, Math.min(64, Math.min(object.width, object.height) * .38));
-  return `<g class="floor-plan-map-symbol"${floorPlanRotation(object)} aria-label="${esc(label)}">
+  return `<g class="floor-plan-map-symbol${object.outlineVisible === false ? " is-outline-hidden" : ""}"${floorPlanRotation(object)} aria-label="${esc(label)}">
     ${object.backgroundVisible === false ? "" : `<circle cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" r="${Math.max(18, Math.min(object.width, object.height) / 2 - 3)}" />`}
     <text x="${object.x + object.width / 2}" y="${object.y + object.height / 2}" text-anchor="middle" dominant-baseline="central" style="font-size:${symbolSize}px">${esc(symbol.glyph)}</text>
     ${object.label ? `<text class="floor-plan-map-symbol-label" x="${object.x + object.width / 2}" y="${object.y + object.height + 18}" text-anchor="middle">${esc(object.label)}</text>` : ""}
@@ -347,8 +348,8 @@ function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id =
       .floor-plan-map-page{fill:#fff}.floor-plan-map-room rect{fill:var(--floor-plan-room-color);fill-opacity:.149;stroke:var(--floor-plan-room-color);stroke-width:4}
       .floor-plan-map-label{fill:var(--floor-plan-room-foreground);font:700 25px Arial,sans-serif}.floor-plan-map-marker{fill:var(--floor-plan-room-foreground);font:800 48px Arial,sans-serif}
       .floor-plan-map-location{fill:var(--floor-plan-room-foreground);font:500 13px Arial,sans-serif}.floor-plan-map-text text{fill:#172033;font:600 28px Arial,sans-serif}
-      .floor-plan-map-symbol circle{fill:#fff;stroke:#62708a;stroke-width:4}.floor-plan-map-symbol>text{fill:#27344d;font:700 32px Arial,sans-serif}.floor-plan-map-symbol-label{fill:#596579!important;font:600 16px Arial,sans-serif!important}
-      .floor-plan-map-room.is-orphan rect{stroke:#b45309;stroke-dasharray:10 7;fill:#fef3c7}
+      .floor-plan-map-symbol circle{fill:#fff;stroke:#62708a;stroke-width:4}.floor-plan-map-symbol.is-outline-hidden circle{stroke:none}.floor-plan-map-symbol>text{fill:#27344d;font:700 32px Arial,sans-serif}.floor-plan-map-symbol-label{fill:#596579!important;font:600 16px Arial,sans-serif!important}
+      .floor-plan-map-room.is-orphan rect{stroke:#b45309;stroke-dasharray:10 7;fill:#fef3c7}.floor-plan-map-room.is-outline-hidden rect{stroke:none;stroke-dasharray:none}
     </style>
     <rect class="floor-plan-map-page" x="0" y="0" width="${floor.width}" height="${floor.height}" />
     <g class="floor-plan-map-content">${floor.objects.map(object => floorPlanObjectSvg(object, { interactive })).join("")}</g>
