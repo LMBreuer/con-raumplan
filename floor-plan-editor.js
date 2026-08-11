@@ -12,6 +12,7 @@ let floorPlanSaveTimer = null;
 let floorPlanSaveInFlight = null;
 let floorPlanPendingSnapshot = null;
 let floorPlanEditorAbortController = null;
+const floorPlanObjectNormalizations = new WeakSet();
 const FLOOR_PLAN_CUSTOM_MARKERS = [...ROOM_MARKERS];
 const FLOOR_PLAN_GRAPHIC_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const FLOOR_PLAN_TRACE_TYPES = new Set([...FLOOR_PLAN_GRAPHIC_TYPES, "application/pdf"]);
@@ -764,8 +765,7 @@ function initializeFloorPlanCanvas() {
   });
   floorPlanCanvas.on("object:modified", event => {
     clearFloorPlanSnapGuides();
-    normalizeFloorPlanFabricObject(event.target);
-    floorPlanCanvasChanged();
+    if (!normalizeFloorPlanFabricObject(event.target)) floorPlanCanvasChanged();
   });
   floorPlanCanvas.on("mouse:up", clearFloorPlanSnapGuides);
   wireFloorPlanPanGesture();
@@ -828,26 +828,32 @@ function containFloorPlanFabricPosition(object) {
 
 function normalizeFloorPlanFabricObject(object) {
   const floor = floorPlanActiveFloor();
-  if (!object || !floor) return object;
+  if (!object || !floor) return false;
   const raw = floorPlanObjectFromFabric(object);
   const domain = normalizeFloorPlanObject(raw, floor);
-  if (!domain) return object;
+  if (!domain) return false;
   const scaled = Math.abs((object.scaleX || 1) - 1) >= .001 || Math.abs((object.scaleY || 1) - 1) >= .001;
   if (!scaled) {
     object.set({ left: domain.x, top: domain.y });
     object.setCoords();
-    return object;
+    return false;
   }
+  if (floorPlanObjectNormalizations.has(object)) return true;
   const canvas = floorPlanCanvas;
   const index = canvas.getObjects().indexOf(object);
-  const replacement = floorPlanFabricObject(domain);
-  canvas.remove(object);
-  canvas.insertAt(index, replacement);
-  canvas.setActiveObject(replacement);
-  replacement.setCoords();
-  canvas.requestRenderAll();
-  renderFloorPlanInspector();
-  return replacement;
+  floorPlanObjectNormalizations.add(object);
+  requestAnimationFrame(() => {
+    floorPlanObjectNormalizations.delete(object);
+    if (canvas !== floorPlanCanvas || index < 0 || !canvas.getObjects().includes(object)) return;
+    const replacement = floorPlanFabricObject(domain);
+    canvas.remove(object);
+    canvas.insertAt(index, replacement);
+    canvas.setActiveObject(replacement);
+    replacement.setCoords();
+    canvas.requestRenderAll();
+    floorPlanCanvasChanged();
+  });
+  return true;
 }
 
 function floorPlanSaveErrorMessage(error) {
@@ -862,10 +868,29 @@ function floorPlanSaveErrorMessage(error) {
   return tr("floorPlanSaveFailed", { err: message });
 }
 
+function floorPlanCanvasObjectsForDocument(floor) {
+  const active = floorPlanCanvas?.getActiveObject();
+  const isActiveSelection = Boolean(active?.getObjects)
+    && (String(active.type || "").toLowerCase() === "activeselection" || active.isType?.("ActiveSelection"));
+  const selected = isActiveSelection ? [...active.getObjects()] : [];
+  if (isActiveSelection) {
+    floorPlanCanvas.discardActiveObject();
+    selected.forEach(object => object.setCoords());
+  }
+  const objects = floorPlanCanvas.getObjects().map(object => normalizeFloorPlanObject(floorPlanObjectFromFabric(object), floor)).filter(Boolean);
+  if (isActiveSelection && selected.length) {
+    const restored = new fabric.ActiveSelection(selected, { canvas: floorPlanCanvas });
+    floorPlanCanvas.setActiveObject(restored);
+    restored.setCoords();
+    floorPlanCanvas.requestRenderAll();
+  }
+  return objects;
+}
+
 function syncFloorPlanCanvasToDocument({ history = true } = {}) {
   const floor = floorPlanActiveFloor();
   if (!floor || !floorPlanCanvas) return;
-  floor.objects = floorPlanCanvas.getObjects().map(object => normalizeFloorPlanObject(floorPlanObjectFromFabric(object), floor)).filter(Boolean);
+  floor.objects = floorPlanCanvasObjectsForDocument(floor);
   const serialized = JSON.stringify(floorPlanEditorDocument);
   if (history && floorPlanHistory.at(-1) !== serialized) {
     floorPlanHistory.push(serialized);
