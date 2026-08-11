@@ -54,10 +54,15 @@ function showInfoTip(trigger, text) {
   const host = trigger.closest("dialog[open]") || document.body;
   if (el.parentElement !== host) host.appendChild(el);
   const r = trigger.getBoundingClientRect();
+  const wide = trigger.dataset.infoWide === "true";
+  el.classList.toggle("is-wide", wide);
   el.style.top = `${r.bottom + 6}px`;
-  el.style.left = `${Math.min(r.left, window.innerWidth - 246)}px`;
+  el.style.left = `${Math.max(12, Math.min(r.left, window.innerWidth - (wide ? 354 : 246)))}px`;
   el.textContent = text;
   el.hidden = false;
+  if (el.getBoundingClientRect().bottom > window.innerHeight - 12) {
+    el.style.top = `${Math.max(12, r.top - el.offsetHeight - 6)}px`;
+  }
   el.dataset.forTrigger = text;
 }
 function hideInfoTip() {
