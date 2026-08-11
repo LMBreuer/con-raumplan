@@ -112,7 +112,7 @@ function showFloorPlanRoomDetails(roomId, { highlight = false } = {}) {
   const glyph = floorPlanRoomGlyph(room);
   const entries = floorPlanRoomGames(roomId);
   detail.innerHTML = `<div class="floor-plan-room-detail-head" style="--floor-plan-room-color:${color}"><span class="floor-plan-room-detail-symbol" aria-hidden="true">${esc(glyph)}</span><div><span class="floor-plan-editor-kicker">${esc(tr("room"))}</span><h2>${esc(room.name)}</h2></div></div>
-    ${room.floor ? `<p class="room-location"><span aria-hidden="true">⌖</span> ${esc(room.floor)}</p>` : ""}
+    ${room.floor ? `<p class="room-location">${esc(room.floor)}</p>` : ""}
     ${room.notes ? `<p>${esc(room.notes)}</p>` : ""}
     <div class="room-badges">${roomBadgesHtml(room)}</div>
     <div class="floor-plan-room-schedule">${floorPlanRoomScheduleHtml(entries)}</div>
@@ -123,10 +123,15 @@ function showFloorPlanRoomDetails(roomId, { highlight = false } = {}) {
     const element = globalThis.document.querySelector(`[data-floor-plan-room="${CSS.escape(room.id)}"]`);
     if (element) {
       element.classList.remove("is-jump-highlight");
-      requestAnimationFrame(() => {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const reducedMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        element.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center", inline: "center" });
+        element.focus?.({ preventScroll: true });
         element.classList.add("is-jump-highlight");
-        element.addEventListener("animationend", () => element.classList.remove("is-jump-highlight"), { once: true });
-      });
+        const clearHighlight = () => element.classList.remove("is-jump-highlight");
+        element.addEventListener("animationend", clearHighlight, { once: true });
+        globalThis.setTimeout(clearHighlight, 1600);
+      }));
     }
   }
 }

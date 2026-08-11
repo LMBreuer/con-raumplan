@@ -234,7 +234,7 @@ function configurePlanTours() {
           },
           {
             prepare: showPublic("raeume"),
-            target: () => document.querySelector(".floor-plan-room-link"),
+            target: () => document.querySelector(".floor-plan-room-jump"),
             titleKey: "tourPublicRoomMapLinkTitle",
             bodyKey: "tourPublicRoomMapLinkBody",
             when: () => !!(floorPlanInteractiveEnabled() && S.floorPlanPublic?.document && S.rooms.some(room => floorPlanFloorForRoom(S.floorPlanPublic.document, room.id))),

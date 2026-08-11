@@ -237,6 +237,12 @@ function personalEmptyMessage({ roomAssignment = false } = {}) {
         : "noPersonalSearchResults";
   return tr(key, { name: S.personalProfile?.username || "" });
 }
+function floorPlanRoomJumpButtonHtml(room) {
+  const documentValue = floorPlanInteractiveEnabled() ? S.floorPlanPublic?.document : null;
+  if (!room || !documentValue || !floorPlanFloorForRoom(documentValue, room.id)) return "";
+  const label = tr("floorPlanShowRoomOnMap", { name: room.name });
+  return `<button type="button" class="icon-btn floor-plan-room-jump no-print" data-floor-plan-room-link="${esc(room.id)}" title="${esc(label)}" aria-label="${esc(label)}"><span aria-hidden="true">⌖</span></button>`;
+}
 function tabelleHtml() {
   const rows = sortGames(S.games.filter(matchesPublicFilters), S.tableSort);
   if (!rows.length) return emptyState(S.personalFilterActive
@@ -250,7 +256,7 @@ function tabelleHtml() {
       <td>${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a>` : esc(g.title)}${g.ws ? ` <span class="badge">${esc(tr("workshop"))}</span>` : ""} <button type="button" class="icon-btn requestBtn no-print" data-game="${esc(g.key)}" aria-label="${esc(tr("proposeChangeTo", { title: g.title }))}" title="${esc(tr("proposeChangeHint"))}">✎</button></td>
       <td>${g.provider ? esc(g.provider) : '<span style="color:var(--text-muted)">–</span>'}</td>
       <td>${esc(slot?.label || g.slotLabel)}</td>
-      <td>${room ? `<span class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot${roomMarkerClass(room)}"></span>${esc(room.name)}</span>` : '<span style="color:var(--text-muted)">–</span>'}</td>
+      <td>${room ? `<span class="room-map-reference" style="--room-accent:${roomAccentVar(room)}"><span class="where" style="--chip-accent:${roomAccentVar(room)}"><span class="dot${roomMarkerClass(room)}"></span>${esc(room.name)}</span>${floorPlanRoomJumpButtonHtml(room)}</span>` : '<span style="color:var(--text-muted)">–</span>'}</td>
       <td>${table ? esc(table.name) : "–"}</td>
       <td>${g.seats}</td>
     </tr>`;
@@ -280,7 +286,7 @@ function rasterHtml() {
   const cols = S.rasterAxis === "slots" ? visibleRooms : visibleSlots;
   const headHtml = cols.map(c => {
     const room = S.rasterAxis === "slots" ? c : null;
-    return `<th scope="col"><span class="matrix-label">${room ? `<span class="room-swatch${roomMarkerClass(room)}" aria-hidden="true" style="--room-accent:${roomAccentVar(room)}"></span>` : ""}<span class="matrix-label-text">${esc(room ? room.name : c.label)}</span></span></th>`;
+    return `<th scope="col"><span class="matrix-label"${room ? ` style="--room-accent:${roomAccentVar(room)}"` : ""}>${room ? `<span class="room-swatch${roomMarkerClass(room)}" aria-hidden="true" style="--room-accent:${roomAccentVar(room)}"></span>` : ""}<span class="matrix-label-text">${esc(room ? room.name : c.label)}</span>${room ? floorPlanRoomJumpButtonHtml(room) : ""}</span></th>`;
   }).join("");
   const bodyHtml = rows.map(r => {
     const rowLabel = S.rasterAxis === "slots" ? r.label : r.name;
@@ -294,7 +300,7 @@ function rasterHtml() {
       return `<td class="grid-cell ${fillClass}${!gamesHere.length ? " empty" : ""}"${gamesHere.length ? "" : ` aria-label="${esc(tr("noGames"))}"`}>${inner}</td>`;
     }).join("");
     return `<tr>
-      <th scope="row"><span class="matrix-label">${rowRoom ? `<span class="room-swatch${roomMarkerClass(rowRoom)}" aria-hidden="true" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}<span class="matrix-label-text">${esc(rowLabel)}</span></span></th>
+      <th scope="row"><span class="matrix-label"${rowRoom ? ` style="--room-accent:${roomAccentVar(rowRoom)}"` : ""}>${rowRoom ? `<span class="room-swatch${roomMarkerClass(rowRoom)}" aria-hidden="true" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}<span class="matrix-label-text">${esc(rowLabel)}</span>${rowRoom ? floorPlanRoomJumpButtonHtml(rowRoom) : ""}</span></th>
       <td class="matrix-divider">${rowRoom ? `<span class="matrix-divider-bar${roomMarkerClass(rowRoom)}" aria-hidden="true" style="--room-accent:${roomAccentVar(rowRoom)}"></span>` : ""}</td>
       ${cellsHtml}
     </tr>`;
@@ -345,7 +351,7 @@ function raeumeReadHtml() {
     return g.slotKey === S.activeSlot && matchesPublicFilters(g) && table?.room_id === room.id;
   }));
   const boardHtml = visibleRooms.map(room => {
-    const floorPlanFloor = floorPlanInteractiveEnabled() && S.floorPlanPublic?.document ? floorPlanFloorForRoom(S.floorPlanPublic.document, room.id) : null;
+    const floorPlanJump = floorPlanRoomJumpButtonHtml(room);
     const tables = S.tables.filter(t => t.room_id === room.id).filter(t => !S.personalFilterActive || S.games.some(g => {
       const assignment = asgFor(g);
       return g.slotKey === S.activeSlot && matchesPublicFilters(g) && assignment?.table_id === t.id;
@@ -355,8 +361,8 @@ function raeumeReadHtml() {
       return `<div class="tablebox"><div class="thead"><b>${esc(t.name)}</b><span class="seats">${esc(tr("seatsCountLabel", { n: t.seats }))}</span></div>${games.map(g => chipHtml(g, { crew: false, inRoom: true })).join("") || `<div class="free room-public-free detail-${S.detailLevel}">${esc(tr("freeLabel"))}</div>`}</div>`;
     }).join("");
     return `<div id="room-${esc(room.id)}" class="room${tables.length >= 4 ? " wide" : ""}" data-room-id="${esc(room.id)}" style="--room-accent:${roomAccentVar(room)}"${room.sort > 0 ? ` data-order="${room.sort}"` : ""}>
-      <div class="room-head"><span class="room-swatch${roomMarkerClass(room)}" aria-hidden="true" style="--room-accent:${roomAccentVar(room)}"></span><h3>${floorPlanFloor ? `<button type="button" class="link-btn floor-plan-room-link" data-floor-plan-room-link="${esc(room.id)}" title="${esc(tr("floorPlanShowRoomOnMap", { name: room.name }))}">${esc(room.name)} <span aria-hidden="true">⌖</span></button>` : esc(room.name)}</h3>${roomNameMarkerHtml(room)}</div>
-      ${room.floor ? `<p class="room-location"><span aria-hidden="true">⌖</span> ${esc(room.floor)}</p>` : ""}
+      <div class="room-head"><span class="room-swatch${roomMarkerClass(room)}" aria-hidden="true" style="--room-accent:${roomAccentVar(room)}"></span><h3>${esc(room.name)}</h3>${floorPlanJump}${roomNameMarkerHtml(room)}</div>
+      ${room.floor ? `<p class="room-location">${esc(room.floor)}</p>` : ""}
       <div class="room-badges">${roomBadgesHtml(room)}</div>
       ${tablesHtml || `<p class="hint">${esc(tr("noTablesYet"))}</p>`}
     </div>`;
