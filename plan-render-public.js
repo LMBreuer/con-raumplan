@@ -148,11 +148,12 @@ function renderNav() {
   const detailDivider = document.getElementById("detailDivider");
   const isTableView = S.view === "tabelle";
   const isFloorPlanView = S.view === "lageplan";
+  document.querySelector(".public-toolbar").classList.toggle("is-compact", isTableView || isFloorPlanView);
   const personalGroup = document.getElementById("personalGroup");
   const personalDivider = document.getElementById("personalDivider");
   const hasPlayablEvent = !!S.con?.playabl_event_id;
   personalGroup.hidden = !hasPlayablEvent;
-  personalDivider.hidden = !hasPlayablEvent;
+  personalDivider.hidden = !hasPlayablEvent || isFloorPlanView;
   document.querySelector(".public-toolbar .toolbar-search-group").hidden = isFloorPlanView;
   if (hasPlayablEvent) {
     const personalToggle = document.getElementById("myGamesFilter");
@@ -199,6 +200,7 @@ function renderNav() {
   printBtn.innerHTML = `<span class="toolbar-action-icon" aria-hidden="true">⎙</span> ${esc(tr("printAction"))}`;
   printBtn.title = tr("printCurrentView");
   printBtn.setAttribute("aria-label", tr("printCurrentView"));
+  printBtn.hidden = isFloorPlanView;
   const floorPlanAction = document.getElementById("floorPlanAction");
   const floorPlanSources = floorPlanPublicSources().filter(source => !isFloorPlanView || source.key !== "interactive");
   floorPlanAction.hidden = !floorPlanSources.length;

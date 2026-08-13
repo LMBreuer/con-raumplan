@@ -353,98 +353,159 @@ async function downloadFloorPlanPdf(documentValue, button) {
 }
 
 function floorPlanPersonalPdfTime(entry) {
-  return [entry.game.slotLabel, entry.game.time].filter(Boolean).join(" - ") || tr("noSlot");
+  return entry.game.time || entry.game.slotLabel || tr("noSlot");
 }
 
 function floorPlanPersonalPdfPlace(entry) {
   if (!entry.room) return tr("floorPlanPersonalUnassigned");
-  return [entry.room.name, entry.table?.name, entry.floor?.name || tr("floorPlanPersonalNotOnMap")].filter(Boolean).join(" - ");
+  return [entry.room.name, entry.table?.name, entry.floor?.name || tr("floorPlanPersonalNotOnMap")].filter(Boolean).join(" · ");
 }
 
-function floorPlanDrawPersonalScheduleHeader(pdf, documentValue, { continuation = false } = {}) {
+function floorPlanPersonalPdfDay(entry) {
+  const start = Date.parse(entry.game.start);
+  if (Number.isFinite(start)) {
+    return new Intl.DateTimeFormat(LANG === "en" ? "en-GB" : "de-AT", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(new Date(start));
+  }
+  return entry.game.slotLabel?.split(/\s+(?=Vor|Nach|Morning|After|Evening)/i)[0] || tr("noSlot");
+}
+
+function floorPlanPersonalPdfGroups(entries) {
+  return entries.reduce((groups, entry) => {
+    const label = floorPlanPersonalPdfDay(entry);
+    const previous = groups.at(-1);
+    if (previous?.label === label) previous.entries.push(entry);
+    else groups.push({ label, entries: [entry] });
+    return groups;
+  }, []);
+}
+
+function floorPlanPersonalPdfCount(key, count) {
+  return tr(`${key}${count === 1 ? "One" : "Many"}`, { n: count });
+}
+
+function floorPlanPersonalPdfPlayers(entry) {
+  const count = Math.max(0, Number(entry.game.seats || 1) - 1);
+  return floorPlanPersonalPdfCount("floorPlanPersonalPdfPlayers", count);
+}
+
+function floorPlanDrawPersonalScheduleHeader(pdf, documentValue, entries, { continuation = false } = {}) {
   const pageWidth = pdf.internal.pageSize.getWidth();
-  const margin = 11;
-  const title = [documentValue.title || S.con?.name || tr("floorPlan"), S.personalProfile?.username].filter(Boolean).join(" - ");
-  pdf.setTextColor(29, 36, 51);
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(17);
-  pdf.text(continuation ? `${title} - ${tr("floorPlanPersonalPdfContinued")}` : title, margin, 16.5);
-  pdf.setDrawColor(207, 211, 220);
-  pdf.setLineWidth(.3);
-  pdf.line(margin, 23.5, pageWidth - margin, 23.5);
-  return 29;
-}
-
-function floorPlanDrawPersonalScheduleTableHeader(pdf, y, columns) {
-  const { x, numberWidth, timeWidth, gameWidth, placeWidth } = columns;
-  const height = 7;
+  const margin = 14;
+  const conTitle = S.con?.name || documentValue.title || tr("floorPlan");
+  const profileName = S.personalProfile?.username || "";
+  pdf.setFillColor(35, 79, 99);
+  pdf.rect(margin, 12, 3, 22, "F");
   pdf.setTextColor(108, 116, 132);
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(6.4);
-  const baseline = y + 4.4;
-  pdf.text(tr("floorPlanPersonalPdfNumber").toUpperCase(), x, baseline);
-  pdf.text(tr("floorPlanPersonalPdfTime").toUpperCase(), x + numberWidth + 1.5, baseline);
-  pdf.text(tr("floorPlanPersonalPdfGame").toUpperCase(), x + numberWidth + timeWidth + 1.5, baseline);
-  pdf.text(tr("floorPlanPersonalPdfPlace").toUpperCase(), x + numberWidth + timeWidth + gameWidth + 1.5, baseline);
-  pdf.setDrawColor(207, 211, 220);
+  pdf.setFontSize(7);
+  pdf.text(conTitle.toUpperCase(), margin + 7, 15.2);
+  pdf.setTextColor(29, 36, 51);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(22);
+  pdf.text(tr("floorPlan"), margin + 7, 25);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9.5);
+  pdf.setTextColor(59, 67, 83);
+  pdf.text(profileName, margin + 7, 32.5);
+  const countLabel = floorPlanPersonalPdfCount("floorPlanPersonalPdfGameCount", entries.length);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(7);
+  pdf.setTextColor(35, 79, 99);
+  pdf.text(continuation ? `${countLabel} · ${tr("floorPlanPersonalPdfContinued")}` : countLabel, pageWidth - margin, 15.2, { align: "right" });
+  pdf.setDrawColor(226, 229, 235);
   pdf.setLineWidth(.25);
-  pdf.line(x, y + height, x + numberWidth + timeWidth + gameWidth + placeWidth, y + height);
-  return y + height + 1;
+  pdf.line(margin, 40, pageWidth - margin, 40);
+  return 47;
 }
 
 function floorPlanDrawPersonalSchedule(pdf, documentValue, entries, pdfFormat) {
-  const margin = 11;
+  const margin = 14;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const tableWidth = pageWidth - margin * 2;
-  const columns = {
-    x: margin,
-    numberWidth: Math.max(9, tableWidth * .06),
-    timeWidth: tableWidth * .22,
-    gameWidth: tableWidth * .38,
-    placeWidth: 0,
-  };
-  columns.placeWidth = tableWidth - columns.numberWidth - columns.timeWidth - columns.gameWidth;
-  let y = floorPlanDrawPersonalScheduleHeader(pdf, documentValue);
-  y = floorPlanDrawPersonalScheduleTableHeader(pdf, y, columns);
-  entries.forEach((entry, index) => {
-    const cellPadding = 1.5;
-    const lineHeight = 3.8;
-    const timeLines = pdf.splitTextToSize(floorPlanPersonalPdfTime(entry), columns.timeWidth - cellPadding * 2);
-    const titleLines = pdf.splitTextToSize(entry.game.title, columns.gameWidth - cellPadding * 2);
-    const placeLines = pdf.splitTextToSize(floorPlanPersonalPdfPlace(entry), columns.placeWidth - cellPadding * 2);
-    const role = tr(`floorPlanPersonalRole_${entry.state}`);
-    const gameLines = [...titleLines, role];
-    const rowHeight = Math.max(12, Math.max(timeLines.length, gameLines.length, placeLines.length) * lineHeight + cellPadding * 2.5);
-    if (y + rowHeight > pageHeight - 12) {
-      pdf.addPage(pdfFormat, documentValue.orientation);
-      y = floorPlanDrawPersonalScheduleHeader(pdf, documentValue, { continuation: true });
-      y = floorPlanDrawPersonalScheduleTableHeader(pdf, y, columns);
-    }
-    const baseline = y + cellPadding + 3;
-    pdf.setTextColor(142, 45, 53);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(7.3);
-    pdf.text(String(entry.number).padStart(2, "0"), columns.x, baseline);
-    pdf.setTextColor(59, 67, 83);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(7.4);
-    pdf.text(timeLines, columns.x + columns.numberWidth + cellPadding, baseline, { lineHeightFactor: 1.35 });
-    pdf.setTextColor(29, 36, 51);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(8.1);
-    pdf.text(titleLines, columns.x + columns.numberWidth + columns.timeWidth + cellPadding, baseline, { lineHeightFactor: 1.25 });
-    pdf.setTextColor(142, 45, 53);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(6.1);
-    pdf.text(role, columns.x + columns.numberWidth + columns.timeWidth + cellPadding, baseline + titleLines.length * lineHeight, { lineHeightFactor: 1.2 });
-    pdf.setTextColor(59, 67, 83);
-    pdf.setFontSize(7.4);
-    pdf.text(placeLines, columns.x + columns.numberWidth + columns.timeWidth + columns.gameWidth + cellPadding, baseline, { lineHeightFactor: 1.35 });
-    pdf.setDrawColor(226, 229, 235);
-    pdf.setLineWidth(.2);
-    pdf.line(columns.x, y + rowHeight, columns.x + tableWidth, y + rowHeight);
-    y += rowHeight;
+  const contentWidth = pageWidth - margin * 2;
+  const cardGap = 4;
+  const cardWidth = (contentWidth - cardGap) / 2;
+  const pageBottom = pageHeight - 15;
+  const continuationPages = [];
+  let y = floorPlanDrawPersonalScheduleHeader(pdf, documentValue, entries);
+  floorPlanPersonalPdfGroups(entries).forEach(group => {
+    const cards = group.entries.map(entry => {
+      const titleLines = pdf.splitTextToSize(entry.game.title, cardWidth - 10);
+      const provider = `${tr("floorPlanPersonalPdfGameMaster")}: ${entry.game.provider || "-"}`;
+      const providerLines = pdf.splitTextToSize(provider, cardWidth - 10);
+      const placeLines = pdf.splitTextToSize(floorPlanPersonalPdfPlace(entry), cardWidth - 10);
+      const height = Math.max(33, 15 + titleLines.length * 4.1 + providerLines.length * 3.3 + placeLines.length * 3.5);
+      return { entry, titleLines, providerLines, placeLines, height };
+    });
+    const rows = [];
+    for (let index = 0; index < cards.length; index += 2) rows.push(cards.slice(index, index + 2));
+    let dayHeaderNeeded = true;
+    rows.forEach(row => {
+      const rowHeight = Math.max(...row.map(card => card.height));
+      const requiredHeight = rowHeight + (dayHeaderNeeded ? 11 : 0);
+      if (y + requiredHeight > pageBottom) {
+        pdf.addPage(pdfFormat, documentValue.orientation);
+        continuationPages.push(pdf.getNumberOfPages());
+        y = floorPlanDrawPersonalScheduleHeader(pdf, documentValue, entries, { continuation: true });
+        dayHeaderNeeded = true;
+      }
+      if (dayHeaderNeeded) {
+        pdf.setTextColor(29, 36, 51);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(10.5);
+        pdf.text(group.label, margin, y + 5.5);
+        pdf.setTextColor(108, 116, 132);
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(6.8);
+        pdf.text(floorPlanPersonalPdfCount("floorPlanPersonalPdfDayGames", group.entries.length), pageWidth - margin, y + 5.5, { align: "right" });
+        y += 8;
+        dayHeaderNeeded = false;
+      }
+      row.forEach((card, columnIndex) => {
+        const { entry, titleLines, providerLines, placeLines } = card;
+        const x = margin + columnIndex * (cardWidth + cardGap);
+        pdf.setFillColor(248, 250, 252);
+        pdf.setDrawColor(221, 226, 233);
+        pdf.setLineWidth(.3);
+        pdf.roundedRect(x, y, cardWidth, rowHeight, 2.4, 2.4, "FD");
+        pdf.setTextColor(35, 79, 99);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(8.4);
+        pdf.text(String(entry.number).padStart(2, "0"), x + 5, y + 6.2);
+        pdf.setTextColor(102, 113, 132);
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(7.1);
+        pdf.text(floorPlanPersonalPdfTime(entry), x + cardWidth - 5, y + 6.2, { align: "right" });
+        pdf.setTextColor(29, 36, 51);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(9.2);
+        pdf.text(titleLines, x + 5, y + 12.5, { lineHeightFactor: 1.2 });
+        let metaY = y + 13 + titleLines.length * 4.1;
+        pdf.setTextColor(85, 96, 114);
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(7.1);
+        pdf.text(providerLines, x + 5, metaY, { lineHeightFactor: 1.25 });
+        metaY += providerLines.length * 3.3 + .8;
+        pdf.text(`${floorPlanPersonalPdfPlayers(entry)} · ${tr(`floorPlanPersonalRole_${entry.state}`)}`, x + 5, metaY);
+        pdf.setDrawColor(226, 230, 236);
+        pdf.setLineWidth(.2);
+        pdf.line(x + 5, y + rowHeight - 10.5, x + cardWidth - 5, y + rowHeight - 10.5);
+        pdf.setTextColor(35, 79, 99);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(7.2);
+        pdf.text(placeLines, x + 5, y + rowHeight - 6.2, { lineHeightFactor: 1.25 });
+      });
+      y += rowHeight + 3;
+    });
+    y += 2;
+  });
+  continuationPages.forEach(pageNumber => {
+    pdf.setPage(pageNumber);
+    floorPlanDrawPersonalScheduleHeader(pdf, documentValue, entries, { continuation: true });
   });
 }
 
@@ -464,21 +525,24 @@ async function createPersonalFloorPlanPdf(documentValue) {
     pdf.addPage(pdfFormat, document.orientation);
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 11;
+    const margin = 14;
     const viewport = floorPlanSvgViewport(floor);
-    const image = await floorPlanSvgToPng(document, floor, 3, { personalRoomNumbers: roomNumbers });
-    pdf.setTextColor(29, 36, 51);
+    const image = await floorPlanSvgToPng(document, floor, 3, { personalRoomNumbers: roomNumbers, dimIrrelevantRooms: true });
+    pdf.setTextColor(108, 116, 132);
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(12);
-    pdf.text(document.title || S.con?.name || tr("floorPlan"), margin, 14.5);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
-    pdf.text(floor.name, pageWidth - margin, 14.5, { align: "right" });
-    pdf.setDrawColor(220, 224, 232);
-    pdf.setLineWidth(.35);
-    pdf.line(margin, 19, pageWidth - margin, 19);
-    const mapTop = 22;
-    const mapBottom = pageHeight - 11;
+    pdf.setFontSize(6.8);
+    pdf.text((S.con?.name || document.title || tr("floorPlan")).toUpperCase(), margin, 10.5);
+    pdf.setTextColor(29, 36, 51);
+    pdf.setFontSize(15);
+    pdf.text(floor.name, margin, 19);
+    pdf.setTextColor(35, 79, 99);
+    pdf.setFontSize(7);
+    pdf.text(floorPlanPersonalPdfCount("floorPlanPersonalPdfGameCount", entries.filter(entry => entry.floor?.id === floor.id).length), pageWidth - margin, 10.5, { align: "right" });
+    pdf.setDrawColor(226, 229, 235);
+    pdf.setLineWidth(.25);
+    pdf.line(margin, 24, pageWidth - margin, 24);
+    const mapTop = 28;
+    const mapBottom = pageHeight - 14;
     const availableWidth = pageWidth - margin * 2;
     const availableHeight = mapBottom - mapTop;
     const scale = Math.min(availableWidth / viewport.width, availableHeight / viewport.height);
@@ -489,10 +553,16 @@ async function createPersonalFloorPlanPdf(documentValue) {
   const totalPages = pdf.getNumberOfPages();
   for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
     pdf.setPage(pageNumber);
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    pdf.setDrawColor(232, 234, 239);
+    pdf.setLineWidth(.2);
+    pdf.line(14, pageHeight - 9, pageWidth - 14, pageHeight - 9);
     pdf.setTextColor(120, 127, 141);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(6.5);
-    pdf.text(`${pageNumber} / ${totalPages}`, pdf.internal.pageSize.getWidth() - 11, pdf.internal.pageSize.getHeight() - 4, { align: "right" });
+    pdf.text(S.personalProfile?.username || "", 14, pageHeight - 4.5);
+    pdf.text(`${pageNumber} / ${totalPages}`, pageWidth - 14, pageHeight - 4.5, { align: "right" });
   }
   return pdf;
 }

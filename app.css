@@ -115,8 +115,8 @@ button.danger { color: var(--warn); border-color: var(--warn); background: trans
   border-bottom: var(--border-w) solid var(--border);
   margin: calc(var(--sp-6) * -1) calc(var(--sp-4) * -1) var(--sp-5); padding: var(--sp-3) var(--sp-4);
 }
-.header-inner { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--sp-4); }
-.brand { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-md); letter-spacing: .01em; color: var(--text-primary); text-decoration: none; justify-self: start; }
+.header-inner { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; align-items: center; gap: var(--sp-4); }
+.brand { display: inline-flex; font-family: var(--font-display); font-weight: 800; font-size: var(--fs-md); letter-spacing: .01em; color: var(--text-primary); text-decoration: none; white-space: nowrap; justify-self: start; }
 .page-tabs { justify-self: center; }
 .header-right { display: flex; gap: var(--sp-3); align-items: center; flex-shrink: 0; justify-self: end; }
 .nav-groups { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: center; margin: var(--sp-3) 0; }
@@ -930,8 +930,7 @@ summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 700; padding: v
   #board { grid-template-columns: 1fr; }
   .controls { padding: var(--sp-2); }
   body { padding: var(--sp-4) var(--sp-2) var(--sp-6); }
-  /* Header-Grid (1fr auto 1fr) überläuft auf sehr schmalen Viewports —
-     stapelt sich stattdessen: Marke+Seiten-Tabs oben, Controls darunter. */
+  /* Die vollständige Header-Umschaltung wird im gemeinsamen Breakpoint geregelt. */
   .header-inner { grid-template-columns: 1fr; justify-items: start; gap: var(--sp-2); }
   .header-inner .brand, .header-inner .page-tabs { justify-self: start; }
   .header-right { justify-self: start; flex-wrap: wrap; }
@@ -1483,9 +1482,10 @@ dialog {
   line-height: normal;
 }
 .plan-page .public-toolbar .toolbar-action-icon { font-size: 1.05rem; }
-.plan-page .floor-plan-public-action { position: relative; display: inline-flex; }
+.plan-page .floor-plan-public-action { position: relative; display: inline-flex; align-items: center; }
 .plan-page .floor-plan-public-action[hidden] { display: none; }
-.plan-page .floor-plan-public-menu > summary { list-style: none; cursor: pointer; }
+.plan-page .floor-plan-public-menu { display: inline-flex; align-items: center; margin-top: 0; }
+.plan-page .floor-plan-public-menu > summary { display: inline-flex; align-items: center; list-style: none; cursor: pointer; }
 .plan-page .floor-plan-public-menu > summary::-webkit-details-marker { display: none; }
 .plan-page .floor-plan-public-menu > div { position: absolute; z-index: 25; top: calc(100% + 7px); right: 0; display: grid; min-width: 150px; padding: 6px; border: var(--card-border); border-radius: var(--r-md); background: var(--surface-1); box-shadow: var(--shadow-float); }
 .plan-page .floor-plan-public-menu a { padding: 9px 10px; border-radius: var(--r-sm); color: var(--text-primary); font-size: .78rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
@@ -2094,12 +2094,16 @@ dialog {
 .plan-page #crewContent .crew-filter-group .min-seats-stepper { min-height: 40px; box-sizing: border-box; padding: 4px 7px; }
 .plan-page #crewContent .crew-filter-group .filter-tag-select { box-sizing: border-box; width: auto; max-width: min(240px, 100%); min-height: 40px; text-overflow: ellipsis; }
 
-@media (max-width: 1120px) {
+@media (max-width: 1380px) {
   .plan-page .public-toolbar { grid-template-columns: 1fr; }
   .plan-page .public-toolbar-actions { justify-content: flex-end; }
 }
 
-@media (max-width: 900px) {
+@media (min-width: 1121px) and (max-width: 1380px) {
+  .plan-page .public-toolbar.is-compact { grid-template-columns: minmax(0, 1fr) auto; }
+}
+
+@media (max-width: 1120px) {
   .plan-page .public-toolbar-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .plan-page .public-toolbar-controls > .toolbar-divider { display: none; }
   .plan-page .toolbar-search-group { grid-column: 1 / -1; min-width: 0; }
@@ -2986,28 +2990,38 @@ button.floor-plan-personal-game:hover, button.floor-plan-personal-game:focus-vis
 #authDlg .hint { line-height: 1.45; margin-bottom: 16px; }
 #authDlg input { min-height: 42px; }
 
+@media (max-width: 1320px) {
+  .header-inner {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(3, auto);
+    align-items: center;
+    justify-items: start;
+    gap: 10px;
+  }
+  .header-inner .brand {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
+  .header-inner .page-tabs {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+  }
+  .header-inner .header-right {
+    display: flex;
+    grid-column: 1;
+    grid-row: 3;
+    width: 100%;
+    justify-self: stretch;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
 @media (max-width: 760px) {
   body { padding: 24px 14px 48px; }
   .app-header { margin: -24px -14px 22px; padding: 12px 14px; }
-  .header-inner {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px 12px;
-  }
-  .header-inner .brand { grid-column: 1; grid-row: 1; align-self: center; }
-  .header-inner .page-tabs { grid-column: 1 / -1; grid-row: 2; }
-  .header-inner .header-right { display: contents; }
-  .header-inner .header-right #authBtn { grid-column: 2; grid-row: 1; }
-  .header-inner .header-right .controls-group {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    justify-self: start;
-  }
-  .header-inner .header-right .contrast-aid-slot {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    justify-self: start;
-  }
-  .header-inner .header-right .contrast-aid-slot:not([hidden]) ~ .controls-group { grid-row: 4; }
   .con-directory-head { flex-direction: column; }
   .landing-page .cons-toolbar { width: 100%; flex: 0 0 auto; flex-wrap: wrap; }
   .landing-page .cons-toolbar input[type="search"],

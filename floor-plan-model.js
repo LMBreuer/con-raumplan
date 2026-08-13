@@ -446,12 +446,12 @@ function floorPlanRotation(object) {
 
 function floorPlanRoomPersonalSvg(object, layout, numbers) {
   if (!numbers?.length) return "";
-  const numberText = numbers.join(",");
+  const numberText = numbers.map(number => String(number).padStart(2, "0")).join(" · ");
   const inset = Math.min(6, object.width * .08, object.height * .08);
   const outline = object.shape === "ellipse"
     ? `<ellipse class="floor-plan-personal-outline" cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" rx="${Math.max(1, object.width / 2 - inset)}" ry="${Math.max(1, object.height / 2 - inset)}" />`
     : `<rect class="floor-plan-personal-outline" x="${object.x + inset}" y="${object.y + inset}" width="${Math.max(1, object.width - inset * 2)}" height="${Math.max(1, object.height - inset * 2)}" rx="${Math.max(0, Math.min(object.cornerRadius ?? 0, object.width / 2, object.height / 2) - inset / 2)}" />`;
-  const numberFontSize = Math.max(12, Math.min(17, object.height * .14));
+  const numberFontSize = Math.max(11, Math.min(15, object.height * .13));
   const numberWidth = Math.max(numberFontSize, numberText.length * numberFontSize * .58);
   const longestLabel = layout.lines.reduce((longest, line) => line.length > longest.length ? line : longest, "");
   const labelWidth = longestLabel.length * layout.labelFontSize * .55;
@@ -469,7 +469,7 @@ function floorPlanRoomPersonalSvg(object, layout, numbers) {
   </g>`;
 }
 
-function floorPlanRoomSvg(object, { interactive = false, personalRoomNumbers = null } = {}) {
+function floorPlanRoomSvg(object, { interactive = false, personalRoomNumbers = null, dimIrrelevantRooms = false } = {}) {
   const room = floorPlanRoom(object.roomId);
   const label = object.labelOverride || room?.name || object.fallbackLabel || tr("floorPlanUnlinkedRoom");
   const color = floorPlanObjectRoomColor(object, room);
@@ -490,7 +490,7 @@ function floorPlanRoomSvg(object, { interactive = false, personalRoomNumbers = n
     ? `<ellipse class="floor-plan-room-shape" cx="${object.x + object.width / 2}" cy="${object.y + object.height / 2}" rx="${object.width / 2}" ry="${object.height / 2}" />`
     : `<rect class="floor-plan-room-shape" x="${object.x}" y="${object.y}" width="${object.width}" height="${object.height}" rx="${cornerRadius}" />`;
   const personalNumbers = room ? personalRoomNumbers?.get(room.id) || [] : [];
-  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}${object.outlineVisible === false ? " is-outline-hidden" : ""}${object.foregroundColor ? " has-custom-foreground" : ""}${personalNumbers.length ? " has-personal-reference" : ""}"${attrs}${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} style="--floor-plan-room-color:${color};--floor-plan-room-foreground:${foreground};--floor-plan-room-fill-opacity:${floorPlanNumber(object.fillOpacity, .15, 0, 1)}">
+  return `<g class="floor-plan-map-room${room ? " is-linked" : isCustom ? " is-custom" : " is-orphan"}${object.outlineVisible === false ? " is-outline-hidden" : ""}${object.foregroundColor ? " has-custom-foreground" : ""}${personalNumbers.length ? " has-personal-reference" : ""}${dimIrrelevantRooms && !personalNumbers.length ? " is-personal-muted" : ""}"${attrs}${floorPlanRotation(object)}${floorPlanOpacityAttribute(object)} style="--floor-plan-room-color:${color};--floor-plan-room-foreground:${foreground};--floor-plan-room-fill-opacity:${floorPlanNumber(object.fillOpacity, .15, 0, 1)}">
     ${shape}
     ${labelVisible ? `<text class="floor-plan-map-label" x="${object.x + object.width / 2}" y="${textStart}" text-anchor="middle" dominant-baseline="middle" style="font-size:${layout.labelFontSize}px">${text}</text>` : ""}
     ${object.markerVisible === false ? "" : `<text class="floor-plan-map-marker" x="${object.x + object.width / 2}" y="${object.y + layout.markerCenterY}" text-anchor="middle" dominant-baseline="central" style="font-size:${layout.markerSize * markerScale}px">${esc(glyph)}</text>`}
@@ -537,7 +537,7 @@ function floorPlanObjectSvg(object, options) {
   </g>`;
 }
 
-function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id = "", personalRoomNumbers = null } = {}) {
+function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id = "", personalRoomNumbers = null, dimIrrelevantRooms = false } = {}) {
   const document = normalizeFloorPlanDocument(documentValue);
   const floor = document.floors.find(item => item.id === floorValue?.id) || document.floors[0];
   const title = `${document.title || S.con?.name || tr("floorPlan")} · ${floor.name}`;
@@ -551,10 +551,11 @@ function floorPlanSvgHtml(documentValue, floorValue, { interactive = false, id =
       .floor-plan-map-location{fill:var(--floor-plan-room-foreground);font:500 13px Arial,sans-serif}.floor-plan-map-text text{fill:#172033;font:600 28px Arial,sans-serif}
       .floor-plan-map-symbol circle{fill:var(--floor-plan-symbol-bg,#fff);stroke:var(--floor-plan-symbol-border,#62708a);stroke-width:4}.floor-plan-map-symbol.is-outline-hidden circle{stroke:none}.floor-plan-map-symbol>text{fill:var(--floor-plan-symbol-text,#27344d);font-family:Arial,sans-serif;font-weight:700}.floor-plan-map-symbol-label{fill:var(--floor-plan-symbol-label,#596579)!important;font-family:Arial,sans-serif!important;font-weight:600!important}
       .floor-plan-map-room.is-orphan .floor-plan-room-shape{stroke:#b45309;stroke-dasharray:10 7;fill:#fef3c7}.floor-plan-map-room.is-outline-hidden .floor-plan-room-shape{stroke:none;stroke-dasharray:none}
-      .floor-plan-personal-outline{fill:none;stroke:#8e2d35;stroke-width:4;stroke-opacity:.72;vector-effect:non-scaling-stroke}.floor-plan-personal-number{fill:#8e2d35;stroke:var(--floor-plan-page-bg,#fff);stroke-width:3px;paint-order:stroke fill;stroke-linejoin:round;font-family:Arial,sans-serif;font-weight:800}
+      .floor-plan-map-room.is-personal-muted{opacity:.68}
+      .floor-plan-personal-outline{fill:none;stroke:#8e2d35;stroke-width:3;stroke-opacity:.66;vector-effect:non-scaling-stroke}.floor-plan-personal-number{fill:#8e2d35;stroke:var(--floor-plan-page-bg,#fff);stroke-width:2.5px;paint-order:stroke fill;stroke-linejoin:round;font-family:Arial,sans-serif;font-weight:800;letter-spacing:.4px}
     </style>
     <rect class="floor-plan-map-page" x="0" y="0" width="${floor.width}" height="${floor.height}" />
-    <g class="floor-plan-map-content">${floor.objects.map(object => floorPlanObjectSvg(object, { interactive, personalRoomNumbers })).join("")}</g>
+    <g class="floor-plan-map-content">${floor.objects.map(object => floorPlanObjectSvg(object, { interactive, personalRoomNumbers, dimIrrelevantRooms })).join("")}</g>
   </svg>`;
 }
 
