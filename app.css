@@ -1482,6 +1482,7 @@ dialog {
   line-height: normal;
 }
 .plan-page .public-toolbar .toolbar-action-icon { font-size: 1.05rem; }
+.plan-page .public-toolbar .calendar-export-icon { width:18px; height:18px; flex:0 0 auto; fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; stroke-width:1.8; }
 .plan-page .floor-plan-public-action { position: relative; display: inline-flex; align-items: center; }
 .plan-page .floor-plan-public-action[hidden] { display: none; }
 .plan-page .floor-plan-public-menu { display: inline-flex; align-items: center; margin-top: 0; }

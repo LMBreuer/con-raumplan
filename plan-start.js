@@ -43,6 +43,7 @@ document.getElementById("myGamesFilter").addEventListener("click", () => {
   renderActive();
 });
 document.getElementById("personalGamesProfile").addEventListener("click", openPersonalGamesDialog);
+document.getElementById("calendarDownloadBtn").addEventListener("click", downloadPersonalCalendar);
 document.getElementById("personalGamesCancel").addEventListener("click", closePersonalGamesDialog);
 document.getElementById("personalGamesReset").addEventListener("click", () => {
   localStorage.removeItem(PERSONAL_PROFILE_KEY);
@@ -214,6 +215,14 @@ function configurePlanTours() {
             target: "#personalGroup",
             titleKey: "tourPublicPersonalTitle",
             bodyKey: "tourPublicPersonalBody",
+            when: () => !!S.con?.playabl_event_id,
+            optional: true,
+          },
+          {
+            prepare: showPublic("raster"),
+            target: "#calendarDownloadBtn",
+            titleKey: "tourPublicCalendarExportTitle",
+            bodyKey: "tourPublicCalendarExportBody",
             when: () => !!S.con?.playabl_event_id,
             optional: true,
           },

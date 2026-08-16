@@ -63,6 +63,7 @@ async function loadPlayabl(eventId, buckets) {
       slotLabel: `${fmtDay.format(new Date(s.start_time)).split(",")[0]} ${part}`,
       time: `${fmtTime.format(new Date(s.start_time))}–${fmtTime.format(new Date(s.end_time))}`,
       start: s.start_time,
+      end: s.end_time,
       // Playabl-Anforderungen stehen als [[eigenschaft: <Name>]] im Freitext.
       requiredTagIds: parseRequiredTagIds((s.game_id.system || "") + " " + s.game_id.title + " " + (s.game_id.description || "")),
     };
