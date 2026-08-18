@@ -122,6 +122,7 @@ const STRINGS = {
     acceptFailed: "Annehmen fehlgeschlagen: {err}", declineFailed: "Ablehnen fehlgeschlagen: {err}",
     // index.html
     headerLabel: "Kopfzeile", heroTitle: "Wer spielt wann wo?", heroSub: "Raum- und Tischplan für Cons — live synchronisiert mit Playabl. Sieh, wo noch Platz ist, oder öffne den vollen Plan.",
+    loomspunNoticeLabel: "Hinweis zu Loomspun", loomspunPlanNoticeTitle: "Der Raumplan ist jetzt Teil von Loomspun.", loomspunPlanNoticeText: "Diese Version bleibt vorerst erreichbar; die gemeinsame Anwendung wird in Loomspun weiterentwickelt.", loomspunOpen: "In Loomspun öffnen →", loomspunUnifiedApp: "gemeinsame Anwendung",
     loadingCons: "Lade Cons …", openConDirectly: "Con direkt öffnen", openConHint: "Link oder ID einer bestehenden Con einfügen.",
     nextConEyebrow: "Nächste Con", nextConToday: "heute", nextConTomorrow: "morgen", nextConInDays: "in {n} Tagen",
     nextConBadgeText: "● läuft bald · {countdown}",
@@ -479,6 +480,7 @@ const STRINGS = {
     acceptFailed: "Accept failed: {err}", declineFailed: "Decline failed: {err}",
     // index.html
     headerLabel: "Header", heroTitle: "Who's playing what, when, where?", heroSub: "Room and table plan for cons — synced live with Playabl. See where there's still space, or open the full plan.",
+    loomspunNoticeLabel: "Loomspun notice", loomspunPlanNoticeTitle: "The room plan is now part of Loomspun.", loomspunPlanNoticeText: "This version remains available for now; development continues in the unified Loomspun application.", loomspunOpen: "Open in Loomspun →", loomspunUnifiedApp: "unified application",
     loadingCons: "Loading cons …", openConDirectly: "Open a con directly", openConHint: "Paste a link or ID of an existing con.",
     nextConEyebrow: "Next con", nextConToday: "today", nextConTomorrow: "tomorrow", nextConInDays: "in {n} days",
     nextConBadgeText: "● coming up · {countdown}",

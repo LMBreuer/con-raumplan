@@ -900,6 +900,17 @@ dialog .msg.err { color: var(--warn); }
 .foot li { margin-bottom: 4px; margin-left: var(--sp-4); }
 .credits { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); font-size: var(--fs-xs); color: var(--text-muted); margin-top: var(--sp-5); padding-top: var(--sp-3); border-top: var(--border-w) solid var(--grid); align-items: center; }
 .credits a { color: var(--text-secondary); }
+.loomspun-notice {
+  max-width: 1400px; margin: 0 auto var(--sp-5); padding: 11px 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  border: var(--border-w) solid var(--border); border-radius: var(--r-md);
+  background: var(--band); color: var(--text-secondary); font-size: var(--fs-sm);
+}
+.loomspun-notice strong { color: var(--text-primary); }
+.loomspun-notice .btn { flex: none; white-space: nowrap; }
+@media (max-width: 640px) {
+  .loomspun-notice { align-items: flex-start; flex-direction: column; }
+}
 .ai-disclosure { position: relative; order: 99; display: inline-flex; align-items: center; margin-left: auto; }
 .credits .ai-disclosure-trigger {
   min-height: 0; padding: 2px 0; border: 0; border-bottom: 1px dotted currentColor; border-radius: 0;

@@ -151,11 +151,13 @@ function updateViewBanner() {
 
 document.getElementById("credits").innerHTML = `
   <span>Con-Raumplan</span> ·
+  <a data-loomspun-path="plan.html" href="${loomspunMigrationUrl("plan.html")}">Loomspun · <span data-i18n="loomspunUnifiedApp">${esc(tr("loomspunUnifiedApp"))}</span></a> ·
   <a href="https://playabl.io" target="_blank" rel="noopener">Playabl</a> ·
   <a href="https://www.3w6-podcast.com/" target="_blank" rel="noopener">3W6-Community</a> ·
   <a href="https://lmbreuer.github.io/playabl-dashboard/" target="_blank" rel="noopener">Slot-Dashboard</a> ·
   <a href="impressum.html"><span data-i18n="imprint">${esc(tr("imprint"))}</span></a> <span id="themeCatSlot"></span>
   <span class="ai-disclosure"><a class="ai-disclosure-trigger" href="https://de.wikipedia.org/wiki/Ethik_der_k%C3%BCnstlichen_Intelligenz" target="_blank" rel="noopener noreferrer" aria-describedby="aiDisclosurePlan" data-i18n="aiDisclosureLabel">${esc(tr("aiDisclosureLabel"))}</a><span id="aiDisclosurePlan" class="ai-disclosure-tooltip" role="tooltip" data-i18n="aiDisclosureText">${esc(tr("aiDisclosureText"))}</span></span>`;
+document.getElementById("loomspunNoticeLink").href = loomspunMigrationUrl("plan.html");
 translateStaticDom();
 updateCatEasterEgg();
 

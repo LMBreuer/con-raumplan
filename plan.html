@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Jost:wght@400;500;600;700&family=Paytone+One&family=Open+Sans:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Shippori+Mincho:wght@500;700&family=Space+Grotesk:wght@600;700&family=Nunito:wght@400;600;700&family=Bangers&family=Poppins:wght@400;600;700&family=Wire+One&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme-effects.css?v=20260729-14">
-<link rel="stylesheet" href="app.css?v=20260816-2">
+<link rel="stylesheet" href="app.css?v=20260818-1">
 </head>
 <body class="plan-page">
 <a class="skip-link no-print" href="#main" data-i18n="skipToContent">Zum Inhalt springen</a>
@@ -29,6 +29,11 @@
       </div>
     </div>
   </header>
+
+  <aside class="loomspun-notice no-print" aria-label="Hinweis zu Loomspun" data-i18n-aria-label="loomspunNoticeLabel">
+    <div><strong data-i18n="loomspunPlanNoticeTitle">Der Raumplan ist jetzt Teil von Loomspun.</strong> <span data-i18n="loomspunPlanNoticeText">Diese Version bleibt vorerst erreichbar; die gemeinsame Anwendung wird in Loomspun weiterentwickelt.</span></div>
+    <a class="btn small" id="loomspunNoticeLink" data-loomspun-path="plan.html" href="https://lmbreuer.github.io/loomspun/plan.html" data-i18n="loomspunOpen">In Loomspun öffnen →</a>
+  </aside>
 
   <main id="main">
     <div class="card" id="pageTitleCard" style="margin-bottom:var(--sp-4)">
@@ -294,9 +299,9 @@
 
 <script src="punk-zine-quotes.js"></script>
 <script src="app-config.js"></script>
-<script src="utils.js"></script>
+<script src="utils.js?v=20260818-1"></script>
 <script src="themes.js?v=20260728-2"></script>
-<script src="i18n.js?v=20260816-4"></script>
+<script src="i18n.js?v=20260818-1"></script>
 <script src="supabase-api.js?v=20260808-1"></script>
 <script src="auth.js"></script>
 <script src="playabl-api.js?v=20260731-1"></script>
@@ -313,6 +318,6 @@
 <script src="plan-commands.js"></script>
 <script src="plan-interactions.js?v=20260811-4"></script>
 <script src="plan-dialogs.js"></script>
-<script src="plan-start.js?v=20260816-2"></script>
+<script src="plan-start.js?v=20260818-1"></script>
 </body>
 </html>
